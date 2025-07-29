@@ -1,0 +1,17 @@
+---
+alwaysApply: true
+---
+技术栈
+bun http
+bun websocket
+bun redis
+bun sql
+javascript
+html
+lesscss (CDN via jsDelivr)
+use Bootstrap (CDN via jsDelivr)
+lodashjs
+flatpickr
+Apache ECharts (CDN via jsDelivr)
+alpinejs (CDN via jsDelivr)
+axios  (CDN via jsDelivr)

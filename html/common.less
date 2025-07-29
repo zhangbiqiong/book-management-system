@@ -1,0 +1,329 @@
+/* 公共样式文件 - 图书管理系统 */
+
+// ========== 变量定义 ==========
+@primary-color: #667eea;
+@secondary-color: #764ba2;
+@success-color: #28a745;
+@success-secondary: #20c997;
+@warning-color: #ffc107;
+@warning-secondary: #fd7e14;
+@danger-color: #dc3545;
+@danger-secondary: #e83e8c;
+
+@white: #ffffff;
+@light-gray: #f8f9fa;
+@border-gray: #e9ecef;
+@text-gray: #6c757d;
+@shadow-black: rgba(0, 0, 0, 0.1);
+@shadow-dark: rgba(0, 0, 0, 0.15);
+@modal-overlay: rgba(0, 0, 0, 0.4);
+
+@border-radius-sm: 8px;
+@border-radius-md: 10px;
+@border-radius-lg: 15px;
+@border-radius-xl: 25px;
+
+@transition-fast: all 0.3s ease;
+@padding-sm: 0.5rem 1rem;
+@padding-md: 0.75rem 1rem;
+@padding-lg: 0.75rem 1.5rem;
+@padding-xl: 0.75rem 2rem;
+
+@mobile-breakpoint: 768px;
+
+// ========== 混合（Mixins）==========
+.gradient-bg(@color1, @color2) {
+  background: linear-gradient(45deg, @color1, @color2);
+}
+
+.modern-shadow(@offset: 4px, @blur: 15px, @color: @shadow-black) {
+  box-shadow: 0 @offset @blur @color;
+}
+
+.hover-lift(@lift: -2px, @shadow-blur: 20px) {
+  &:hover {
+    transform: translateY(@lift);
+    .modern-shadow(6px, @shadow-blur, @shadow-dark);
+  }
+}
+
+.modern-border(@radius: @border-radius-md, @border-color: @border-gray) {
+  border-radius: @radius;
+  border: 2px solid @border-color;
+  transition: @transition-fast;
+}
+
+.focus-style(@color: @primary-color) {
+  &:focus {
+    border-color: @color;
+    box-shadow: 0 0 0 0.2rem fade(@color, 25%);
+    outline: none;
+  }
+}
+
+.btn-variant(@bg-color1, @bg-color2: @bg-color1) {
+  .gradient-bg(@bg-color1, @bg-color2);
+  color: @white;
+  border: none;
+}
+
+// 响应式混合 - LESS 版本
+.mobile-styles() {
+  @media (max-width: @mobile-breakpoint) {
+    .search-section {
+      flex-direction: column;
+      gap: 1rem;
+    }
+    
+    .btn-modern {
+      padding: @padding-sm;
+      font-size: 0.9rem;
+    }
+    
+    .stats-card {
+      margin-bottom: 1rem;
+    }
+
+    .modal-modern {
+      .modal-dialog {
+        width: 95%;
+        max-width: none;
+      }
+      
+      .modal-body {
+        padding: 1.5rem;
+      }
+    }
+    
+    .form-group-horizontal {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.5rem;
+
+      .form-label {
+        min-width: auto;
+        text-align: left;
+        margin-bottom: 0.5rem;
+      }
+    }
+    
+    .form-text-horizontal {
+      margin-left: 0;
+    }
+  }
+}
+
+// ========== 基础样式 ==========
+body {
+  overflow: hidden;
+}
+
+// ========== 搜索区域 ==========
+.search-section {
+  background: fade(@white, 80%);
+  .modern-border(@border-radius-lg, fade(@white, 30%));
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.search-input {
+  .modern-border(@border-radius-xl, transparent);
+  padding: @padding-lg;
+  background: @white;
+  .modern-shadow(2px, 10px);
+  
+  .focus-style(@primary-color);
+}
+
+// ========== 现代化按钮 ==========
+.btn-modern {
+  .modern-border(@border-radius-xl, transparent);
+  padding: @padding-xl;
+  font-weight: 500;
+  .modern-shadow();
+  .hover-lift();
+
+  // 按钮变体
+  &.btn-success-modern {
+    .btn-variant(@success-color, @success-secondary);
+  }
+
+  &.btn-warning-modern {
+    .btn-variant(@warning-color, @warning-secondary);
+  }
+
+  &.btn-danger-modern {
+    .btn-variant(@danger-color, @danger-secondary);
+  }
+
+  &.btn-primary-modern {
+    .btn-variant(@primary-color, @secondary-color);
+  }
+}
+
+// ========== 分页样式 ==========
+.pagination-modern {
+  .page-link {
+    border: none;
+    background: fade(@white, 80%);
+    color: @primary-color;
+    margin: 0 2px;
+    border-radius: @border-radius-sm;
+    transition: @transition-fast;
+
+    &:hover {
+      background: @primary-color;
+      color: @white;
+      transform: translateY(-1px);
+    }
+  }
+
+  .page-item.active .page-link {
+    .gradient-bg(@primary-color, @secondary-color);
+    color: @white;
+  }
+}
+
+// ========== 统计卡片 ==========
+.stats-card {
+  .gradient-bg(@primary-color, @secondary-color);
+  color: @white;
+  border-radius: @border-radius-lg;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  text-align: center;
+
+  .stats-number {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+
+  .stats-label {
+    opacity: 0.9;
+    font-size: 0.9rem;
+  }
+}
+
+// ========== 加载动画 ==========
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+// ========== 弹框样式 ==========
+.modal-modern {
+  &[x-cloak] { 
+    display: none !important; 
+  }
+
+  position: fixed;
+  top: 0; 
+  left: 0; 
+  right: 0; 
+  bottom: 0;
+  z-index: 1050;
+  background: @modal-overlay;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .modal-dialog {
+    width: 90%;
+    max-width: 800px;
+    margin: 0;
+  }
+
+  .modal-content {
+    border-radius: @border-radius-lg;
+    border: none;
+    .modern-shadow(10px, 30px, rgba(0, 0, 0, 0.3));
+    background: @white;
+  }
+
+  .modal-header {
+    .gradient-bg(@primary-color, @secondary-color);
+    color: @white;
+    border-radius: @border-radius-lg @border-radius-lg 0 0;
+    border: none;
+    padding: 1.5rem;
+
+    .modal-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin: 0;
+    }
+  }
+
+  .modal-body {
+    padding: 2rem;
+  }
+
+  .modal-footer {
+    border-top: 1px solid fade(black, 10%);
+    padding: 1.5rem;
+    background: @light-gray;
+    border-radius: 0 0 @border-radius-lg @border-radius-lg;
+  }
+}
+
+// ========== 表单样式 ==========
+.form-group-horizontal {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+
+  .form-label {
+    min-width: 120px;
+    margin-bottom: 0;
+    font-weight: 500;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .form-control,
+  .form-select {
+    flex: 1;
+  }
+}
+
+.form-control-modern,
+.form-select-modern {
+  .modern-border();
+  padding: @padding-md;
+  font-size: 0.95rem;
+  .focus-style();
+}
+
+.form-text-horizontal {
+  margin-top: 0.25rem;
+  margin-left: 131px;
+  font-size: 0.875rem;
+  color: @text-gray;
+}
+
+// ========== 空状态 ==========
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: @text-gray;
+
+  i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+  }
+}
+
+// ========== 响应式样式 ==========
+.mobile-styles();

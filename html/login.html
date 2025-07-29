@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="assert/favicon.ico" />
+    <title>图书管理系统</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <link rel="stylesheet/less" type="text/css" href="common.less" />
+    <script src="https://cdn.jsdelivr.net/npm/less" type="text/javascript"></script>
+
+    <style>
+        .login-container {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .image-section {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            position: relative;
+        }
+
+        .image-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('assert/Gemini_Generated_Image_kes9qkes9qkes9qk.png') center/cover;
+            opacity: 0.8;
+            z-index: 1;
+        }
+
+        .image-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            color: white;
+        }
+
+        .image-content h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .image-content p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .form-section {
+            padding: 3rem 2rem;
+        }
+
+        /* 表单切换动画 */
+        .form-container {
+            position: relative;
+            min-height: 300px;
+        }
+
+        .form-container form {
+            transition: all 0.3s ease-in-out;
+        }
+
+        .form-container form.d-none {
+            opacity: 0;
+            transform: translateX(20px);
+        }
+
+        .form-container form:not(.d-none) {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .form-control {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            padding: 12px 15px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .btn {
+            border-radius: 10px;
+            padding: 12px 20px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        /* 登录进度条动画 */
+        .login-progress-bar {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #28a745, #20c997, #667eea, #764ba2);
+            width: 0%;
+            transition: width 2s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 2;
+            border-radius: 0 0 10px 10px;
+        }
+
+        .btn-primary.progressing .login-progress-bar {
+            width: 100%;
+        }
+
+        .btn-primary.progressing {
+            pointer-events: none;
+            opacity: 0.85;
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            border: none;
+        }
+
+        .btn-warning {
+            background: linear-gradient(45deg, #ffc107, #fd7e14);
+            border: none;
+            color: white;
+        }
+
+        .form-title {
+            color: #333;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .form-link:hover {
+            color: #764ba2;
+        }
+
+        /* 快捷键提示 */
+        .shortcut-hint {
+            font-size: 0.8rem;
+            color: #6c757d;
+            text-align: center;
+            margin-top: 1rem;
+            opacity: 0.7;
+        }
+
+        .shortcut-hint kbd {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 3px;
+            padding: 2px 4px;
+            font-size: 0.75rem;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .image-section {
+                min-height: 200px;
+            }
+
+            .image-content h2 {
+                font-size: 2rem;
+            }
+
+            .form-section {
+                padding: 2rem 1.5rem;
+            }
+        }
+
+        /* 动画效果 */
+        .fade-in {
+            animation: fadeIn 0.8s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .slide-in-left {
+            animation: slideInLeft 0.8s ease-out;
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* 浮动动画 */
+        .floating {
+            animation: floating 3s ease-in-out infinite;
+        }
+
+        @keyframes floating {
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        /* 按钮点击效果 */
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        /* 输入框聚焦动画 */
+        .form-control:focus {
+            animation: focusGlow 0.3s ease-out;
+        }
+
+        @keyframes focusGlow {
+            0% {
+                box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.25);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+            }
+        }
+
+        /* 加载动画 */
+        .loading {
+            position: relative;
+            pointer-events: none;
+        }
+
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 2px solid transparent;
+            border-top: 2px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 图片悬停效果 */
+        .image-section:hover::before {
+            transform: scale(1.05);
+            transition: transform 0.3s ease;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-container d-flex align-items-center justify-content-center p-3" x-data="loginApp()"
+        x-init="init()">
+        <div class="login-card w-100" style="max-width: 1000px;">
+            <div class="row g-0">
+                <!-- 左侧图片区域 -->
+                <div class="col-lg-6 image-section slide-in-left">
+                    <div class="image-content floating">
+                        <h2>欢迎回来</h2>
+                        <p>登录您的账户，开始您的精彩之旅</p>
+                    </div>
+                </div>
+
+                <!-- 右侧表单区域 -->
+                <div class="col-lg-6 form-section fade-in">
+                    <div class="container-fluid">
+                        <div class="form-container">
+                            <!-- 登录表单 -->
+                            <form x-show="currentForm === 'login'" @submit.prevent="handleLogin()" class="mb-3">
+                                <div class="mb-3">
+                                    <input type="text" x-model="loginForm.username" class="form-control"
+                                        placeholder="用户名" required autocomplete="username">
+                                </div>
+                                <div class="mb-3">
+                                    <input type="password" x-model="loginForm.password" class="form-control"
+                                        placeholder="密码" required autocomplete="current-password">
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100"
+                                    :class="{ 'progressing': loginLoading }" :disabled="loginLoading">
+                                    <span x-text="loginLoading ? '正在登录...' : '登录'"></span>
+                                    <span class="login-progress-bar"></span>
+                                </button>
+                                <div class="d-flex justify-content-between mt-3">
+                                    <a href="#" class="form-link" @click.prevent="showForm('register')">没有账号？注册</a>
+                                    <a href="#" class="form-link" @click.prevent="showForm('changePassword')">忘记密码？</a>
+                                </div>
+                            </form>
+
+                            <!-- 注册表单 -->
+                            <form x-show="currentForm === 'register'" @submit.prevent="handleRegister()" class="mb-3">
+                                <h2 class="form-title">用户注册</h2>
+                                <div class="mb-3">
+                                    <input type="text" x-model="registerForm.username" class="form-control"
+                                        placeholder="用户名" required autocomplete="username">
+                                </div>
+                                <div class="mb-3">
+                                    <input type="password" x-model="registerForm.password" class="form-control"
+                                        placeholder="密码" required autocomplete="new-password">
+                                </div>
+                                <div class="mb-3">
+                                    <input type="password" x-model="registerForm.confirmPassword" class="form-control"
+                                        placeholder="确认密码" required autocomplete="new-password">
+                                </div>
+                                <button type="submit" class="btn btn-success w-100"
+                                    :class="{ 'loading': registerLoading }" :disabled="registerLoading">
+                                    <span x-text="registerLoading ? '注册中...' : '注册'"></span>
+                                </button>
+                                <div class="text-center mt-3">
+                                    <a href="#" class="form-link" @click.prevent="showForm('login')">已有账号？登录</a>
+                                </div>
+                            </form>
+
+                            <!-- 修改密码表单 -->
+                            <form x-show="currentForm === 'changePassword'" @submit.prevent="handleChangePassword()"
+                                class="mb-3">
+                                <h2 class="form-title">修改密码</h2>
+                                <div class="mb-3">
+                                    <input type="text" x-model="changePasswordForm.username" class="form-control"
+                                        placeholder="用户名" required autocomplete="username">
+                                </div>
+                                <div class="mb-3">
+                                    <input type="password" x-model="changePasswordForm.oldPassword" class="form-control"
+                                        placeholder="旧密码" required autocomplete="current-password">
+                                </div>
+                                <div class="mb-3">
+                                    <input type="password" x-model="changePasswordForm.newPassword" class="form-control"
+                                        placeholder="新密码" required autocomplete="new-password">
+                                </div>
+                                <div class="mb-3">
+                                    <input type="password" x-model="changePasswordForm.confirmNewPassword"
+                                        class="form-control" placeholder="确认新密码" required autocomplete="new-password">
+                                </div>
+                                <button type="submit" class="btn btn-warning w-100"
+                                    :class="{ 'loading': changePasswordLoading }" :disabled="changePasswordLoading">
+                                    <span x-text="changePasswordLoading ? '修改中...' : '修改密码'"></span>
+                                </button>
+                                <div class="text-center mt-3">
+                                    <a href="#" class="form-link" @click.prevent="showForm('login')">返回登录</a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function loginApp() {
+            return {
+                // 状态管理
+                currentForm: 'login',
+                loginLoading: false,
+                registerLoading: false,
+                changePasswordLoading: false,
+
+                // 表单数据
+                loginForm: {
+                    username: '',
+                    password: ''
+                },
+                registerForm: {
+                    username: '',
+                    password: '',
+                    confirmPassword: ''
+                },
+                changePasswordForm: {
+                    username: '',
+                    oldPassword: '',
+                    newPassword: '',
+                    confirmNewPassword: ''
+                },
+
+                // 初始化
+                init() {
+                    // 自动聚焦第一个输入框
+                    this.$nextTick(() => {
+                        const firstInput = this.$el.querySelector('input');
+                        if (firstInput) {
+                            firstInput.focus();
+                        }
+                    });
+                },
+
+                // 表单切换
+                showForm(formType) {
+                    this.currentForm = formType;
+                    this.clearForms();
+                },
+
+                // 清除所有表单
+                clearForms() {
+                    this.loginForm = { username: '', password: '' };
+                    this.registerForm = { username: '', password: '', confirmPassword: '' };
+                    this.changePasswordForm = { username: '', oldPassword: '', newPassword: '', confirmNewPassword: '' };
+                },
+
+                // 显示消息提示
+                showMessage(message, type) {
+                    const alertClass = type === 'success' ? 'alert-success'
+                        : type === 'danger' ? 'alert-danger'
+                            : type === 'warning' ? 'alert-warning'
+                                : 'alert-info';
+
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+                    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+                    alertDiv.innerHTML = `
+          ${message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+                    document.body.appendChild(alertDiv);
+
+                    setTimeout(() => {
+                        if (alertDiv.parentNode) {
+                            alertDiv.parentNode.removeChild(alertDiv);
+                        }
+                    }, 5000);
+                },
+
+                // 登录处理
+                async handleLogin() {
+                    const { username, password } = this.loginForm;
+
+                    if (!username.trim() || !password) {
+                        this.showMessage('请输入用户名和密码', 'danger');
+                        return;
+                    }
+
+                    this.loginLoading = true;
+
+                    try {
+                        // 启动进度动画（2秒）
+                        const loginPromise = fetch('/api/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ username: username.trim(), password })
+                        }).then(response => response.json());
+
+                        // 等待2秒动画
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+
+                        const result = await loginPromise;
+
+                        if (result.success) {
+                            this.showMessage(result.message, 'success');
+                            setTimeout(() => {
+                                window.location.href = 'index.html';
+                            }, 1000);
+                        } else {
+                            this.showMessage(result.message || '登录失败', 'danger');
+                        }
+                    } catch (error) {
+                        this.showMessage('网络错误，请稍后重试', 'danger');
+                    } finally {
+                        this.loginLoading = false;
+                    }
+                },
+
+                // 注册处理
+                async handleRegister() {
+                    const { username, password, confirmPassword } = this.registerForm;
+
+                    if (!username.trim() || !password || !confirmPassword) {
+                        this.showMessage('请填写所有字段', 'danger');
+                        return;
+                    }
+
+                    if (password !== confirmPassword) {
+                        this.showMessage('两次输入的密码不一致', 'danger');
+                        return;
+                    }
+
+                    if (password.length < 6) {
+                        this.showMessage('密码长度至少6位', 'danger');
+                        return;
+                    }
+
+                    this.registerLoading = true;
+
+                    try {
+                        const response = await fetch('/api/register', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ username: username.trim(), password })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            this.showMessage(data.message, 'success');
+                            setTimeout(() => {
+                                this.showForm('login');
+                            }, 1500);
+                        } else {
+                            this.showMessage(data.message, 'danger');
+                        }
+                    } catch (error) {
+                        this.showMessage('网络错误，请稍后重试', 'danger');
+                    } finally {
+                        this.registerLoading = false;
+                    }
+                },
+
+                // 修改密码处理
+                async handleChangePassword() {
+                    const { username, oldPassword, newPassword, confirmNewPassword } = this.changePasswordForm;
+
+                    if (!username.trim() || !oldPassword || !newPassword || !confirmNewPassword) {
+                        this.showMessage('请填写所有字段', 'danger');
+                        return;
+                    }
+
+                    if (newPassword !== confirmNewPassword) {
+                        this.showMessage('两次输入的新密码不一致', 'danger');
+                        return;
+                    }
+
+                    if (newPassword.length < 6) {
+                        this.showMessage('新密码长度至少6位', 'danger');
+                        return;
+                    }
+
+                    if (oldPassword === newPassword) {
+                        this.showMessage('新密码不能与旧密码相同', 'danger');
+                        return;
+                    }
+
+                    this.changePasswordLoading = true;
+
+                    try {
+                        const response = await fetch('/api/change-password', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                username: username.trim(),
+                                oldPassword,
+                                newPassword
+                            })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            this.showMessage(data.message, 'success');
+                            setTimeout(() => {
+                                this.showForm('login');
+                            }, 1500);
+                        } else {
+                            this.showMessage(data.message, 'danger');
+                        }
+                    } catch (error) {
+                        this.showMessage('网络错误，请稍后重试', 'danger');
+                    } finally {
+                        this.changePasswordLoading = false;
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>

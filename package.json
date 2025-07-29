@@ -1,0 +1,18 @@
+{
+  "name": "book-management-system",
+  "version": "1.0.0",
+  "description": "图书管理系统，支持用户管理、图书管理、登录注册等功能",
+  "main": "server.js",
+  "scripts": {
+    "start": "bun run server.js",
+    "dev": "bun --watch server.js"
+  },
+  "dependencies": {
+    "bun": "latest",
+    "bun-jwt": "^1.0.1"
+  },
+  "devDependencies": {},
+  "keywords": ["book-management", "user-management", "bun", "redis"],
+  "author": "",
+  "license": "MIT"
+}

@@ -1,0 +1,8 @@
+---
+alwaysApply: true
+---
+html 当中 直接编写 css javascript
+html文件都放在目录html里面
+除了server.js 其他后台js都放在目录back-js里面
+优先使用小驼峰
+

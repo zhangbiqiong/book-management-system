@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>用户管理</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet/less" type="text/css" href="common.less" />
+  <script src="https://cdn.jsdelivr.net/npm/less" type="text/javascript"></script>
+  <script src="/common.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <style>
+    body {
+      overflow: hidden;
+    }
+    .user-content {
+      padding: 2rem;
+    }
+    .stats-card {
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      color: white;
+      border-radius: 15px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+    .stats-number {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    .stats-label {
+      opacity: 0.9;
+      font-size: 0.9rem;
+    }
+    .search-section {
+      background: rgba(255,255,255,0.8);
+      border-radius: 15px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+    .search-input {
+      border: 2px solid transparent;
+      border-radius: 25px;
+      padding: 0.75rem 1.5rem;
+      background: white;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .search-input:focus {
+      border-color: #667eea;
+      box-shadow: 0 4px 20px rgba(102,126,234,0.3);
+      outline: none;
+    }
+    .btn-modern {
+      border-radius: 25px;
+      padding: 0.75rem 2rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      border: none;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    .btn-modern:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+    .btn-success-modern {
+      background: linear-gradient(45deg, #28a745, #20c997);
+      color: white;
+    }
+    .btn-warning-modern {
+      background: linear-gradient(45deg, #ffc107, #fd7e14);
+      color: white;
+    }
+    .btn-danger-modern {
+      background: linear-gradient(45deg, #dc3545, #e83e8c);
+      color: white;
+    }
+    .table-modern {
+      background: white;
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .table-modern thead th {
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 1rem;
+      font-weight: 600;
+    }
+    .table-modern tbody td {
+      padding: 1rem;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+      vertical-align: middle;
+    }
+    .table-modern tbody tr:hover {
+      background: rgba(102,126,234,0.05);
+      transition: background 0.3s ease;
+    }
+    .pagination-modern {
+      margin-top: 2rem;
+    }
+    .pagination-modern .page-link {
+      border-radius: 25px;
+      margin: 0 0.25rem;
+      border: none;
+      color: #667eea;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    .pagination-modern .page-link:hover {
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      color: white;
+      transform: translateY(-2px);
+    }
+    .pagination-modern .page-item.active .page-link {
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      color: white;
+    }
+    .pagination-modern .page-item.disabled .page-link {
+      color: #6c757d;
+      background: #f8f9fa;
+    }
+    /* 这些样式已移至common.less */
+  </style>
+</head>
+<body>
+  <div class="user-content" x-data="userManager()" x-init="init()">
+    <!-- 统计卡片 -->
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <div class="stats-card">
+          <div class="stats-number" x-text="totalUsers"></div>
+          <div class="stats-label">总用户数</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="stats-card">
+          <div class="stats-number" x-text="searchTerm ? total : totalUsers"></div>
+          <div class="stats-label" x-text="searchTerm ? '搜索结果' : '当前页显示'"></div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="stats-card">
+          <div class="stats-number" x-text="totalPages"></div>
+          <div class="stats-label">总页数</div>
+        </div>
+      </div>
+    </div>
+    <!-- 搜索和操作区域 -->
+    <div class="search-section d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3 flex-grow-1">
+        <div class="position-relative flex-grow-1">
+          <i class="bi bi-search position-absolute" style="left: 1rem; top: 50%; transform: translateY(-50%); color: #6c757d;"></i>
+          <input type="text" class="form-control search-input ps-5" placeholder="搜索用户名或角色..." x-model="searchTerm" 
+            @compositionstart="isComposing = true"
+            @compositionend="isComposing = false"
+            @input.debounce.500ms="if(!isComposing) searchUsers()" 
+            autocomplete="off">
+        </div>
+        <button class="btn btn-success-modern btn-modern" @click="showUserModal()">
+          <i class="bi bi-plus-circle me-2"></i>
+          新增用户
+        </button>
+      </div>
+    </div>
+    <!-- 数据表格 -->
+    <div class="table-responsive">
+      <table class="table table-modern">
+        <thead>
+          <tr>
+            <th>用户名</th>
+            <th>角色</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- 加载中 -->
+          <template x-if="loading">
+            <tr>
+              <td colspan="4" class="text-center py-4">
+                <div class="loading-spinner"></div>
+                <span class="ms-2">加载中...</span>
+              </td>
+            </tr>
+          </template>
+          <!-- 空状态 -->
+          <template x-if="!loading && users.length === 0">
+            <tr>
+              <td colspan="4">
+                <div class="empty-state">
+                  <i class="bi bi-people"></i>
+                  <p class="mb-0">暂无用户数据</p>
+                </div>
+              </td>
+            </tr>
+          </template>
+          <!-- 用户数据 -->
+          <template x-for="user in users" :key="user.id">
+            <tr>
+              <td x-text="user.username"></td>
+              <td x-text="user.role === 'admin' ? '管理员' : '普通用户'"></td>
+              <td>
+                <span :class="user.status === 'enabled' ? 'text-success' : 'text-danger'" x-text="user.status === 'enabled' ? '启用' : '禁用'"></span>
+              </td>
+              <td>
+                <button class="btn btn-warning-modern btn-modern btn-sm me-2" @click="showUserModal(user.id)" :disabled="loading">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-danger-modern btn-modern btn-sm" @click="openDeleteModal(user.id)" :disabled="loading">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+    <!-- 分页导航 -->
+    <nav x-show="totalPages > 1" class="pagination-modern">
+      <ul class="pagination justify-content-center">
+        <!-- 上一页 -->
+        <li class="page-item" :class="{ 'disabled': currentPage === 1 }">
+          <a class="page-link" href="#" @click.prevent="goToPage(currentPage - 1)">
+            <i class="bi bi-chevron-left"></i>
+          </a>
+        </li>
+        <!-- 页码 -->
+        <template x-for="page in visiblePages" :key="page">
+          <li class="page-item" :class="{ 'active': page === currentPage }">
+            <a class="page-link" href="#" @click.prevent="goToPage(page)" x-text="page"></a>
+          </li>
+        </template>
+        <!-- 下一页 -->
+        <li class="page-item" :class="{ 'disabled': currentPage === totalPages }">
+          <a class="page-link" href="#" @click.prevent="goToPage(currentPage + 1)">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </li>
+      </ul>
+    </nav>
+    
+    <!-- 用户编辑/新增模态框 -->
+    <div class="modal modal-modern" x-show="showModal" x-cloak>
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" x-text="editingUser ? '编辑用户' : '新增用户'"></h5>
+          <button type="button" class="btn-close btn-close-white" @click="closeModal()"></button>
+        </div>
+        <form @submit.prevent="saveUser()">
+          <div class="modal-body">
+            <div class="form-group-horizontal">
+              <label class="form-label">用户名</label>
+              <input type="text" class="form-control form-control-modern" x-model="formData.username" :readonly="!!editingUser" required autocomplete="username">
+            </div>
+            <div class="form-group-horizontal">
+              <label class="form-label">角色</label>
+              <select class="form-select form-select-modern" x-model="formData.role" required>
+                <option value="admin">管理员</option>
+                <option value="user">普通用户</option>
+              </select>
+            </div>
+            <div class="form-group-horizontal">
+              <label class="form-label">状态</label>
+              <select class="form-select form-select-modern" x-model="formData.status" required>
+                <option value="enabled">启用</option>
+                <option value="disabled">禁用</option>
+              </select>
+            </div>
+            <div class="form-group-horizontal">
+              <label class="form-label">密码</label>
+              <div style="flex: 1;">
+                <input type="password" class="form-control form-control-modern" x-model="formData.password" :required="!editingUser" placeholder="留空则不修改密码" autocomplete="new-password">
+                <div class="form-text-horizontal">编辑用户时留空则不修改密码，新增用户时必填</div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-modern" @click="closeModal()">取消</button>
+            <button type="submit" class="btn btn-primary btn-modern" :disabled="saving">
+              <span x-show="saving" class="loading-spinner me-2"></span>
+              <span x-text="saving ? '保存中...' : '保存'"></span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    
+    <!-- 删除确认模态框 -->
+    <div class="modal modal-modern" x-show="showDeleteModal" x-cloak>
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">确认删除</h5>
+          <button type="button" class="btn-close btn-close-white" @click="closeDeleteModal()"></button>
+        </div>
+        <div class="modal-body">
+                          <p>确定要删除用户 <strong x-text="deletingUser ? deletingUser.username : ''"></strong> 吗？</p>
+          <p class="text-danger">此操作不可撤销！</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-modern" @click="closeDeleteModal()">取消</button>
+          <button type="button" class="btn btn-danger btn-modern" @click="deleteUser()" :disabled="deleting">
+            <span x-show="deleting" class="loading-spinner me-2"></span>
+            <span x-text="deleting ? '删除中...' : '确认删除'"></span>
+          </button>
+        </div>
+              </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function userManager() {
+      return {
+        // 数据
+        users: [],
+        total: 0,
+        totalUsers: 0,
+        currentPage: 1,
+        pageSize: 5,
+        searchTerm: '',
+        isComposing: false,
+        loading: false,
+        saving: false,
+        deleting: false,
+        showModal: false,
+        showDeleteModal: false,
+        editingUser: null,
+        deletingUser: null,
+        formData: {
+          name: '',
+          role: 'user',
+          status: 'enabled',
+          password: ''
+        },
+        // 计算属性
+        get totalPages() {
+          return Math.ceil(this.total / this.pageSize);
+        },
+        get visiblePages() {
+          const pages = [];
+          const start = Math.max(1, this.currentPage - 3);
+          const end = Math.min(this.totalPages, this.currentPage + 3);
+          for (let i = start; i <= end; i++) {
+            pages.push(i);
+          }
+          return pages;
+        },
+        // 生命周期
+        init() {
+          this.loadTotalUsers();
+          this.loadUsers();
+        },
+        // 加载总用户数
+        async loadTotalUsers() {
+          try {
+            const result = await this.apiCall('/api/users?pageSize=1');
+            if (result.success) {
+              this.totalUsers = result.pagination ? result.pagination.total : (result.total || 0);
+            }
+          } catch (e) {
+            console.error('加载总用户数失败:', e);
+          }
+        },
+
+        // 加载用户数据
+        async loadUsers() {
+          this.loading = true;
+          try {
+            const result = await this.apiCall(`/api/users?search=${encodeURIComponent(this.searchTerm)}&page=${this.currentPage}&pageSize=${this.pageSize}`);
+            if (result.success) {
+              this.users = result.data || [];
+              this.total = result.pagination ? result.pagination.total : (result.total || 0);
+            } else {
+              this.showMessage(result.message || '获取用户列表失败', 'error');
+              this.users = [];
+              this.total = 0;
+            }
+          } catch (e) {
+            this.showMessage('网络错误，请稍后重试', 'error');
+            this.users = [];
+            this.total = 0;
+          } finally {
+            this.loading = false;
+          }
+        },
+        // 搜索
+        searchUsers() {
+          this.currentPage = 1;
+          this.loadUsers();
+        },
+        // 分页跳转
+        goToPage(page) {
+          if (page >= 1 && page <= this.totalPages) {
+            this.currentPage = page;
+            this.loadUsers();
+          }
+        },
+        showUserModal(userId = null) {
+          this.editingUser = null;
+          this.formData = { username: '', role: 'user', status: 'enabled', password: '' };
+          if (userId) {
+            const user = this.users.find(u => u.id === userId);
+            if (user) {
+              this.editingUser = user;
+              this.formData = { username: user.username, role: user.role, status: user.status, password: '' };
+            }
+          }
+          this.showModal = true;
+        },
+        closeModal() {
+          this.showModal = false;
+          this.editingUser = null;
+          this.formData = { username: '', role: 'user', status: 'enabled', password: '' };
+          this.saving = false;
+        },
+        async saveUser() {
+          if (!this.formData.username || !this.formData.role || !this.formData.status) {
+            this.showMessage('请填写完整信息', 'error');
+            return;
+          }
+          if (!this.editingUser && !this.formData.password) {
+            this.showMessage('新增用户时密码为必填项', 'error');
+            return;
+          }
+          this.saving = true;
+          try {
+            const payload = {
+              username: this.formData.username,
+              role: this.formData.role,
+              status: this.formData.status
+            };
+            if (this.formData.password) payload.password = this.formData.password;
+            
+            let result;
+            if (this.editingUser) {
+              // 编辑
+              result = await this.apiCall(`/api/users/${this.editingUser.id}`, {
+                method: 'PUT',
+                body: JSON.stringify(payload)
+              });
+            } else {
+              // 新增
+              result = await this.apiCall('/api/users', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+              });
+            }
+            
+            if (result.success) {
+              this.showMessage(this.editingUser ? '用户更新成功' : '用户添加成功', 'success');
+              this.loadTotalUsers();
+              this.closeModal();
+              this.loadUsers();
+            } else {
+              this.showMessage(result.message || '操作失败', 'error');
+            }
+          } catch (e) {
+            this.showMessage('网络错误，请稍后重试', 'error');
+          } finally {
+            this.saving = false;
+          }
+        },
+        openDeleteModal(userId) {
+          this.deletingUser = this.users.find(u => u.id === userId) || null;
+          this.showDeleteModal = true;
+        },
+        closeDeleteModal() {
+          this.showDeleteModal = false;
+          this.deletingUser = null;
+          this.deleting = false;
+        },
+        async deleteUser() {
+          if (!this.deletingUser) return;
+          
+          this.deleting = true;
+          try {
+            const result = await this.apiCall(`/api/users/${this.deletingUser.id}`, {
+              method: 'DELETE'
+            });
+            
+            if (result.success) {
+              this.showMessage('用户删除成功', 'success');
+              this.loadTotalUsers();
+              this.closeDeleteModal();
+              this.loadUsers();
+            } else {
+              this.showMessage(result.message || '删除失败', 'error');
+            }
+          } catch (e) {
+            this.showMessage('网络错误，请稍后重试', 'error');
+          } finally {
+            this.deleting = false;
+          }
+        },
+        // 使用统一的API调用方法
+        async apiCall(url, options = {}) {
+          try {
+            const response = await fetch(url, {
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include', // 包含cookies
+              ...options
+            });
+            return await response.json();
+          } catch (error) {
+            console.error('API调用失败:', error);
+            throw error;
+          }
+        },
+        // 使用统一的消息显示方法
+        showMessage(message, type = 'success') {
+          CommonUtils.showMessage(message, type);
+        }
+      }
+    }
+  </script>
+</body>
+</html>

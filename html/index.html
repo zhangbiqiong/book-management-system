@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="assert/favicon.ico"/>
+    <title>图书管理系统</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet/less" type="text/css" href="common.less" />
+    <script src="https://cdn.jsdelivr.net/npm/less" type="text/javascript"></script>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+            overflow: hidden;
+        }
+        
+        .fullpage-flex {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            width: 100vw;
+        }
+        
+        .main-row {
+            flex: 1;
+            display: flex;
+            width: 100vw;
+            min-height: 0;
+        }
+        
+        /* 头部样式 */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 1rem 0;
+            position: relative;
+            z-index: 1000;
+        }
+        
+        .header h1 {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+            margin: 0;
+            font-size: 2rem;
+        }
+        
+        .user-info {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            font-weight: 500;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+        }
+        
+        .logout-btn {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+            border: none;
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(255, 107, 107, 0.3);
+        }
+        
+        .logout-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+            color: white;
+        }
+        
+        /* 侧边栏样式 */
+        .side-menu {
+            width: 280px;
+            min-width: 250px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 2rem 1.5rem;
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 100;
+        }
+        
+        .side-menu::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('assert/Gemini_Generated_Image_kes9qkes9qkes9qk.png') center/cover;
+            opacity: 0.05;
+            z-index: -1;
+        }
+        
+        .menu-title {
+            color: #333;
+            font-weight: 700;
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            text-align: center;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .nav-link {
+            color: #555;
+            padding: 1rem 1.5rem;
+            margin-bottom: 0.5rem;
+            border-radius: 12px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            transition: left 0.3s ease;
+            z-index: -1;
+        }
+        
+        .nav-link:hover {
+            color: white;
+            transform: translateX(5px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .nav-link:hover::before {
+            left: 0;
+        }
+        
+        .nav-link.active {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            transform: translateX(5px);
+        }
+        
+        .nav-link.active::before {
+            left: 0;
+        }
+        
+        /* 主内容区域 */
+        .main-content {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            min-width: 0;
+            overflow: hidden;
+            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        #contentFrame {
+            width: 100%;
+            height: calc(100vh - 200px);
+            height: 100%;
+            min-height: 900px;
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+            background: white;
+            overflow: hidden; /* 隐藏滚动条 */
+        }
+        
+        /* 页脚样式 */
+        .footer {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 1rem 0;
+            text-align: center;
+            color: #666;
+            font-weight: 500;
+        }
+        
+        /* 动画效果 */
+        .fade-in {
+            animation: fadeIn 0.8s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .slide-in-left {
+            animation: slideInLeft 0.8s ease-out;
+        }
+        
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        /* 浮动动画 */
+        .floating {
+            animation: floating 3s ease-in-out infinite;
+        }
+        
+        @keyframes floating {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .side-menu {
+                width: 100%;
+                min-width: auto;
+                position: fixed;
+                top: 0;
+                left: -100%;
+                height: 80vh;
+                z-index: 1000;
+                transition: left 0.3s ease;
+            }
+            
+            .side-menu.show {
+                left: 0;
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+        }
+        
+        /* 菜单图标 */
+        .menu-icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            display: inline-block;
+            vertical-align: top;
+        }
+        
+        /* 加载动画 */
+        .loading {
+            position: relative;
+            pointer-events: none;
+        }
+        
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 2px solid transparent;
+            border-top: 2px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="fullpage-flex" x-data="bookManagementApp()" x-init="init()">
+        <!-- 头部 -->
+        <header class="header fade-in">
+            <div class="container-fluid d-flex justify-content-between align-items-center">
+                <h1 class="floating">📚 图书管理系统</h1>
+                <div class="d-flex align-items-center gap-3">
+                    <span class="user-info" x-text="userDisplayText">欢迎，用户</span>
+                    <button class="btn logout-btn" 
+                            :class="{ 'loading': isLoggingOut }"
+                            @click="logout()"
+                            :disabled="isLoggingOut">
+                        <i class="bi bi-box-arrow-right"></i> 
+                        <span x-text="isLoggingOut ? '注销中...' : '注销'"></span>
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <div class="main-row">
+            <!-- 侧边栏 -->
+            <nav class="side-menu slide-in-left">
+                <h2 class="menu-title">🎯 功能菜单</h2>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" 
+                           href="#" 
+                           :class="{ 'active': activeMenu === 'book' }"
+                           @click.prevent="handleMenuClick('book', 'book.html')">
+                            <span class="menu-icon">📖</span> 图书管理
+                        </a>
+                    </li>
+                    <li class="nav-item" x-show="isAdmin()">
+                        <a class="nav-link" 
+                           href="#" 
+                           :class="{ 'active': activeMenu === 'user' }"
+                           @click.prevent="handleMenuClick('user', 'user.html')">
+                            <span class="menu-icon">👥</span> 用户管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" 
+                           href="#" 
+                           :class="{ 'active': activeMenu === 'borrow' }"
+                           @click.prevent="handleMenuClick('borrow', 'borrow.html')">
+                            <span class="menu-icon">📋</span> 借阅管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" 
+                           href="#" 
+                           :class="{ 'active': activeMenu === 'statistics' }"
+                           @click.prevent="handleMenuClick('statistics', 'statistics.html')">
+                            <span class="menu-icon">📊</span> 数据统计
+                        </a>
+                    </li>
+                    <li class="nav-item" x-show="isAdmin()">
+                        <a class="nav-link" 
+                           href="#" 
+                           :class="{ 'active': activeMenu === 'monitor' }"
+                           @click.prevent="handleMenuClick('monitor', 'monitor.html')">
+                            <span class="menu-icon">🖥️</span> 后台监控
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <span class="menu-icon">⚙️</span> 系统设置
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            
+            <!-- 主内容区域 -->
+            <main class="main-content fade-in">
+                <iframe id="contentFrame" 
+                        :src="currentPage" 
+                        ></iframe>
+            </main>
+        </div>
+        
+        <!-- 页脚 -->
+        <!-- <footer class="footer">
+            <div class="container-fluid">
+                <p class="mb-0">&copy; 2024 图书管理系统 - 让知识管理更简单</p>
+            </div>
+        </footer> -->
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function bookManagementApp() {
+            return {
+                // 数据
+                currentUser: null,
+                activeMenu: 'book',
+                currentPage: 'book.html',
+                isLoggingOut: false,
+                ws: null,
+                notifications: [],
+                reconnectAttempts: 0,
+                maxReconnectAttempts: 5,
+                
+                // 计算属性
+                get userDisplayText() {
+                    if (!this.currentUser) return '👤 欢迎，用户';
+                    const roleText = this.currentUser.role === 'admin' ? '管理员' : '普通用户';
+                    const roleIcon = this.currentUser.role === 'admin' ? '👑' : '👤';
+                    return `${roleIcon} ${this.currentUser.username} (${roleText})`;
+                },
+                
+                // 方法
+                async init() {
+                    await this.getCurrentUser();
+                    // 初始化时自动加载图书管理页面
+                    this.handleMenuClick('book', 'book.html');
+                    // 建立 WebSocket 连接
+                    this.connectWebSocket();
+                },
+                
+                async getCurrentUser() {
+                    try {
+                        const response = await fetch('/api/current-user');
+                        const data = await response.json();
+                        if (data.success) {
+                            this.currentUser = data.user;
+                        } else {
+                            console.error('获取用户信息失败:', data.message);
+                            window.location.href = '/login.html';
+                        }
+                    } catch (error) {
+                        console.error('网络错误:', error);
+                        window.location.href = '/login.html';
+                    }
+                },
+                
+                // WebSocket 连接
+                connectWebSocket() {
+                    try {
+                        // 检查是否已连接
+                        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                            console.log('WebSocket 已连接，跳过重复连接');
+                            return;
+                        }
+                        
+                        // 检查重连次数
+                        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+                            console.error('WebSocket 重连次数已达上限，停止重连');
+                            return;
+                        }
+                        
+                        // 获取 token
+                        const token = this.getCookie('token');
+                        
+                        if (!token) {
+                            console.error('未找到 token，无法建立 WebSocket 连接');
+                            return;
+                        }
+                        
+                        console.log(`尝试建立 WebSocket 连接 (第 ${this.reconnectAttempts + 1} 次)`);
+                        
+                        // 建立 WebSocket 连接
+                        this.ws = new WebSocket(`ws://${window.location.host}/ws`);
+                        
+                        this.ws.onopen = () => {
+                            console.log('WebSocket 连接已建立');
+                            this.reconnectAttempts = 0; // 重置重连计数
+                            
+                            // 确保连接完全建立后再发送消息
+                            setTimeout(() => {
+                                this.sendWebSocketMessage({
+                                type: 'auth',
+                                token: token
+                                });
+                            }, 100);
+                        };
+                        
+                        this.ws.onmessage = (event) => {
+                            try {
+                                const data = JSON.parse(event.data);
+                                this.handleWebSocketMessage(data);
+                            } catch (error) {
+                                console.error('解析 WebSocket 消息失败:', error);
+                            }
+                        };
+                        
+                        this.ws.onclose = (event) => {
+                            console.log('WebSocket 连接已关闭', event.code, event.reason);
+                            // 如果不是主动关闭，则尝试重连
+                            if (!this.isLoggingOut && event.code !== 1000) {
+                                this.reconnectAttempts++;
+                                const delay = Math.min(5000 * this.reconnectAttempts, 30000); // 递增延迟，最大30秒
+                                console.log(`${delay/1000}秒后尝试重连 (第 ${this.reconnectAttempts} 次)...`);
+                            setTimeout(() => {
+                                if (!this.isLoggingOut) {
+                                    this.connectWebSocket();
+                                }
+                                }, delay);
+                            }
+                        };
+                        
+                        this.ws.onerror = (error) => {
+                            console.error('WebSocket 错误:', error);
+                        };
+                        
+                    } catch (error) {
+                        console.error('建立 WebSocket 连接失败:', error);
+                    }
+                },
+                
+                // 处理 WebSocket 消息
+                handleWebSocketMessage(data) {
+                    switch (data.type) {
+                        case 'auth_success':
+                            console.log('WebSocket 身份验证成功');
+                            break;
+                        case 'auth_error':
+                            console.error('WebSocket 身份验证失败:', data.message);
+                            break;
+                        case 'notification':
+                            this.showNotification(data);
+                            break;
+                        default:
+                            console.log('收到未知类型的 WebSocket 消息:', data);
+                    }
+                },
+                
+                // 显示通知
+                showNotification(data) {
+                    const notification = {
+                        id: Date.now(),
+                        message: data.message,
+                        operator: data.operator,
+                        timestamp: data.timestamp,
+                        type: 'info'
+                    };
+                    
+                    this.notifications.unshift(notification);
+                    
+                    // 限制通知数量，最多显示10条
+                    if (this.notifications.length > 10) {
+                        this.notifications = this.notifications.slice(0, 10);
+                    }
+                    
+                    // 显示 Bootstrap toast
+                    this.showToast(notification);
+                },
+                
+                // 显示 Bootstrap toast
+                showToast(notification) {
+                    const toastHtml = `
+                        <div class="toast align-items-center text-bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                            <div class="d-flex">
+                                <div class="toast-body">
+                                    <strong>${notification.operator}</strong> ${notification.message}
+                                </div>
+                                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // 创建 toast 容器（如果不存在）
+                    let toastContainer = document.getElementById('toast-container');
+                    if (!toastContainer) {
+                        toastContainer = document.createElement('div');
+                        toastContainer.id = 'toast-container';
+                        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+                        toastContainer.style.zIndex = '9999';
+                        document.body.appendChild(toastContainer);
+                    }
+                    
+                    // 添加 toast
+                    const toastElement = document.createElement('div');
+                    toastElement.innerHTML = toastHtml;
+                    const toast = toastElement.firstElementChild;
+                    toastContainer.appendChild(toast);
+                    
+                    // 显示 toast
+                    const bsToast = new bootstrap.Toast(toast);
+                    bsToast.show();
+                    
+                    // 5秒后自动移除
+                    setTimeout(() => {
+                        if (toast.parentNode) {
+                            toast.parentNode.removeChild(toast);
+                        }
+                    }, 5000);
+                },
+                
+                // 获取 cookie
+                getCookie(name) {
+                    const value = `; ${document.cookie}`;
+                    const parts = value.split(`; ${name}=`);
+                    if (parts.length === 2) {
+                        const cookieValue = parts.pop().split(';').shift();
+                        return cookieValue ? decodeURIComponent(cookieValue) : null;
+                    }
+                    return null;
+                },
+                
+                // 安全发送 WebSocket 消息
+                sendWebSocketMessage(message) {
+                    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                        try {
+                            this.ws.send(JSON.stringify(message));
+                            return true;
+                        } catch (error) {
+                            console.error('发送 WebSocket 消息失败:', error);
+                            return false;
+                        }
+                    } else {
+                        console.warn('WebSocket 未连接或状态异常:', this.ws?.readyState);
+                        return false;
+                    }
+                },
+                
+                isAdmin() {
+                    return this.currentUser && this.currentUser.role === 'admin';
+                },
+                
+                handleMenuClick(menuId, pageUrl) {
+                    this.activeMenu = menuId;
+                    this.currentPage = pageUrl;
+                },
+                
+                async logout() {
+                    this.isLoggingOut = true;
+                    
+                    // 关闭 WebSocket 连接
+                    if (this.ws) {
+                        this.ws.close();
+                    }
+                    
+                    try {
+                        const response = await fetch('/api/logout', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            console.log('注销成功:', data.message);
+                        } else {
+                            console.warn('注销警告:', data.message);
+                        }
+                    } catch (error) {
+                        console.error('注销请求失败:', error);
+                    } finally {
+                        this.isLoggingOut = false;
+                    }
+                    
+                    // 清空iframe内容，防止子页面继续运行
+                    document.getElementById('contentFrame').src = 'about:blank';
+                    // 清除localStorage
+                    localStorage.clear();
+                    // 重定向到登录页面
+                    window.location.href = '/login.html';
+                }
+            }
+        }
+    </script>
+</body>
+</html>

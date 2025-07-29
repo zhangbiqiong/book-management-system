@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>借阅管理</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
+  <link rel="stylesheet/less" type="text/css" href="common.less" />
+  <script src="https://cdn.jsdelivr.net/npm/less" type="text/javascript"></script>
+  <script src="/common.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
+  <style>
+    body {
+      overflow: hidden;
+    }
+    .borrow-content {
+      padding: 2rem;
+    }
+    .stats-card {
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      color: white;
+      border-radius: 15px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+    .stats-number {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    .stats-label {
+      opacity: 0.9;
+      font-size: 0.9rem;
+    }
+    .search-section {
+      background: rgba(255,255,255,0.8);
+      border-radius: 15px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+    .search-input {
+      border: 2px solid transparent;
+      border-radius: 25px;
+      padding: 0.75rem 1.5rem;
+      background: white;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .search-input:focus {
+      border-color: #667eea;
+      box-shadow: 0 4px 20px rgba(102,126,234,0.3);
+      outline: none;
+    }
+    .btn-modern {
+      border-radius: 25px;
+      padding: 0.75rem 2rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      border: none;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    .btn-modern:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+    .btn-success-modern {
+      background: linear-gradient(45deg, #28a745, #20c997);
+      color: white;
+    }
+    .btn-warning-modern {
+      background: linear-gradient(45deg, #ffc107, #fd7e14);
+      color: white;
+    }
+    .btn-danger-modern {
+      background: linear-gradient(45deg, #dc3545, #e83e8c);
+      color: white;
+    }
+    .table-modern {
+      background: white;
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .table-modern thead th {
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 1rem;
+      font-weight: 600;
+    }
+    .table-modern tbody td {
+      padding: 1rem;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+      vertical-align: middle;
+    }
+    .table-modern tbody tr:hover {
+      background: rgba(102,126,234,0.05);
+      transition: background 0.3s ease;
+    }
+    .pagination-modern {
+      margin-top: 2rem;
+    }
+    .pagination-modern .page-link {
+      border-radius: 25px;
+      margin: 0 0.25rem;
+      border: none;
+      color: #667eea;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    .pagination-modern .page-link:hover {
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      color: white;
+      transform: translateY(-2px);
+    }
+    .pagination-modern .page-item.active .page-link {
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      color: white;
+    }
+    .pagination-modern .page-item.disabled .page-link {
+      color: #6c757d;
+      background: #f8f9fa;
+    }
+    /* 弹框样式已移至common.less */
+    .status-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 15px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .status-normal {
+      background: #d4edda;
+      color: #155724;
+    }
+    .status-overdue {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .status-returned {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+    
+    /* 图书搜索下拉框样式 */
+    .book-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      z-index: 1000;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .book-dropdown-item {
+      padding: 12px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid #f8f9fa;
+      transition: background-color 0.2s ease;
+    }
+    
+    .book-dropdown-item:hover {
+      background-color: #f8f9fa;
+    }
+    
+    .book-dropdown-item-disabled {
+      color: #6c757d !important;
+      background-color: #f8f9fa !important;
+      cursor: not-allowed !important;
+      opacity: 0.6;
+    }
+    
+    .book-dropdown-item-disabled:hover {
+      background-color: #f8f9fa !important;
+    }
+    
+    .book-dropdown-item:last-child {
+      border-bottom: none;
+    }
+    
+    .book-dropdown-footer {
+      padding: 8px 16px;
+      background-color: #f8f9fa;
+      color: #6c757d;
+      font-size: 0.9rem;
+      text-align: center;
+      border-top: 1px solid #dee2e6;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="borrow-content" x-data="borrowManager()" x-init="init()">
+    <!-- 统计卡片 -->
+    <div class="row mb-4">
+      <div class="col-md-3">
+        <div class="stats-card">
+          <div class="stats-number" x-text="totalBorrows"></div>
+          <div class="stats-label">总借阅数</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stats-card">
+          <div class="stats-number" x-text="overdueCount"></div>
+          <div class="stats-label">逾期借阅</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stats-card">
+          <div class="stats-number" x-text="totalPages"></div>
+          <div class="stats-label">总页数</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stats-card">
+          <div class="stats-number" x-text="availableBooksCount"></div>
+          <div class="stats-label">可用图书</div>
+        </div>
+      </div>
+    </div>
+    <!-- 搜索和操作区域 -->
+    <div class="search-section d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3 flex-grow-1">
+        <div class="position-relative flex-grow-1">
+          <i class="bi bi-search position-absolute" style="left: 1rem; top: 50%; transform: translateY(-50%); color: #6c757d;"></i>
+          <input type="text" class="form-control search-input ps-5" placeholder="搜索图书名称或借阅人..." x-model="searchTerm" 
+            @compositionstart="isComposing = true"
+            @compositionend="isComposing = false"
+            @input.debounce.500ms="if(!isComposing) searchBorrows()" 
+            autocomplete="off">
+        </div>
+        <button class="btn btn-success-modern btn-modern" @click="showBorrowModal()">
+          <i class="bi bi-plus-circle me-2"></i>
+          新增借阅
+        </button>
+      </div>
+    </div>
+    <!-- 数据表格 -->
+    <div class="table-responsive">
+      <table class="table table-modern">
+        <thead>
+          <tr>
+            <th>图书名称</th>
+            <th>借阅人</th>
+            <th>借阅日期</th>
+            <th>到期日期</th>
+            <th>归还日期</th>
+            <th>库存</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- 加载中 -->
+          <template x-if="loading">
+            <tr>
+              <td colspan="8" class="text-center py-4">
+                <div class="loading-spinner"></div>
+                <span class="ms-2">加载中...</span>
+              </td>
+            </tr>
+          </template>
+          <!-- 空状态 -->
+          <template x-if="!loading && borrows.length === 0">
+            <tr>
+              <td colspan="8">
+                <div class="empty-state">
+                  <i class="bi bi-book"></i>
+                  <p class="mb-0">暂无借阅数据</p>
+                </div>
+              </td>
+            </tr>
+          </template>
+          <!-- 借阅数据 -->
+          <template x-for="borrow in borrows" :key="borrow.id">
+            <tr>
+              <td x-text="borrow.bookTitle"></td>
+              <td x-text="borrow.borrowerName"></td>
+              <td x-text="formatDate(borrow.borrowDate)"></td>
+              <td x-text="formatDate(borrow.dueDate)"></td>
+              <td x-text="borrow.returnDate ? formatDate(borrow.returnDate) : '--'"></td>
+              <td x-text="borrow.stock"></td>
+              <td>
+                <span :class="getStatusClass(borrow.status)" x-text="getStatusText(borrow.status)"></span>
+              </td>
+              <td>
+                <button class="btn btn-warning-modern btn-modern btn-sm me-2" @click="showBorrowModal(borrow.id)" :disabled="loading">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-success-modern btn-modern btn-sm me-2" 
+                        @click="returnBook(borrow)" 
+                        :disabled="loading || borrow.returnDate"
+                        x-show="!borrow.returnDate">
+                  <i class="bi bi-check-circle"></i>
+                </button>
+                <button class="btn btn-danger-modern btn-modern btn-sm" @click="openDeleteModal(borrow.id)" :disabled="loading">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+    <!-- 分页导航 -->
+    <nav x-show="totalPages > 1" class="pagination-modern">
+      <ul class="pagination justify-content-center">
+        <!-- 上一页 -->
+        <li class="page-item" :class="{ 'disabled': currentPage === 1 }">
+          <a class="page-link" href="#" @click.prevent="goToPage(currentPage - 1)">
+            <i class="bi bi-chevron-left"></i>
+          </a>
+        </li>
+        <!-- 页码 -->
+        <template x-for="page in visiblePages" :key="page">
+          <li class="page-item" :class="{ 'active': page === currentPage }">
+            <a class="page-link" href="#" @click.prevent="goToPage(page)" x-text="page"></a>
+          </li>
+        </template>
+        <!-- 下一页 -->
+        <li class="page-item" :class="{ 'disabled': currentPage === totalPages }">
+          <a class="page-link" href="#" @click.prevent="goToPage(currentPage + 1)">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </li>
+      </ul>
+    </nav>
+    
+    <!-- 借阅编辑/新增模态框 -->
+    <div class="modal modal-modern" x-show="showModal" x-cloak>
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" x-text="editingBorrow ? '编辑借阅' : '新增借阅'"></h5>
+          <button type="button" class="btn-close btn-close-white" @click="closeModal()"></button>
+        </div>
+        <form @submit.prevent="saveBorrow()">
+          <div class="modal-body">
+            <div class="form-group-horizontal">
+              <label class="form-label">图书</label>
+              <div class="position-relative" style="flex: 1;">
+                <input type="text" 
+                       class="form-control form-control-modern" 
+                       x-model="bookSearchTerm" 
+                       @input="filterBooks()"
+                       @focus="showBookDropdown = true"
+                       @blur="setTimeout(() => showBookDropdown = false, 200)"
+                       placeholder="输入书名或作者进行搜索..."
+                       autocomplete="off"
+                       required>
+                <div class="book-dropdown" 
+                     x-show="showBookDropdown && filteredBooks.length > 0" 
+                     x-cloak>
+                  <template x-for="book in filteredBooks.slice(0, 10)" :key="book.id">
+                    <div class="book-dropdown-item" 
+                         :class="{ 'book-dropdown-item-disabled': book.stock <= 0 }"
+                         @click="book.stock > 0 ? selectBook(book) : null"
+                         x-text="book.title + ' - ' + book.author + ' (库存: ' + book.stock + ')' + (book.stock <= 0 ? ' - 库存不足' : '')"></div>
+                  </template>
+                  <div class="book-dropdown-footer" x-show="filteredBooks.length > 10">
+                    还有 <span x-text="filteredBooks.length - 10"></span> 本图书，请输入更多关键词缩小范围
+                  </div>
+                </div>
+                <input type="hidden" x-model="formData.bookId" required>
+              </div>
+            </div>
+            <div class="form-group-horizontal">
+              <label class="form-label">借阅人</label>
+              <input type="text" class="form-control form-control-modern" x-model="formData.borrowerName" required>
+            </div>
+            <div class="form-group-horizontal">
+              <label class="form-label">借阅日期</label>
+              <input type="text" class="form-control form-control-modern" x-model="formData.borrowDate" id="borrowDate" required readonly>
+            </div>
+            <div class="form-group-horizontal">
+              <label class="form-label">到期日期</label>
+              <input type="text" class="form-control form-control-modern" x-model="formData.dueDate" id="dueDate" required readonly>
+            </div>
+            <div class="form-group-horizontal">
+              <label class="form-label">归还日期</label>
+              <div style="flex: 1;">
+                <input type="text" class="form-control form-control-modern" x-model="formData.returnDate" id="returnDate" readonly>
+                <div class="form-text-horizontal">留空表示未归还</div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-modern" @click="closeModal()">取消</button>
+            <button type="submit" class="btn btn-primary btn-modern" :disabled="saving">
+              <span x-show="saving" class="loading-spinner me-2"></span>
+              <span x-text="saving ? '保存中...' : '保存'"></span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    
+    <!-- 删除确认模态框 -->
+    <div class="modal modal-modern" x-show="showDeleteModal" x-cloak>
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">确认删除</h5>
+          <button type="button" class="btn-close btn-close-white" @click="closeDeleteModal()"></button>
+        </div>
+        <div class="modal-body">
+          <p>确定要删除借阅记录 <strong x-text="deletingBorrow ? deletingBorrow.bookTitle : ''"></strong> 吗？</p>
+          <p class="text-danger">此操作不可撤销！</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-modern" @click="closeDeleteModal()">取消</button>
+          <button type="button" class="btn btn-danger btn-modern" @click="deleteBorrow()" :disabled="deleting">
+            <span x-show="deleting" class="loading-spinner me-2"></span>
+            <span x-text="deleting ? '删除中...' : '确认删除'"></span>
+          </button>
+        </div>
+              </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function borrowManager() {
+      return {
+        // 数据
+        borrows: [],
+        books: [],
+        total: 0,
+        totalBorrows: 0,
+        overdueCount: 0,
+        currentPage: 1,
+        pageSize: 5,
+        searchTerm: '',
+        isComposing: false,
+        loading: false,
+        saving: false,
+        deleting: false,
+        showModal: false,
+        showDeleteModal: false,
+        editingBorrow: null,
+        deletingBorrow: null,
+        // 图书搜索相关
+        bookSearchTerm: '',
+        showBookDropdown: false,
+        filteredBooks: [],
+        selectedBook: null,
+        formData: {
+          bookId: '',
+          borrowerName: '',
+          borrowDate: '',
+          dueDate: '',
+          returnDate: ''
+        },
+        // 计算属性
+        get totalPages() {
+          return Math.ceil(this.total / this.pageSize);
+        },
+        get visiblePages() {
+          const pages = [];
+          const start = Math.max(1, this.currentPage - 3);
+          const end = Math.min(this.totalPages, this.currentPage + 3);
+          for (let i = start; i <= end; i++) {
+            pages.push(i);
+          }
+          return pages;
+        },
+        get availableBooksCount() {
+          // 只统计有库存的图书（库存 > 0）
+          return this.books.filter(book => (book.stock || 0) > 0).length;
+        },
+        // 生命周期
+        init() {
+          this.loadTotalBorrows();
+          this.loadOverdueCount();
+          this.loadBooks();
+          this.loadBorrows();
+          this.initDatePicker();
+        },
+        // 加载总借阅数
+        async loadTotalBorrows() {
+          try {
+            const result = await this.apiCall('/api/borrows?pageSize=1');
+            if (result.success) {
+              this.totalBorrows = result.pagination ? result.pagination.total : (result.total || 0);
+            }
+          } catch (e) {
+            console.error('加载总借阅数失败:', e);
+          }
+        },
+        
+        // 加载逾期借阅数量
+        async loadOverdueCount() {
+          try {
+            const result = await this.apiCall('/api/borrows?pageSize=1000');
+            if (result.success) {
+              const allBorrows = result.data || [];
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              
+              this.overdueCount = allBorrows.filter(borrow => {
+                // 只统计未归还的借阅记录
+                if (borrow.returnDate) return false;
+                
+                // 检查是否逾期
+                const dueDate = new Date(borrow.dueDate);
+                return dueDate < today;
+              }).length;
+            }
+          } catch (e) {
+            console.error('加载逾期借阅数量失败:', e);
+            this.overdueCount = 0;
+          }
+        },
+
+        async loadBorrows() {
+          this.loading = true;
+          try {
+            const result = await this.apiCall(`/api/borrows?search=${encodeURIComponent(this.searchTerm)}&page=${this.currentPage}&pageSize=${this.pageSize}`);
+            if (result.success) {
+              // 为每个借阅记录添加当前库存信息
+              this.borrows = (result.data || []).map(borrow => {
+                const book = this.books.find(b => b.id === borrow.bookId);
+                return {
+                  ...borrow,
+                  stock: book ? book.stock : 0
+                };
+              });
+              this.total = result.pagination ? result.pagination.total : (result.total || 0);
+            } else {
+              this.showMessage(result.message || '获取借阅列表失败', 'error');
+              this.borrows = [];
+              this.total = 0;
+            }
+          } catch (e) {
+            this.showMessage('网络错误，请稍后重试', 'error');
+            this.borrows = [];
+            this.total = 0;
+          } finally {
+            this.loading = false;
+          }
+        },
+        async loadBooks() {
+          try {
+            const result = await this.apiCall('/api/books?pageSize=1000');
+            if (result.success) {
+              this.books = result.data || [];
+            } else {
+              this.showMessage('获取图书列表失败', 'error');
+              this.books = [];
+            }
+          } catch (e) {
+            this.showMessage('获取图书列表失败', 'error');
+            this.books = [];
+          }
+        },
+        searchBorrows() {
+          this.currentPage = 1;
+          this.loadBorrows();
+        },
+        goToPage(page) {
+          if (page >= 1 && page <= this.totalPages) {
+            this.currentPage = page;
+            this.loadBorrows();
+          }
+        },
+        showBorrowModal(borrowId = null) {
+          this.editingBorrow = null;
+          this.formData = { bookId: '', borrowerName: '', borrowDate: '', dueDate: '', returnDate: '' };
+          this.bookSearchTerm = '';
+          this.selectedBook = null;
+          this.filteredBooks = [];
+          this.showBookDropdown = false;
+          
+          if (borrowId) {
+            const borrow = this.borrows.find(b => b.id === borrowId);
+            if (borrow) {
+              this.editingBorrow = borrow;
+              this.formData = {
+                bookId: borrow.bookId,
+                borrowerName: borrow.borrowerName,
+                borrowDate: borrow.borrowDate,
+                dueDate: borrow.dueDate,
+                returnDate: borrow.returnDate || ''
+              };
+              // 设置选中的图书
+              this.selectedBook = this.books.find(b => b.id === borrow.bookId);
+              if (this.selectedBook) {
+                this.bookSearchTerm = this.selectedBook.title + ' - ' + this.selectedBook.author;
+              }
+            }
+          } else {
+            // 新增时默认借阅时间为今天，到期时间为7天后
+            const today = new Date().toISOString().split('T')[0];
+            const due = new Date();
+            due.setDate(due.getDate() + 7);
+            this.formData.borrowDate = today;
+            this.formData.dueDate = due.toISOString().split('T')[0];
+          }
+          this.showModal = true;
+          this.saving = false;
+          this.$nextTick(() => {
+            if (window.flatpickr) {
+              flatpickr('#borrowDate', { dateFormat: 'Y-m-d', locale: 'zh', allowInput: false, clickOpens: true,
+                onChange: (selectedDates, dateStr) => { this.formData.borrowDate = dateStr; }
+              });
+              flatpickr('#dueDate', { dateFormat: 'Y-m-d', locale: 'zh', allowInput: false, clickOpens: true,
+                onChange: (selectedDates, dateStr) => { this.formData.dueDate = dateStr; }
+              });
+              flatpickr('#returnDate', { dateFormat: 'Y-m-d', locale: 'zh', allowInput: false, clickOpens: true,
+                onChange: (selectedDates, dateStr) => { this.formData.returnDate = dateStr; }
+              });
+            }
+          });
+        },
+        closeModal() {
+          this.showModal = false;
+          this.editingBorrow = null;
+          this.formData = { bookId: '', borrowerName: '', borrowDate: '', dueDate: '', returnDate: '' };
+          this.bookSearchTerm = '';
+          this.selectedBook = null;
+          this.filteredBooks = [];
+          this.showBookDropdown = false;
+          this.saving = false;
+        },
+        async saveBorrow() {
+          if (!this.formData.bookId || !this.formData.borrowerName || !this.formData.borrowDate || !this.formData.dueDate) {
+            this.showMessage('请填写完整信息', 'error');
+            return;
+          }
+          
+          // 获取选中的图书信息
+          const selectedBook = this.selectedBook || this.books.find(b => b.id === this.formData.bookId);
+          if (!selectedBook) {
+            this.showMessage('请选择有效的图书', 'error');
+            return;
+          }
+          
+          // 检查库存是否为0（仅在新增时检查）
+          if (!this.editingBorrow && selectedBook.stock <= 0) {
+            this.showMessage(`图书《${selectedBook.title}》库存不足，无法借阅`, 'error');
+            return;
+          }
+          
+          // 检查借阅人是否有逾期图书（仅在新增时检查）
+          if (!this.editingBorrow) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const borrowerOverdueBooks = this.borrows.filter(borrow => {
+              // 只检查未归还的借阅记录
+              if (borrow.returnDate) return false;
+              
+              // 检查是否是同一个借阅人
+              if (borrow.borrowerName !== this.formData.borrowerName.trim()) return false;
+              
+              // 检查是否逾期
+              const dueDate = new Date(borrow.dueDate);
+              return dueDate < today;
+            });
+            
+            if (borrowerOverdueBooks.length > 0) {
+              const overdueBookTitles = borrowerOverdueBooks.map(borrow => borrow.bookTitle).join('、');
+              this.showMessage(`借阅人"${this.formData.borrowerName}"存在逾期图书：${overdueBookTitles}，请先归还逾期图书后再借阅新图书`, 'error');
+              return;
+            }
+          }
+          
+          this.saving = true;
+          try {
+            const payload = {
+              bookId: this.formData.bookId,
+              bookTitle: selectedBook.title,
+              borrowerName: this.formData.borrowerName,
+              borrowDate: this.formData.borrowDate,
+              dueDate: this.formData.dueDate,
+              returnDate: this.formData.returnDate || null
+            };
+            
+            let result;
+            if (this.editingBorrow) {
+              // 编辑
+              result = await this.apiCall(`/api/borrows/${this.editingBorrow.id}`, {
+                method: 'PUT',
+                body: JSON.stringify(payload)
+              });
+            } else {
+              // 新增
+              result = await this.apiCall('/api/borrows', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+              });
+            }
+            
+            if (result.success) {
+              this.showMessage(this.editingBorrow ? '借阅更新成功' : '借阅添加成功', 'success');
+              this.loadTotalBorrows();
+              this.loadOverdueCount();
+              this.closeModal();
+              this.loadBorrows();
+            } else {
+              this.showMessage(result.message || '操作失败', 'error');
+            }
+          } catch (e) {
+            this.showMessage('网络错误，请稍后重试', 'error');
+          } finally {
+            this.saving = false;
+          }
+        },
+        openDeleteModal(borrowId) {
+          this.deletingBorrow = this.borrows.find(b => b.id === borrowId) || null;
+          this.showDeleteModal = true;
+        },
+        closeDeleteModal() {
+          this.showDeleteModal = false;
+          this.deletingBorrow = null;
+          this.deleting = false;
+        },
+        async deleteBorrow() {
+          if (!this.deletingBorrow) return;
+          
+          this.deleting = true;
+          try {
+            const result = await this.apiCall(`/api/borrows/${this.deletingBorrow.id}`, {
+              method: 'DELETE'
+            });
+            
+            if (result.success) {
+              this.showMessage('借阅记录删除成功', 'success');
+              this.loadTotalBorrows();
+              this.loadOverdueCount();
+              this.closeDeleteModal();
+              this.loadBorrows();
+            } else {
+              this.showMessage(result.message || '删除失败', 'error');
+            }
+          } catch (e) {
+            this.showMessage('网络错误，请稍后重试', 'error');
+          } finally {
+            this.deleting = false;
+          }
+        },
+        async returnBook(borrow) {
+          if (!borrow || borrow.returnDate) {
+            this.showMessage('该借阅记录已归还或不存在', 'error');
+            return;
+          }
+          
+          try {
+            // 以当前时间为归还时间
+            const currentDate = new Date().toISOString().split('T')[0]; // 格式化为 YYYY-MM-DD
+            
+            const payload = {
+              bookId: borrow.bookId,
+              bookTitle: borrow.bookTitle,
+              borrowerName: borrow.borrowerName,
+              borrowDate: borrow.borrowDate,
+              dueDate: borrow.dueDate,
+              returnDate: currentDate
+            };
+            
+            const result = await this.apiCall(`/api/borrows/${borrow.id}`, {
+              method: 'PUT',
+              body: JSON.stringify(payload)
+            });
+            
+            if (result.success) {
+              this.showMessage('图书归还成功', 'success');
+              this.loadTotalBorrows();
+              this.loadOverdueCount();
+              this.loadBorrows();
+            } else {
+              this.showMessage(result.message || '归还失败', 'error');
+            }
+          } catch (e) {
+            this.showMessage('网络错误，请稍后重试', 'error');
+          }
+        },
+        initDatePicker() {
+          // 初始化日期选择器
+        },
+        // 图书搜索相关方法
+        filterBooks() {
+          const term = this.bookSearchTerm.toLowerCase().trim();
+          if (!term) {
+            this.filteredBooks = [];
+            this.formData.bookId = '';
+            this.selectedBook = null;
+            return;
+          }
+          
+          this.filteredBooks = this.books.filter(book => 
+            book.title.toLowerCase().includes(term) || 
+            book.author.toLowerCase().includes(term)
+          );
+          
+          // 如果当前输入的内容不匹配任何图书，清空选中状态
+          if (!this.selectedBook || 
+              !this.selectedBook.title.toLowerCase().includes(term) && 
+              !this.selectedBook.author.toLowerCase().includes(term)) {
+            this.formData.bookId = '';
+            this.selectedBook = null;
+          }
+        },
+        selectBook(book) {
+          // 检查库存是否为0
+          if (book.stock <= 0) {
+            this.showMessage(`图书《${book.title}》库存不足，无法借阅`, 'error');
+            return;
+          }
+          
+          this.selectedBook = book;
+          this.formData.bookId = book.id;
+          this.bookSearchTerm = book.title + ' - ' + book.author;
+          this.showBookDropdown = false;
+          this.filteredBooks = [];
+        },
+        getStatusClass(status) {
+          switch (status) {
+            case 'normal': return 'status-badge status-normal';
+            case 'overdue': return 'status-badge status-overdue';
+            case 'returned': return 'status-badge status-returned';
+            default: return 'status-badge status-normal';
+          }
+        },
+        getStatusText(status) {
+          switch (status) {
+            case 'normal': return '正常';
+            case 'overdue': return '逾期';
+            case 'returned': return '已归还';
+            default: return '正常';
+          }
+        },
+        formatDate(dateString) {
+          if (!dateString) return '--';
+          try {
+            const date = new Date(dateString);
+            return date.toISOString().split('T')[0]; // 返回 YYYY-MM-DD 格式
+          } catch (e) {
+            return dateString;
+          }
+        },
+        // 使用统一的API调用方法
+        async apiCall(url, options = {}) {
+          try {
+            const response = await fetch(url, {
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include', // 包含cookies
+              ...options
+            });
+            return await response.json();
+          } catch (error) {
+            console.error('API调用失败:', error);
+            throw error;
+          }
+        },
+        // 使用统一的消息显示方法
+        showMessage(message, type = 'success') {
+          CommonUtils.showMessage(message, type);
+        }
+      }
+    }
+  </script>
+</body>
+</html> 

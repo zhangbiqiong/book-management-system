@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <title>后台监控</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet/less" type="text/css" href="common.less" />
+    <script src="https://cdn.jsdelivr.net/npm/less" type="text/javascript"></script>
+    <style>
+        body {
+            overflow: hidden;
+            /* 隐藏滚动条 */
+        }
+
+        .monitor-content {
+            padding: 2rem;
+        }
+
+        .status-card {
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .status-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        .status-running {
+            border-left: 4px solid #28a745;
+        }
+
+        .status-stopped {
+            border-left: 4px solid #dc3545;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .status-running .status-indicator {
+            background-color: #28a745;
+            animation: pulse 2s infinite;
+        }
+
+        .status-stopped .status-indicator {
+            background-color: #dc3545;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .action-btn {
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .log-container {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+
+        .log-entry {
+            margin-bottom: 0.5rem;
+            padding: 0.25rem 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .log-time {
+            color: #6c757d;
+            font-size: 0.8rem;
+        }
+
+        .log-message {
+            color: #495057;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="monitor-content" x-data="taskMonitor()" x-init="init()">
+
+        <!-- <div class="monitor-content"> -->
+            <!-- 统计指标 -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="metric-card">
+                        <div class="metric-value" x-text="taskStatus.totalRuns || 0"></div>
+                        <div class="metric-label">总执行次数</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="metric-card">
+                        <div class="metric-value" x-text="taskStatus.totalUpdates || 0"></div>
+                        <div class="metric-label">总更新次数</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="metric-card">
+                        <div class="metric-value" x-text="taskStatus.lastError ? '有错误' : '正常'"></div>
+                        <div class="metric-label">错误状态</div>
+                    </div>
+                </div>
+            </div>
+            <!-- 任务状态卡片 -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card status-card" :class="taskStatus.running ? 'status-running' : 'status-stopped'">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="card-title mb-2">
+                                        <span class="status-indicator"></span>
+                                        <span x-text="taskStatus.name"></span>
+                                    </h5>
+                                    <p class="card-text mb-0">
+                                        状态: <span x-text="taskStatus.running ? '运行中' : '已停止'"></span> |
+                                        执行间隔: <span x-text="taskStatus.interval"></span>秒
+                                    </p>
+                                </div>
+                                <div class="btn-group">
+                                    <button class="btn btn-success action-btn" @click="startTask()"
+                                        :disabled="taskStatus.running || loading">
+                                        <i class="bi bi-play-fill"></i> 启动
+                                    </button>
+                                    <button class="btn btn-danger action-btn" @click="stopTask()"
+                                        :disabled="!taskStatus.running || loading">
+                                        <i class="bi bi-stop-fill"></i> 停止
+                                    </button>
+                                    <button class="btn btn-primary action-btn" @click="manualExecute()"
+                                        :disabled="loading">
+                                        <i class="bi bi-arrow-clockwise"></i> 手动执行
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- 详细信息 -->
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">任务详情</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-borderless">
+                                <tbody>
+                                    <tr>
+                                        <td><strong>任务名称:</strong></td>
+                                        <td x-text="taskStatus.name"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>运行状态:</strong></td>
+                                        <td>
+                                            <span class="badge"
+                                                :class="taskStatus.running ? 'bg-success' : 'bg-danger'">
+                                                <span x-text="taskStatus.running ? '运行中' : '已停止'"></span>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>执行间隔:</strong></td>
+                                        <td x-text="taskStatus.interval + ' 秒'"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>总执行次数:</strong></td>
+                                        <td x-text="taskStatus.totalRuns || 0"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>总更新次数:</strong></td>
+                                        <td x-text="taskStatus.totalUpdates || 0"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>最后执行:</strong></td>
+                                        <td x-text="formatLastRunTime()"></td>
+                                    </tr>
+                                    <tr x-show="taskStatus.lastError">
+                                        <td><strong>最后错误:</strong></td>
+                                        <td class="text-danger" x-text="taskStatus.lastError"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">操作日志</h5>
+                            <button class="btn btn-sm btn-outline-secondary" @click="clearLogs()">
+                                清空日志
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="log-container">
+                                <template x-for="log in logs" :key="log.id">
+                                    <div class="log-entry">
+                                        <div class="log-time" x-text="log.time"></div>
+                                        <div class="log-message" x-text="log.message"></div>
+                                    </div>
+                                </template>
+                                <div x-show="logs.length === 0" class="text-muted text-center py-3">
+                                    暂无日志
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 刷新按钮 -->
+            <!-- <button class="btn btn-primary refresh-btn" @click="refreshStatus()" :disabled="loading">
+                <i class="bi bi-arrow-clockwise"></i>
+            </button> -->
+        <!-- </div> -->
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function taskMonitor() {
+            return {
+                taskStatus: {
+                    name: '',
+                    running: false,
+                    taskRunning: false,
+                    lastRunTime: null,
+                    totalRuns: 0,
+                    totalUpdates: 0,
+                    lastError: null,
+                    interval: 60
+                },
+                logs: [],
+                loading: false,
+                logId: 0,
+
+                init() {
+                    this.refreshStatus();
+                    // 每30秒自动刷新一次
+                    setInterval(() => {
+                        this.refreshStatus();
+                    }, 30000);
+                },
+
+                async refreshStatus() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/api/task/status');
+                        const result = await response.json();
+
+                        if (result.success) {
+                            this.taskStatus = result.data;
+                            this.addLog('获取任务状态成功');
+                        } else {
+                            this.addLog('获取任务状态失败: ' + result.message, 'error');
+                        }
+                    } catch (error) {
+                        this.addLog('获取任务状态出错: ' + error.message, 'error');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async startTask() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/api/task/start', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        const result = await response.json();
+
+                        if (result.success) {
+                            this.addLog('启动任务: ' + result.message);
+                            await this.refreshStatus();
+                        } else {
+                            this.addLog('启动任务失败: ' + result.message, 'error');
+                        }
+                    } catch (error) {
+                        this.addLog('启动任务出错: ' + error.message, 'error');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async stopTask() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/api/task/stop', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        const result = await response.json();
+
+                        if (result.success) {
+                            this.addLog('停止任务: ' + result.message);
+                            await this.refreshStatus();
+                        } else {
+                            this.addLog('停止任务失败: ' + result.message, 'error');
+                        }
+                    } catch (error) {
+                        this.addLog('停止任务出错: ' + error.message, 'error');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async manualExecute() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/api/task/execute', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        const result = await response.json();
+
+                        if (result.success) {
+                            this.addLog('手动执行任务: ' + result.message);
+                            await this.refreshStatus();
+                        } else {
+                            this.addLog('手动执行任务失败: ' + result.message, 'error');
+                        }
+                    } catch (error) {
+                        this.addLog('手动执行任务出错: ' + error.message, 'error');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                addLog(message, type = 'info') {
+                    const now = new Date();
+                    const timeStr = now.toLocaleTimeString();
+
+                    this.logs.unshift({
+                        id: ++this.logId,
+                        time: timeStr,
+                        message: message,
+                        type: type
+                    });
+
+                    // 限制日志数量
+                    if (this.logs.length > 50) {
+                        this.logs = this.logs.slice(0, 50);
+                    }
+                },
+
+                clearLogs() {
+                    this.logs = [];
+                },
+
+                formatLastRunTime() {
+                    if (!this.taskStatus.lastRunTime) {
+                        return '无';
+                    }
+
+                    const date = new Date(this.taskStatus.lastRunTime);
+                    return date.toLocaleString('zh-CN');
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>
