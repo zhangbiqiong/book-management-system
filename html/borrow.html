@@ -14,120 +14,11 @@
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
   <style>
-    body {
-      overflow: hidden;
-    }
     .borrow-content {
       padding: 2rem;
     }
-    /* .stats-card {
-      background: linear-gradient(45deg, #667eea, #764ba2);
-      color: white;
-      border-radius: 15px;
-      padding: 1.5rem;
-      margin-bottom: 2rem;
-      text-align: center;
-    } */
-    .stats-number {
-      font-size: 2rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-    }
-    .stats-label {
-      opacity: 0.9;
-      font-size: 0.9rem;
-    }
-    .search-section {
-      background: rgba(255,255,255,0.8);
-      border-radius: 15px;
-      padding: 1.5rem;
-      margin-bottom: 2rem;
-      border: 1px solid rgba(255,255,255,0.3);
-    }
-    .search-input {
-      border: 2px solid transparent;
-      border-radius: 25px;
-      padding: 0.75rem 1.5rem;
-      background: white;
-      transition: all 0.3s ease;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    .search-input:focus {
-      border-color: #667eea;
-      box-shadow: 0 4px 20px rgba(102,126,234,0.3);
-      outline: none;
-    }
-    .btn-modern {
-      border-radius: 25px;
-      padding: 0.75rem 2rem;
-      font-weight: 600;
-      transition: all 0.3s ease;
-      border: none;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    }
-    .btn-modern:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-    }
-    .btn-success-modern {
-      background: linear-gradient(45deg, #28a745, #20c997);
-      color: white;
-    }
-    .btn-warning-modern {
-      background: linear-gradient(45deg, #ffc107, #fd7e14);
-      color: white;
-    }
-    .btn-danger-modern {
-      background: linear-gradient(45deg, #dc3545, #e83e8c);
-      color: white;
-    }
-    .table-modern {
-      background: white;
-      border-radius: 15px;
-      overflow: hidden;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    }
-    .table-modern thead th {
-      background: linear-gradient(45deg, #667eea, #764ba2);
-      color: white;
-      border: none;
-      padding: 1rem;
-      font-weight: 600;
-    }
-    .table-modern tbody td {
-      padding: 1rem;
-      border-bottom: 1px solid rgba(0,0,0,0.05);
-      vertical-align: middle;
-    }
-    .table-modern tbody tr:hover {
-      background: rgba(102,126,234,0.05);
-      transition: background 0.3s ease;
-    }
-    .pagination-modern {
-      margin-top: 2rem;
-    }
-    .pagination-modern .page-link {
-      border-radius: 25px;
-      margin: 0 0.25rem;
-      border: none;
-      color: #667eea;
-      font-weight: 600;
-      transition: all 0.3s ease;
-    }
-    .pagination-modern .page-link:hover {
-      background: linear-gradient(45deg, #667eea, #764ba2);
-      color: white;
-      transform: translateY(-2px);
-    }
-    .pagination-modern .page-item.active .page-link {
-      background: linear-gradient(45deg, #667eea, #764ba2);
-      color: white;
-    }
-    .pagination-modern .page-item.disabled .page-link {
-      color: #6c757d;
-      background: #f8f9fa;
-    }
-    /* 弹框样式已移至common.less */
+    
+    /* 状态徽章样式 */
     .status-badge {
       padding: 0.25rem 0.75rem;
       border-radius: 15px;
@@ -196,7 +87,16 @@
       text-align: center;
       border-top: 1px solid #dee2e6;
     }
-
+    
+    /* 响应式样式 */
+    @media (max-width: 768px) {
+      .borrow-content { 
+        padding: 1rem; 
+      }
+      .table-modern { 
+        font-size: 0.9rem; 
+      }
+    }
   </style>
 </head>
 <body>

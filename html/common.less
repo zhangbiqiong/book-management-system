@@ -161,6 +161,33 @@ body {
   }
 }
 
+// ========== 现代化表格 ==========
+.table-modern {
+  background: @white;
+  border-radius: @border-radius-lg;
+  overflow: hidden;
+  .modern-shadow(4px, 20px);
+
+  thead th {
+    .gradient-bg(@primary-color, @secondary-color);
+    color: @white;
+    border: none;
+    padding: 1rem;
+    font-weight: 600;
+  }
+
+  tbody td {
+    padding: 1rem;
+    border-bottom: 1px solid fade(@shadow-black, 5%);
+    vertical-align: middle;
+  }
+
+  tbody tr:hover {
+    background: fade(@primary-color, 5%);
+    transition: background @transition-fast;
+  }
+}
+
 // ========== 分页样式 ==========
 .pagination-modern {
   .page-link {
