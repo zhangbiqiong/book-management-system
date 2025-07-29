@@ -429,7 +429,7 @@
             if (result.success) {
               // 为每个借阅记录添加当前库存信息
               this.borrows = (result.data || []).map(borrow => {
-                const book = this.books.find(b => b.id === borrow.bookId);
+                const book = this.books.find(b => String(b.id) === String(borrow.bookId));
                 return {
                   ...borrow,
                   stock: book ? book.stock : 0
@@ -493,7 +493,7 @@
                 returnDate: borrow.returnDate || ''
               };
               // 设置选中的图书
-              this.selectedBook = this.books.find(b => b.id === borrow.bookId);
+              this.selectedBook = this.books.find(b => String(b.id) === String(borrow.bookId));
               if (this.selectedBook) {
                 this.bookSearchTerm = this.selectedBook.title + ' - ' + this.selectedBook.author;
               }
@@ -539,7 +539,7 @@
           }
           
           // 获取选中的图书信息
-          const selectedBook = this.selectedBook || this.books.find(b => b.id === this.formData.bookId);
+          const selectedBook = this.selectedBook || this.books.find(b => String(b.id) === String(this.formData.bookId));
           if (!selectedBook) {
             this.showMessage('请选择有效的图书', 'error');
             return;

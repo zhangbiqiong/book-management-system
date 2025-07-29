@@ -365,7 +365,8 @@
             return 0;
           }
           // 统计该图书的所有借阅记录（包括已归还和未归还的）
-          return this.borrows.filter(borrow => borrow.bookId === bookId).length;
+          // 确保类型匹配，将两个ID都转换为字符串进行比较
+          return this.borrows.filter(borrow => String(borrow.bookId) === String(bookId)).length;
         },
 
         // 重写init方法
