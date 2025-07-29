@@ -102,7 +102,7 @@
                     <button class="btn btn-warning-modern btn-modern btn-sm" @click="openModal(book)" :disabled="loading">
                       <i class="bi bi-pencil"></i>
                     </button>
-                    <button class="btn btn-danger-modern btn-modern btn-sm" @click="openDeleteModal(book.id)" :disabled="loading">
+                    <button class="btn btn-danger-modern btn-modern btn-sm" @click="openDeleteModal(book.id, book)" :disabled="loading">
                       <i class="bi bi-trash"></i>
                     </button>
                   </div>
@@ -491,6 +491,24 @@
           }
         },
 
+        // 重写openDeleteModal方法，适配图书数据
+        openDeleteModal(bookId, book = null) {
+          if (book) {
+            this.currentItem = book;
+          } else {
+            this.currentItem = this.data.find(b => String(b.id) === String(bookId)) || null;
+          }
+          this.deleteItemId = bookId;
+          this.showDeleteModal = true;
+        },
+        
+        // 重写closeDeleteModal方法，确保正确重置状态
+        closeDeleteModal() {
+          this.showDeleteModal = false;
+          this.deleteItemId = null;
+          this.currentItem = this.getEmptyItem(); // 重置为空项
+        },
+        
         async deleteItem() {
           try {
             this.deleting = true;

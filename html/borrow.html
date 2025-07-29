@@ -171,7 +171,7 @@
             </tr>
           </template>
           <!-- 空状态 -->
-          <template x-if="!loading && borrows.length === 0">
+          <template x-if="!loading && data.length === 0">
             <tr>
               <td colspan="8">
                 <div class="empty-state">
@@ -182,7 +182,7 @@
             </tr>
           </template>
           <!-- 借阅数据 -->
-          <template x-for="borrow in borrows" :key="borrow.id">
+          <template x-for="borrow in data" :key="borrow.id">
             <tr>
               <td x-text="borrow.bookTitle"></td>
               <td x-text="borrow.borrowerName"></td>
@@ -302,51 +302,47 @@
             </button>
           </div>
         </form>
+              </div>
       </div>
     </div>
-    
+
     <!-- 删除确认模态框 -->
-    <div class="modal modal-modern" x-show="showDeleteModal" x-cloak>
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">确认删除</h5>
-          <button type="button" class="btn-close btn-close-white" @click="closeDeleteModal()"></button>
+    <div class="modal modal-modern" x-show="showDeleteModal" x-cloak style="z-index: 1060;">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">确认删除</h5>
+            <button type="button" class="btn-close btn-close-white" @click="closeDeleteModal()"></button>
+          </div>
+          <div class="modal-body">
+            <p>确定要删除借阅记录 <strong x-text="deletingBorrow ? deletingBorrow.bookTitle : ''"></strong> 吗？</p>
+            <p class="text-danger">此操作不可撤销！</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-modern" @click="closeDeleteModal()">取消</button>
+            <button type="button" class="btn btn-danger-modern btn-modern" @click="deleteBorrow()" :disabled="deleting">
+              <span x-show="deleting" class="loading-spinner me-2"></span>
+              <span x-text="deleting ? '删除中...' : '确认删除'"></span>
+            </button>
+          </div>
         </div>
-        <div class="modal-body">
-          <p>确定要删除借阅记录 <strong x-text="deletingBorrow ? deletingBorrow.bookTitle : ''"></strong> 吗？</p>
-          <p class="text-danger">此操作不可撤销！</p>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary btn-modern" @click="closeDeleteModal()">取消</button>
-          <button type="button" class="btn btn-danger btn-modern" @click="deleteBorrow()" :disabled="deleting">
-            <span x-show="deleting" class="loading-spinner me-2"></span>
-            <span x-text="deleting ? '删除中...' : '确认删除'"></span>
-          </button>
-        </div>
-              </div>
       </div>
     </div>
   </div>
 
   <script>
     function borrowManager() {
+      const baseManager = createBaseDataManager();
       return {
-        // 数据
+        // 继承基础数据管理功能
+        ...baseManager,
+        
+        // 借阅特有的数据
         borrows: [],
         books: [],
-        total: 0,
         totalBorrows: 0,
         overdueCount: 0,
-        currentPage: 1,
-        pageSize: 5,
-        searchTerm: '',
         isComposing: false,
-        loading: false,
-        saving: false,
-        deleting: false,
-        showModal: false,
-        showDeleteModal: false,
         editingBorrow: null,
         deletingBorrow: null,
         // 图书搜索相关
@@ -361,10 +357,11 @@
           dueDate: '',
           returnDate: ''
         },
-        // 计算属性
+        // 计算属性 - 适配API分页
         get totalPages() {
           return Math.ceil(this.total / this.pageSize);
         },
+        
         get visiblePages() {
           const pages = [];
           const start = Math.max(1, this.currentPage - 3);
@@ -374,6 +371,7 @@
           }
           return pages;
         },
+        
         get availableBooksCount() {
           // 只统计有库存的图书（库存 > 0）
           return this.books.filter(book => (book.stock || 0) > 0).length;
@@ -383,7 +381,7 @@
           this.loadTotalBorrows();
           this.loadOverdueCount();
           this.loadBooks();
-          this.loadBorrows();
+          this.loadData(); // 使用基础管理器的loadData方法
           this.initDatePicker();
         },
         // 加载总借阅数
@@ -422,27 +420,31 @@
           }
         },
 
-        async loadBorrows() {
+        // 重写loadData方法，适配借阅数据
+        async loadData() {
           this.loading = true;
           try {
             const result = await this.apiCall(`/api/borrows?search=${encodeURIComponent(this.searchTerm)}&page=${this.currentPage}&pageSize=${this.pageSize}`);
             if (result.success) {
               // 为每个借阅记录添加当前库存信息
-              this.borrows = (result.data || []).map(borrow => {
+              this.data = (result.data || []).map(borrow => {
                 const book = this.books.find(b => String(b.id) === String(borrow.bookId));
                 return {
                   ...borrow,
                   stock: book ? book.stock : 0
                 };
               });
+              this.borrows = this.data; // 保持兼容性
               this.total = result.pagination ? result.pagination.total : (result.total || 0);
             } else {
               this.showMessage(result.message || '获取借阅列表失败', 'error');
+              this.data = [];
               this.borrows = [];
               this.total = 0;
             }
           } catch (e) {
             this.showMessage('网络错误，请稍后重试', 'error');
+            this.data = [];
             this.borrows = [];
             this.total = 0;
           } finally {
@@ -463,17 +465,24 @@
             this.books = [];
           }
         },
+        // 搜索 - 适配API分页
         searchBorrows() {
           this.currentPage = 1;
-          this.loadBorrows();
+          this.loadData();
         },
-        goToPage(page) {
+        
+        // 分页方法 - 适配API分页
+        async goToPage(page) {
           if (page >= 1 && page <= this.totalPages) {
             this.currentPage = page;
-            this.loadBorrows();
+            await this.loadData();
           }
         },
         showBorrowModal(borrowId = null) {
+          // 确保删除模态框关闭
+          this.showDeleteModal = false;
+          this.deletingBorrow = null;
+          
           this.editingBorrow = null;
           this.formData = { bookId: '', borrowerName: '', borrowDate: '', dueDate: '', returnDate: '' };
           this.bookSearchTerm = '';
@@ -482,7 +491,7 @@
           this.showBookDropdown = false;
           
           if (borrowId) {
-            const borrow = this.borrows.find(b => b.id === borrowId);
+            const borrow = this.data.find(b => String(b.id) === String(borrowId));
             if (borrow) {
               this.editingBorrow = borrow;
               this.formData = {
@@ -606,7 +615,7 @@
               this.loadTotalBorrows();
               this.loadOverdueCount();
               this.closeModal();
-              this.loadBorrows();
+              this.loadData(); // 使用基础管理器的loadData方法
             } else {
               this.showMessage(result.message || '操作失败', 'error');
             }
@@ -617,7 +626,12 @@
           }
         },
         openDeleteModal(borrowId) {
-          this.deletingBorrow = this.borrows.find(b => b.id === borrowId) || null;
+          // 确保编辑模态框关闭
+          this.showModal = false;
+          this.editingBorrow = null;
+          this.currentItem = null;
+          
+          this.deletingBorrow = this.borrows.find(b => String(b.id) === String(borrowId)) || null;
           this.showDeleteModal = true;
         },
         closeDeleteModal() {
@@ -639,7 +653,7 @@
               this.loadTotalBorrows();
               this.loadOverdueCount();
               this.closeDeleteModal();
-              this.loadBorrows();
+              this.loadData(); // 使用基础管理器的loadData方法
             } else {
               this.showMessage(result.message || '删除失败', 'error');
             }
@@ -677,7 +691,7 @@
               this.showMessage('图书归还成功', 'success');
               this.loadTotalBorrows();
               this.loadOverdueCount();
-              this.loadBorrows();
+              this.loadData(); // 使用基础管理器的loadData方法
             } else {
               this.showMessage(result.message || '归还失败', 'error');
             }
