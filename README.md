@@ -1,6 +1,6 @@
 # 图书管理系统
 
-一个使用 Bun、Alpine.js、Bootstrap 5 构建的现代化图书管理系统，支持用户管理、图书管理、借阅管理、实时通知等功能。采用响应式设计和声明式编程范式，提供完整的图书馆管理解决方案。
+一个使用 Bun、Alpine.js、Bootstrap 5、PostgreSQL、Redis 构建的现代化图书管理系统，支持用户管理、图书管理、借阅管理、实时通知等功能。采用响应式设计和声明式编程范式，提供完整的图书馆管理解决方案。
 
 ## ✨ 核心特性
 
@@ -17,29 +17,34 @@
 - ✅ **分页显示** - 高效的分页加载，支持自定义每页显示数量
 - ✅ **表单验证** - 完整的前后端数据验证
 - ✅ **实时更新** - 通过WebSocket实现多用户实时数据同步
+- ✅ **数据持久化** - PostgreSQL数据库存储，支持事务和约束
 
 ### 👥 用户管理
 - ✅ **用户CRUD** - 完整的用户增删改查操作
 - ✅ **角色管理** - 支持admin和user角色管理
 - ✅ **状态管理** - 用户启用/禁用状态控制
 - ✅ **批量操作** - 支持批量用户管理操作
+- ✅ **密码安全** - 使用Bun.password进行安全密码加密
 
 ### 📖 借阅管理
 - ✅ **借阅记录** - 完整的借阅记录管理
 - ✅ **状态追踪** - 智能的借阅状态计算（正常/逾期/已归还）
 - ✅ **日期管理** - 支持借阅日期和归还日期管理
 - ✅ **逾期提醒** - 自动计算和显示逾期状态
+- ✅ **外键关联** - 借阅记录与用户、图书的关联约束
 
 ### 📊 数据统计
 - ✅ **借阅统计** - 全面的借阅数据统计分析
 - ✅ **状态分布** - 借阅状态分布饼图展示
 - ✅ **趋势分析** - 最近30天借阅趋势线图
 - ✅ **可视化展示** - 使用Apache ECharts实现数据可视化
+- ✅ **实时计算** - 基于PostgreSQL的高效数据查询
 
 ### 🔄 实时通信
 - ✅ **WebSocket通知** - 实时推送系统通知
 - ✅ **多用户同步** - 多用户操作实时同步
 - ✅ **连接管理** - 智能的连接状态管理
+- ✅ **消息推送** - 支持各种类型的实时消息推送
 
 ### 🖥️ 任务监控
 - ✅ **系统监控** - 实时系统状态监控
@@ -49,12 +54,12 @@
 ## 🛠️ 技术栈
 
 ### 后端技术
-- **运行时**: Bun (JavaScript运行时)
+- **运行时**: Bun 1.0+ (现代JavaScript运行时)
 - **HTTP服务**: Bun原生HTTP服务器
 - **WebSocket**: Bun原生WebSocket支持
-- **数据库**: PostgreSQL (主数据库)
-- **缓存**: Redis (数据缓存)
-- **数据库层**: Bun SQL (内置PostgreSQL驱动)
+- **数据库**: PostgreSQL 12+ (主数据库，支持ACID事务)
+- **缓存**: Redis 6+ (数据缓存和会话管理)
+- **数据库层**: Bun SQL (内置PostgreSQL原生驱动)
 - **身份认证**: JWT (JSON Web Token)
 - **密码加密**: Bun.password (内置密码加密)
 
@@ -75,8 +80,17 @@
 
 ## 🏗️ 架构特色
 
+### 数据库架构 (PostgreSQL + Redis)
+本项目采用现代化的数据库架构，具有以下优势：
+
+- **🚀 高性能**: PostgreSQL提供ACID事务支持，Redis提供高速缓存
+- **🛡️ 数据安全**: 支持外键约束、数据完整性检查
+- **🔧 可扩展**: 支持复杂查询、索引优化、连接池管理
+- **💾 持久化**: 数据永久存储，系统重启后数据不丢失
+- **⚡ 缓存加速**: Redis缓存提高查询性能，5分钟TTL自动更新
+
 ### Bun SQL 数据库层
-本项目采用 Bun 内置的 SQL 支持，具有以下优势：
+使用 Bun 内置的 SQL 支持，具有以下优势：
 
 - **🚀 高性能**: 原生 PostgreSQL 协议支持，比第三方库更快
 - **🛡️ 安全**: 内置 SQL 注入防护，使用 tagged template literals
@@ -91,9 +105,16 @@ const user = await sql`INSERT INTO users ${sql(userData)} RETURNING *`;
 
 ### 数据访问层设计
 - **统一接口**: DataAccess 类提供统一的数据访问方法
-- **缓存机制**: Redis 缓存提高查询性能
+- **缓存机制**: Redis 缓存提高查询性能，支持缓存失效和更新
 - **字段映射**: 自动处理数据库字段名与前端驼峰命名的转换
 - **事务支持**: 支持复杂的事务操作和回滚
+- **错误处理**: 完善的数据库错误处理和用户友好的错误提示
+
+### 缓存策略
+- **分层缓存**: 用户、图书、借阅记录分别缓存
+- **智能失效**: 数据更新时自动清除相关缓存
+- **模式匹配**: 支持通配符模式批量清除缓存
+- **性能优化**: 缓存命中率监控和优化
 
 ## 🚀 快速开始
 
@@ -121,6 +142,8 @@ sudo apt install -y postgresql postgresql-contrib redis-server
 # 启动服务
 sudo systemctl start postgresql
 sudo systemctl start redis-server
+sudo systemctl enable postgresql
+sudo systemctl enable redis-server
 
 # 创建数据库用户和数据库
 sudo -u postgres psql
@@ -132,7 +155,7 @@ GRANT ALL PRIVILEGES ON DATABASE book_management TO postgres;
 
 3. **配置环境变量**
 ```bash
-# 数据库连接配置（已内置，如需修改请编辑 back-js/database.js）
+# 数据库连接配置（在 back-js/database.js 中修改）
 DATABASE_URL=postgresql://postgres:your_new_password@localhost:5432/book_management
 
 # Redis配置（默认本地连接，端口6379）
@@ -161,11 +184,11 @@ bun run start
 ### 数据库初始化
 
 系统启动时会自动创建所需的数据表结构：
-- `users` - 用户表
-- `books` - 图书表  
-- `borrows` - 借阅记录表
+- `users` - 用户表（支持用户名、邮箱、角色、状态等字段）
+- `books` - 图书表（支持ISBN、分类、库存等扩展字段）
+- `borrows` - 借阅记录表（支持外键约束和状态管理）
 
-首次启动后会自动创建默认管理员账户。
+首次启动后会自动创建默认管理员账户和示例数据。
 
 ### 项目结构
 
@@ -191,7 +214,7 @@ book-management-system/
 ├── back-js/             # 后端逻辑目录
 │   ├── config.js        # 配置文件
 │   ├── database.js      # 数据库连接配置
-│   ├── data-access.js   # 数据访问层（Bun SQL）
+│   ├── data-access.js   # 数据访问层（Bun SQL + Redis）
 │   ├── routes.js        # 路由处理
 │   ├── auth.js          # 认证逻辑
 │   ├── user.js          # 用户管理
@@ -215,6 +238,22 @@ export const SERVER_PORT = 3000;              // 服务器端口
 export const JWT_SECRET = "your_secret_key";  // JWT密钥
 export const JWT_EXPIRES_IN = 60 * 60 * 24;   // Token过期时间(24小时)
 export const TASK_UPDATE_INTERVAL = 60 * 1000; // 任务更新间隔(60秒)
+```
+
+### 数据库配置
+```javascript
+// back-js/database.js
+const DB_CONFIG = {
+  url: 'postgresql://postgres:your_new_password@localhost:5432/book_management',
+  host: 'localhost',
+  port: 5432,
+  database: 'book_management',
+  username: 'postgres',
+  password: 'your_new_password',
+  max: 10, // 连接池最大连接数
+  idleTimeout: 20, // 空闲连接超时时间
+  connectionTimeout: 10, // 连接超时时间
+};
 ```
 
 ### 启动脚本
@@ -278,6 +317,7 @@ export const TASK_UPDATE_INTERVAL = 60 * 1000; // 任务更新间隔(60秒)
 - **现代化UI**: 使用Bootstrap 5组件和渐变色设计
 - **用户友好**: 直观的操作界面和清晰的信息展示
 - **实时反馈**: WebSocket实时通知和状态更新
+- **数据可视化**: ECharts图表展示统计数据
 
 ## 🧪 开发指南
 
@@ -303,15 +343,16 @@ lsof -ti:3000 | xargs kill -9 && sleep 2 && bun run dev
 ### 3. 开发注意事项
 
 - **热重载**: `bun run dev` 已监听文件变化，无需手动重启
-- **自动执行**: MCP工具和临时测试文件可以自动执行
-- **命令行工具**: 可使用 `sudo apt install -y` 安装需要的工具
+- **数据库迁移**: 修改表结构时需要手动执行SQL语句
+- **缓存清理**: 开发时可能需要手动清理Redis缓存
+- **错误处理**: 注意数据库约束错误的处理
 
 ### 4. 技术特点
 
 - **声明式编程**: 使用Alpine.js实现响应式数据绑定
 - **模块化设计**: 前后端代码分离，功能模块化
 - **性能优化**: 使用缓存、分页、WebSocket等技术优化性能
-- **密码安全**: 使用Bun.password进行密码加密
+- **数据安全**: 使用PostgreSQL事务保证数据一致性
 
 ## 🔧 运维管理
 
@@ -328,19 +369,54 @@ lsof -ti:3000 | xargs kill -9
 bun run dev
 ```
 
-### 2. 任务监控
+### 2. 数据库管理
+
+```bash
+# 连接PostgreSQL
+psql -h localhost -U postgres -d book_management
+
+# 备份数据库
+pg_dump -h localhost -U postgres book_management > backup.sql
+
+# 恢复数据库
+psql -h localhost -U postgres book_management < backup.sql
+
+# 查看Redis缓存
+redis-cli
+> KEYS cache:*
+> FLUSHALL  # 清除所有缓存
+```
+
+### 3. 任务监控
 
 访问 `/monitor.html` 页面可以：
 - 查看后台任务状态
 - 手动启动/停止任务
 - 监控系统运行状态
 
-### 3. 数据备份
+### 4. 性能监控
 
-系统使用内存存储，重启后数据会重置。如需持久化，建议：
-- 定期导出数据
-- 实现数据库存储
-- 使用文件系统存储
+- **数据库连接**: 监控PostgreSQL连接池使用情况
+- **缓存命中率**: 监控Redis缓存效果
+- **API响应时间**: 监控接口性能
+- **WebSocket连接**: 监控实时连接状态
+
+## 📈 版本更新
+
+### 最新改进 (v1.0.0)
+- ✅ **数据库升级**: 从内存存储升级到PostgreSQL持久化存储
+- ✅ **缓存机制**: 集成Redis缓存，提升查询性能
+- ✅ **字段映射**: 完善数据库字段与前端字段的自动转换
+- ✅ **约束支持**: 添加外键约束和数据完整性检查
+- ✅ **错误处理**: 改进数据库错误处理和用户反馈
+- ✅ **性能优化**: 使用Bun SQL原生驱动，提升数据库操作性能
+
+### 未来计划
+- 📋 **高级搜索**: 支持多条件组合搜索
+- 📋 **批量操作**: 支持批量导入/导出数据
+- 📋 **权限细化**: 更细粒度的权限控制
+- 📋 **日志系统**: 操作日志和审计功能
+- 📋 **多语言**: 国际化支持
 
 ## 📝 许可证
 

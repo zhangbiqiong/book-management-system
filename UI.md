@@ -6,7 +6,7 @@
 
 **设计风格**: 简洁现代、响应式布局、用户友好、声明式交互、实时通知
 
-**技术栈**: HTML5 + CSS3 + JavaScript + Bootstrap 5.3.2 + Alpine.js 3.x + WebSocket + Bun SQL
+**技术栈**: HTML5 + CSS3 + JavaScript + Bootstrap 5.3.2 + Alpine.js 3.x + WebSocket + Bun SQL + PostgreSQL + Redis
 
 **设计理念**: 渐进式增强、响应式优先、无障碍访问、实时反馈、用户体验至上
 
@@ -17,6 +17,9 @@
 - ✅ **日期显示**: 修复了图书出版日期在表格中的显示问题
 - ✅ **错误处理**: 改进了数据库约束错误的处理和用户反馈
 - ✅ **缓存机制**: 集成 Redis 缓存，提升数据查询效率
+- ✅ **实时功能**: 增强了 WebSocket 实时通信和状态同步
+- ✅ **表单验证**: 完善了前后端数据验证和约束检查
+- ✅ **用户体验**: 改进了加载状态、错误提示和操作反馈
 
 **浏览器支持**: Chrome 80+, Firefox 75+, Safari 13+, Edge 80+
 
@@ -31,6 +34,10 @@
 - `publish_date` (数据库) → 通过 `CommonUtils.formatDate()` 格式化显示
 - `created_at` (数据库) → `createdAt` (前端，部分接口)
 - `updated_at` (数据库) → `updatedAt` (前端，部分接口)
+- `isbn` (数据库) → 在表格中直接显示
+- `price` (数据库) → 在表格中显示为货币格式
+- `stock` (数据库) → 在表格中显示库存数量
+- `category` (数据库) → 在表格中显示分类标签
 
 **借阅记录字段**:
 - `user_id` (数据库) → `userId` (前端)
@@ -41,10 +48,17 @@
 - `due_date` (数据库) → `dueDate` (前端)
 - `return_date` (数据库) → `returnDate` (前端)
 
+**用户数据字段**:
+- `email` (数据库) → 在用户管理界面显示
+- `role` (数据库) → 通过徽章样式显示角色
+- `status` (数据库) → 通过状态按钮显示启用/禁用
+
 **注意事项**:
 - 日期字段统一使用 `CommonUtils.formatDate()` 进行格式化
 - 数据库时间戳字段保持 ISO 8601 格式传输
 - 前端表单提交时自动转换为数据库期望的字段名
+- 货币字段使用 `CommonUtils.formatCurrency()` 格式化
+- 状态字段通过条件样式类实现可视化
 
 ---
 
@@ -62,6 +76,13 @@
 - 警告色：`#ffc107` (Bootstrap warning)  
 - 错误色：`#dc3545` (Bootstrap danger)
 - 信息色：`#17a2b8` (Bootstrap info)
+
+**状态色彩**:
+- 正常借阅：`#28a745` (绿色)
+- 逾期借阅：`#dc3545` (红色)
+- 已归还：`#6c757d` (灰色)
+- 管理员角色：`#dc3545` (红色徽章)
+- 普通用户：`#007bff` (蓝色徽章)
 
 **背景和表面**:
 - 卡片背景：`rgba(255, 255, 255, 0.95)` (半透明白色)
@@ -253,6 +274,33 @@ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif
 </div>
 ```
 
+#### 注册表单增强
+```html
+<div x-show="currentForm === 'register'" x-transition>
+    <form class="needs-validation">
+        <div class="mb-3">
+            <label for="regUsername" class="form-label">用户名</label>
+            <input type="text" class="form-control" id="regUsername" required>
+            <div class="form-text">3-20字符，仅支持字母数字下划线</div>
+        </div>
+        <div class="mb-3">
+            <label for="regEmail" class="form-label">邮箱地址</label>
+            <input type="email" class="form-control" id="regEmail" required>
+        </div>
+        <div class="mb-3">
+            <label for="regPassword" class="form-label">密码</label>
+            <input type="password" class="form-control" id="regPassword" required>
+            <div class="form-text">密码长度至少6位</div>
+        </div>
+        <div class="mb-3">
+            <label for="confirmPassword" class="form-label">确认密码</label>
+            <input type="password" class="form-control" id="confirmPassword" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">注册</button>
+    </form>
+</div>
+```
+
 #### 表单切换导航
 ```html
 <ul class="nav nav-tabs mb-4">
@@ -290,11 +338,32 @@ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif
 <div class="row">
     <div class="col-md-3">
         <div class="stats-card">
+            <div class="stats-icon">📚</div>
             <h3>图书总数</h3>
             <span class="stats-number" x-text="stats.totalBooks">0</span>
         </div>
     </div>
-    <!-- 更多统计卡片 -->
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-icon">👥</div>
+            <h3>用户总数</h3>
+            <span class="stats-number" x-text="stats.totalUsers">0</span>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-icon">📖</div>
+            <h3>当前借阅</h3>
+            <span class="stats-number" x-text="stats.activeBorrows">0</span>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-icon">⚠️</div>
+            <h3>逾期记录</h3>
+            <span class="stats-number text-danger" x-text="stats.overdueBorrows">0</span>
+        </div>
+    </div>
 </div>
 ```
 
@@ -307,7 +376,20 @@ Alpine.data('dashboardData', () => ({
         activeBorrows: 0,
         overdueBorrows: 0
     },
-    recentActivities: []
+    recentActivities: [],
+    
+    async init() {
+        await this.loadStats();
+        await this.loadRecentActivities();
+        this.setupAutoRefresh();
+    },
+    
+    setupAutoRefresh() {
+        setInterval(() => {
+            this.loadStats();
+            this.loadRecentActivities();
+        }, 30000); // 30秒自动刷新
+    }
 }))
 ```
 
@@ -326,6 +408,9 @@ Alpine.data('dashboardData', () => ({
 - ✅ **字段映射**: 正确处理 `publish_date` 数据库字段的显示
 - ✅ **日期格式化**: 使用 `CommonUtils.formatDate()` 统一日期格式
 - ✅ **表单验证**: 改进了图书编辑表单的数据验证
+- ✅ **ISBN验证**: 添加了ISBN号的唯一性检查
+- ✅ **价格显示**: 添加了价格字段的货币格式化
+- ✅ **库存管理**: 集成了库存数量的显示和管理
 
 **列表设计**:
 ```html
@@ -337,7 +422,11 @@ Alpine.data('dashboardData', () => ({
                 <th>书名</th>
                 <th>作者</th>
                 <th>出版社</th>
+                <th>ISBN</th>
                 <th>出版日期</th>
+                <th>价格</th>
+                <th>库存</th>
+                <th>分类</th>
                 <th>操作</th>
             </tr>
         </thead>
@@ -348,7 +437,16 @@ Alpine.data('dashboardData', () => ({
                     <td x-text="book.title"></td>
                     <td x-text="book.author"></td>
                     <td x-text="book.publisher"></td>
-                    <td x-text="CommonUtils.formatDate(book.publish_date)"></td>
+                    <td x-text="book.isbn"></td>
+                    <td x-text="CommonUtils.formatDate(book.publishDate)"></td>
+                    <td x-text="CommonUtils.formatCurrency(book.price)"></td>
+                    <td>
+                        <span class="badge" :class="book.stock > 0 ? 'bg-success' : 'bg-danger'" 
+                              x-text="book.stock"></span>
+                    </td>
+                    <td>
+                        <span class="badge bg-info" x-text="book.category"></span>
+                    </td>
                     <td>
                         <button class="btn btn-sm btn-primary" @click="editBook(book)">编辑</button>
                         <button class="btn btn-sm btn-danger" @click="deleteBook(book.id)">删除</button>
@@ -360,26 +458,102 @@ Alpine.data('dashboardData', () => ({
 </div>
 ```
 
-**搜索组件**:
+**搜索组件增强**:
 ```html
 <div class="search-controls mb-4">
     <div class="row">
-        <div class="col-md-6">
+        <div class="col-md-4">
             <input type="text" class="form-control" placeholder="搜索图书..." 
                    x-model="searchTerm" @input="searchBooks">
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <select class="form-select" x-model="pageSize" @change="loadBooks">
                 <option value="5">每页 5 条</option>
                 <option value="10">每页 10 条</option>
                 <option value="20">每页 20 条</option>
             </select>
         </div>
-        <div class="col-md-3">
-            <button class="btn btn-primary" @click="showAddBookModal">添加图书</button>
+        <div class="col-md-2">
+            <select class="form-select" x-model="sortBy" @change="loadBooks">
+                <option value="created_at">创建时间</option>
+                <option value="title">书名</option>
+                <option value="author">作者</option>
+                <option value="publish_date">出版日期</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select class="form-select" x-model="sortOrder" @change="loadBooks">
+                <option value="desc">降序</option>
+                <option value="asc">升序</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-primary w-100" @click="showAddBookModal">添加图书</button>
         </div>
     </div>
 </div>
+```
+
+**图书表单增强**:
+```html
+<form @submit.prevent="saveBook">
+    <div class="row">
+        <div class="col-md-6">
+            <label class="form-label">图书标题</label>
+            <input type="text" class="form-control" x-model="bookForm.title" required>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">作者</label>
+            <input type="text" class="form-control" x-model="bookForm.author" required>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-6">
+            <label class="form-label">出版社</label>
+            <input type="text" class="form-control" x-model="bookForm.publisher" required>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">ISBN号</label>
+            <input type="text" class="form-control" x-model="bookForm.isbn" required>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-4">
+            <label class="form-label">出版日期</label>
+            <input type="date" class="form-control" x-model="bookForm.publishDate" required>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">价格</label>
+            <div class="input-group">
+                <span class="input-group-text">¥</span>
+                <input type="number" class="form-control" x-model="bookForm.price" 
+                       min="0" step="0.01">
+            </div>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">库存</label>
+            <input type="number" class="form-control" x-model="bookForm.stock" 
+                   min="0">
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-6">
+            <label class="form-label">分类</label>
+            <select class="form-select" x-model="bookForm.category">
+                <option value="">请选择分类</option>
+                <option value="古典文学">古典文学</option>
+                <option value="现代文学">现代文学</option>
+                <option value="科技">科技</option>
+                <option value="历史">历史</option>
+                <option value="其他">其他</option>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">描述</label>
+            <textarea class="form-control" x-model="bookForm.description" rows="3"></textarea>
+        </div>
+    </div>
+</form>
 ```
 
 **分页组件**:
@@ -407,6 +581,7 @@ Alpine.data('dashboardData', () => ({
 - **角色标识**: 不同颜色的角色徽章
 - **状态显示**: 启用/禁用状态指示
 - **批量操作**: 支持批量启用/禁用用户
+- **邮箱显示**: 完整的用户邮箱信息
 
 **角色徽章设计**:
 ```html
@@ -425,6 +600,51 @@ Alpine.data('dashboardData', () => ({
 </button>
 ```
 
+**用户表格增强**:
+```html
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>用户名</th>
+            <th>邮箱</th>
+            <th>角色</th>
+            <th>状态</th>
+            <th>注册时间</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        <template x-for="user in users" :key="user.id">
+            <tr>
+                <td x-text="user.id"></td>
+                <td x-text="user.username"></td>
+                <td x-text="user.email"></td>
+                <td>
+                    <span class="badge" :class="{
+                        'bg-danger': user.role === 'admin',
+                        'bg-primary': user.role === 'user'
+                    }" x-text="user.role === 'admin' ? '管理员' : '普通用户'"></span>
+                </td>
+                <td>
+                    <button class="btn btn-sm" 
+                            :class="user.status === 'enabled' ? 'btn-success' : 'btn-secondary'"
+                            @click="toggleUserStatus(user)">
+                        <span x-text="user.status === 'enabled' ? '已启用' : '已禁用'"></span>
+                    </button>
+                </td>
+                <td x-text="CommonUtils.formatDate(user.createdAt)"></td>
+                <td>
+                    <button class="btn btn-sm btn-primary" @click="editUser(user)">编辑</button>
+                    <button class="btn btn-sm btn-danger" @click="deleteUser(user.id)" 
+                            :disabled="user.id === currentUser.id">删除</button>
+                </td>
+            </tr>
+        </template>
+    </tbody>
+</table>
+```
+
 ### 5. 借阅管理页面 (borrow.html)
 
 **借阅状态可视化**:
@@ -432,7 +652,7 @@ Alpine.data('dashboardData', () => ({
 - **逾期**: 红色徽章  
 - **已归还**: 灰色徽章
 
-**状态计算逻辑**:
+**状态计算逻辑增强**:
 ```javascript
 getBorrowStatus(borrow) {
     if (borrow.returnDate) {
@@ -440,24 +660,102 @@ getBorrowStatus(borrow) {
     }
     
     const borrowDate = new Date(borrow.borrowDate);
-    const dueDate = new Date(borrowDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const dueDate = new Date(borrow.dueDate || new Date(borrowDate.getTime() + 30 * 24 * 60 * 60 * 1000));
     const now = new Date();
     
     if (now > dueDate) {
-        return { text: '逾期', class: 'bg-danger' };
+        const overdueDays = Math.ceil((now - dueDate) / (24 * 60 * 60 * 1000));
+        return { text: `逾期${overdueDays}天`, class: 'bg-danger' };
+    }
+    
+    const remainingDays = Math.ceil((dueDate - now) / (24 * 60 * 60 * 1000));
+    if (remainingDays <= 3) {
+        return { text: `${remainingDays}天到期`, class: 'bg-warning' };
     }
     
     return { text: '正常', class: 'bg-success' };
 }
 ```
 
-**快速归还操作**:
+**借阅记录表格**:
 ```html
-<button class="btn btn-sm btn-warning" 
-        @click="returnBook(borrow.id)"
-        x-show="!borrow.returnDate">
-    归还图书
-</button>
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>借阅ID</th>
+            <th>图书名称</th>
+            <th>借阅者</th>
+            <th>借阅日期</th>
+            <th>到期日期</th>
+            <th>归还日期</th>
+            <th>状态</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        <template x-for="borrow in borrows" :key="borrow.id">
+            <tr>
+                <td x-text="borrow.id"></td>
+                <td x-text="borrow.bookTitle"></td>
+                <td x-text="borrow.borrowerName"></td>
+                <td x-text="CommonUtils.formatDate(borrow.borrowDate)"></td>
+                <td x-text="CommonUtils.formatDate(borrow.dueDate)"></td>
+                <td x-text="borrow.returnDate ? CommonUtils.formatDate(borrow.returnDate) : '--'"></td>
+                <td>
+                    <span class="badge" 
+                          :class="getBorrowStatus(borrow).class"
+                          x-text="getBorrowStatus(borrow).text"></span>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-warning" 
+                            @click="returnBook(borrow)"
+                            x-show="!borrow.returnDate">
+                        归还图书
+                    </button>
+                    <button class="btn btn-sm btn-info" @click="editBorrow(borrow)">编辑</button>
+                    <button class="btn btn-sm btn-danger" @click="deleteBorrow(borrow.id)">删除</button>
+                </td>
+            </tr>
+        </template>
+    </tbody>
+</table>
+```
+
+**借阅表单增强**:
+```html
+<form @submit.prevent="saveBorrow">
+    <div class="row">
+        <div class="col-md-6">
+            <label class="form-label">选择用户</label>
+            <select class="form-select" x-model="borrowForm.userId" required>
+                <option value="">请选择用户</option>
+                <template x-for="user in availableUsers" :key="user.id">
+                    <option :value="user.id" x-text="user.username"></option>
+                </template>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">选择图书</label>
+            <select class="form-select" x-model="borrowForm.bookId" required>
+                <option value="">请选择图书</option>
+                <template x-for="book in availableBooks" :key="book.id">
+                    <option :value="book.id" x-text="book.title" :disabled="book.stock <= 0"></option>
+                </template>
+            </select>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-6">
+            <label class="form-label">借阅日期</label>
+            <input type="date" class="form-control" x-model="borrowForm.borrowDate" required>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">到期日期</label>
+            <input type="date" class="form-control" x-model="borrowForm.dueDate">
+            <div class="form-text">默认借阅日期后30天</div>
+        </div>
+    </div>
+</form>
 ```
 
 ### 6. 数据统计页面 (statistics.html)
@@ -465,39 +763,172 @@ getBorrowStatus(borrow) {
 **图表集成**:
 使用 Apache ECharts 实现数据可视化
 
-**饼图配置**:
+**饼图配置增强**:
 ```javascript
 const pieOption = {
-    title: { text: '借阅状态分布' },
-    tooltip: { trigger: 'item' },
-    legend: { orient: 'vertical', left: 'left' },
+    title: { 
+        text: '借阅状态分布',
+        left: 'center',
+        textStyle: { fontSize: 16 }
+    },
+    tooltip: { 
+        trigger: 'item',
+        formatter: '{a} <br/>{b}: {c} ({d}%)'
+    },
+    legend: { 
+        orient: 'vertical', 
+        left: 'left',
+        top: 'middle'
+    },
     series: [{
         name: '借阅状态',
         type: 'pie',
-        radius: '50%',
+        radius: ['40%', '70%'],
+        center: ['60%', '50%'],
+        avoidLabelOverlap: false,
+        label: {
+            show: false,
+            position: 'center'
+        },
+        emphasis: {
+            label: {
+                show: true,
+                fontSize: '18',
+                fontWeight: 'bold'
+            }
+        },
         data: [
-            { value: normalCount, name: '正常' },
-            { value: overdueCount, name: '逾期' },
-            { value: returnedCount, name: '已归还' }
+            { value: normalCount, name: '正常借阅', itemStyle: { color: '#28a745' } },
+            { value: overdueCount, name: '逾期记录', itemStyle: { color: '#dc3545' } },
+            { value: returnedCount, name: '已归还', itemStyle: { color: '#6c757d' } }
         ]
     }]
 };
 ```
 
-**折线图配置**:
+**折线图配置增强**:
 ```javascript
 const lineOption = {
-    title: { text: '最近30天借阅趋势' },
-    tooltip: { trigger: 'axis' },
-    xAxis: { type: 'category', data: dates },
-    yAxis: { type: 'value' },
-    series: [{
-        name: '借阅数量',
-        type: 'line',
-        data: counts,
-        smooth: true
-    }]
+    title: { 
+        text: '最近30天借阅趋势',
+        left: 'center'
+    },
+    tooltip: { 
+        trigger: 'axis',
+        axisPointer: { type: 'cross' }
+    },
+    legend: {
+        data: ['借阅数量', '归还数量'],
+        top: 30
+    },
+    grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '3%',
+        containLabel: true
+    },
+    xAxis: { 
+        type: 'category', 
+        data: dates,
+        boundaryGap: false
+    },
+    yAxis: { 
+        type: 'value',
+        minInterval: 1
+    },
+    series: [
+        {
+            name: '借阅数量',
+            type: 'line',
+            data: borrowCounts,
+            smooth: true,
+            lineStyle: { color: '#007bff' },
+            areaStyle: { 
+                color: {
+                    type: 'linear',
+                    x: 0, y: 0, x2: 0, y2: 1,
+                    colorStops: [
+                        { offset: 0, color: 'rgba(0, 123, 255, 0.3)' },
+                        { offset: 1, color: 'rgba(0, 123, 255, 0.1)' }
+                    ]
+                }
+            }
+        },
+        {
+            name: '归还数量',
+            type: 'line',
+            data: returnCounts,
+            smooth: true,
+            lineStyle: { color: '#28a745' }
+        }
+    ]
 };
+```
+
+**统计卡片布局**:
+```html
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 x-text="statistics.total"></h4>
+                        <p class="mb-0">总借阅记录</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-book fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 x-text="statistics.borrowed"></h4>
+                        <p class="mb-0">当前借阅</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-book-reader fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 x-text="statistics.overdue"></h4>
+                        <p class="mb-0">逾期记录</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-secondary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 x-text="statistics.returned"></h4>
+                        <p class="mb-0">已归还</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 ```
 
 ### 7. 任务监控页面 (monitor.html)
@@ -516,26 +947,90 @@ setupWebSocket() {
         if (data.type === 'task_status_update') {
             this.taskStatus = data.status;
             this.lastUpdateTime = new Date().toLocaleString();
+            this.executionCount = data.executionCount;
         }
     };
 }
 ```
 
-**任务控制按钮**:
+**任务控制界面**:
 ```html
-<div class="task-controls">
-    <button class="btn btn-success" @click="startTask" 
-            :disabled="taskStatus === 'running'">
-        启动任务
-    </button>
-    <button class="btn btn-danger" @click="stopTask"
-            :disabled="taskStatus === 'stopped'">
-        停止任务
-    </button>
-    <button class="btn btn-warning" @click="executeTask">
-        手动执行
-    </button>
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">任务控制面板</h5>
+    </div>
+    <div class="card-body">
+        <div class="row align-items-center mb-3">
+            <div class="col-md-6">
+                <h6>任务状态</h6>
+                <div class="d-flex align-items-center">
+                    <div class="status-indicator" 
+                         :class="{
+                             'status-running': taskStatus.status === 'running',
+                             'status-stopped': taskStatus.status === 'stopped',
+                             'status-unknown': taskStatus.status === 'unknown'
+                         }"></div>
+                    <span class="ms-2" x-text="getStatusText(taskStatus.status)"></span>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h6>执行统计</h6>
+                <div class="small text-muted">
+                    <div>执行次数: <span x-text="taskStatus.executionCount || 0"></span></div>
+                    <div>错误次数: <span x-text="taskStatus.errorCount || 0"></span></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="task-controls">
+            <button class="btn btn-success me-2" @click="startTask" 
+                    :disabled="taskStatus.status === 'running' || isLoading">
+                <span x-show="!isLoading">启动任务</span>
+                <span x-show="isLoading">
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                    处理中...
+                </span>
+            </button>
+            <button class="btn btn-danger me-2" @click="stopTask"
+                    :disabled="taskStatus.status === 'stopped' || isLoading">
+                停止任务
+            </button>
+            <button class="btn btn-warning" @click="executeTask"
+                    :disabled="isLoading">
+                手动执行
+            </button>
+        </div>
+    </div>
 </div>
+```
+
+**状态指示器CSS**:
+```css
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.status-running {
+    background-color: #28a745;
+    animation: pulse 2s infinite;
+}
+
+.status-stopped {
+    background-color: #dc3545;
+}
+
+.status-unknown {
+    background-color: #6c757d;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
 ```
 
 ---
@@ -554,15 +1049,55 @@ setupWebSocket() {
 ```css
 .form-control.is-valid {
     border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
 }
 
 .form-control.is-invalid {
     border-color: #dc3545;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
 }
 
 .invalid-feedback {
     color: #dc3545;
     font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.valid-feedback {
+    color: #28a745;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+```
+
+**验证规则增强**:
+```javascript
+validateForm(formData) {
+    const errors = {};
+    
+    // 用户名验证
+    if (!formData.username || formData.username.length < 3) {
+        errors.username = '用户名至少3个字符';
+    } else if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
+        errors.username = '用户名只能包含字母、数字和下划线';
+    }
+    
+    // 邮箱验证
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        errors.email = '请输入有效的邮箱地址';
+    }
+    
+    // ISBN验证
+    if (formData.isbn && !/^[0-9-]+$/.test(formData.isbn)) {
+        errors.isbn = 'ISBN号格式不正确';
+    }
+    
+    // 价格验证
+    if (formData.price && (isNaN(formData.price) || formData.price < 0)) {
+        errors.price = '价格必须为非负数';
+    }
+    
+    return errors;
 }
 ```
 
@@ -570,46 +1105,108 @@ setupWebSocket() {
 
 **按钮加载状态**:
 ```html
-<button class="btn btn-primary" :disabled="isLoading">
-    <span x-show="isLoading" class="spinner-border spinner-border-sm me-2"></span>
-    <span x-text="isLoading ? '加载中...' : '提交'"></span>
+<button class="btn btn-primary" :disabled="isLoading" @click="submitForm">
+    <span x-show="!isLoading">提交</span>
+    <span x-show="isLoading" class="d-flex align-items-center">
+        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+        <span>提交中...</span>
+    </span>
 </button>
 ```
 
 **页面加载骨架**:
 ```html
 <div x-show="loading" class="loading-skeleton">
-    <div class="skeleton-item"></div>
-    <div class="skeleton-item"></div>
-    <div class="skeleton-item"></div>
+    <div class="skeleton-item skeleton-header"></div>
+    <div class="skeleton-item skeleton-line"></div>
+    <div class="skeleton-item skeleton-line short"></div>
+    <div class="skeleton-item skeleton-line"></div>
 </div>
+
+<style>
+.skeleton-item {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    margin-bottom: 10px;
+    border-radius: 4px;
+}
+
+.skeleton-header { height: 40px; }
+.skeleton-line { height: 20px; }
+.skeleton-line.short { width: 60%; }
+
+@keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+</style>
 ```
 
 ### 确认对话框
 
-**删除确认**:
+**删除确认增强**:
 ```javascript
-async deleteBook(id) {
-    if (await this.showConfirmDialog('确定要删除这本图书吗？')) {
-        // 执行删除操作
-    }
+async confirmDelete(item, type = '记录') {
+    return new Promise((resolve) => {
+        this.confirmDialog = {
+            show: true,
+            title: '确认删除',
+            message: `确定要删除这个${type}吗？此操作不可撤销。`,
+            type: 'danger',
+            confirmText: '确认删除',
+            cancelText: '取消',
+            onConfirm: () => {
+                this.confirmDialog.show = false;
+                resolve(true);
+            },
+            onCancel: () => {
+                this.confirmDialog.show = false;
+                resolve(false);
+            }
+        };
+    });
 }
 ```
 
 **通用确认框组件**:
 ```html
-<div class="modal fade" id="confirmModal">
+<div class="modal fade" :class="{'show': confirmDialog.show}" 
+     :style="{'display': confirmDialog.show ? 'block' : 'none'}"
+     x-show="confirmDialog.show" x-transition>
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">确认操作</h5>
+                <h5 class="modal-title" x-text="confirmDialog.title"></h5>
+                <button type="button" class="btn-close" @click="confirmDialog.onCancel()"></button>
             </div>
             <div class="modal-body">
-                <p x-text="confirmMessage"></p>
+                <div class="d-flex align-items-start">
+                    <div class="me-3">
+                        <i :class="{
+                            'fas fa-exclamation-triangle text-warning': confirmDialog.type === 'warning',
+                            'fas fa-question-circle text-info': confirmDialog.type === 'info',
+                            'fas fa-trash text-danger': confirmDialog.type === 'danger'
+                        }" style="font-size: 1.5rem;"></i>
+                    </div>
+                    <div>
+                        <p x-text="confirmDialog.message" class="mb-0"></p>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-danger" @click="confirmAction">确认</button>
+                <button type="button" class="btn btn-secondary" @click="confirmDialog.onCancel()">
+                    <span x-text="confirmDialog.cancelText"></span>
+                </button>
+                <button type="button" class="btn" 
+                        :class="{
+                            'btn-warning': confirmDialog.type === 'warning',
+                            'btn-info': confirmDialog.type === 'info',
+                            'btn-danger': confirmDialog.type === 'danger'
+                        }"
+                        @click="confirmDialog.onConfirm()">
+                    <span x-text="confirmDialog.confirmText"></span>
+                </button>
             </div>
         </div>
     </div>
@@ -618,14 +1215,33 @@ async deleteBook(id) {
 
 ### 通知系统
 
-**Toast 通知**:
+**Toast 通知增强**:
 ```html
-<div class="toast-container position-fixed top-0 end-0 p-3">
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1055">
     <template x-for="notification in notifications" :key="notification.id">
-        <div class="toast show" x-transition>
-            <div class="toast-header">
+        <div class="toast show" x-transition.opacity
+             :class="{
+                 'bg-success text-white': notification.type === 'success',
+                 'bg-danger text-white': notification.type === 'error',
+                 'bg-warning text-dark': notification.type === 'warning',
+                 'bg-info text-white': notification.type === 'info'
+             }">
+            <div class="toast-header" 
+                 :class="{
+                     'bg-success text-white': notification.type === 'success',
+                     'bg-danger text-white': notification.type === 'error',
+                     'bg-warning text-dark': notification.type === 'warning',
+                     'bg-info text-white': notification.type === 'info'
+                 }">
+                <i :class="{
+                    'fas fa-check-circle me-2': notification.type === 'success',
+                    'fas fa-exclamation-circle me-2': notification.type === 'error',
+                    'fas fa-exclamation-triangle me-2': notification.type === 'warning',
+                    'fas fa-info-circle me-2': notification.type === 'info'
+                }"></i>
                 <strong class="me-auto" x-text="notification.title"></strong>
                 <small x-text="notification.time"></small>
+                <button type="button" class="btn-close" @click="removeNotification(notification.id)"></button>
             </div>
             <div class="toast-body" x-text="notification.message"></div>
         </div>
@@ -633,13 +1249,16 @@ async deleteBook(id) {
 </div>
 ```
 
-**WebSocket 实时通知**:
+**WebSocket 实时通知增强**:
 ```javascript
 // 接收 WebSocket 通知
 ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
     if (data.type === 'notification') {
-        this.showNotification(data.title, data.message, data.type);
+        this.showNotification(data.title, data.message, data.level || 'info');
+    } else if (data.type === 'data_update') {
+        this.handleDataUpdate(data);
+        this.showNotification('数据更新', `${data.module}数据已更新`, 'info');
     }
 };
 
@@ -652,12 +1271,26 @@ showNotification(title, message, type = 'info') {
         type,
         time: new Date().toLocaleTimeString()
     };
-    this.notifications.push(notification);
+    this.notifications.unshift(notification);
     
-    // 5秒后自动移除
+    // 限制通知数量
+    if (this.notifications.length > 5) {
+        this.notifications = this.notifications.slice(0, 5);
+    }
+    
+    // 自动移除通知
     setTimeout(() => {
         this.removeNotification(notification.id);
     }, 5000);
+    
+    // 浏览器原生通知
+    if (Notification.permission === 'granted') {
+        new Notification(title, {
+            body: message,
+            icon: '/favicon.ico',
+            tag: notification.id
+        });
+    }
 }
 ```
 
@@ -672,7 +1305,7 @@ showNotification(title, message, type = 'info') {
 - `768px - 992px`: 平板布局  
 - `> 992px`: 桌面布局
 
-**移动端导航**:
+**移动端导航增强**:
 ```html
 <!-- 移动端汉堡菜单 -->
 <button class="navbar-toggler d-md-none" @click="sidebarCollapsed = !sidebarCollapsed">
@@ -680,25 +1313,50 @@ showNotification(title, message, type = 'info') {
 </button>
 
 <!-- 侧边栏响应式类 -->
-<nav class="sidebar" :class="{'collapsed': sidebarCollapsed}">
+<nav class="sidebar" :class="{'collapsed': sidebarCollapsed, 'mobile-overlay': isMobile && !sidebarCollapsed}">
     <!-- 导航内容 -->
 </nav>
+
+<!-- 移动端遮罩层 -->
+<div class="sidebar-overlay d-md-none" 
+     x-show="!sidebarCollapsed" 
+     @click="sidebarCollapsed = true"
+     x-transition.opacity></div>
 ```
 
-**表格响应式**:
+**表格响应式增强**:
 ```html
 <div class="table-responsive">
-    <table class="table">
-        <!-- 在小屏幕上支持水平滚动 -->
+    <table class="table table-sm d-none d-md-table">
+        <!-- 桌面端完整表格 -->
     </table>
+    
+    <!-- 移动端卡片布局 -->
+    <div class="d-md-none">
+        <template x-for="item in items" :key="item.id">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6 class="card-title" x-text="item.title"></h6>
+                    <p class="card-text">
+                        <small class="text-muted">作者: </small>
+                        <span x-text="item.author"></span>
+                    </p>
+                    <div class="btn-group w-100">
+                        <button class="btn btn-sm btn-primary" @click="editItem(item)">编辑</button>
+                        <button class="btn btn-sm btn-danger" @click="deleteItem(item.id)">删除</button>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
 </div>
 ```
 
 **卡片堆叠**:
 ```html
 <div class="row">
-    <div class="col-12 col-md-6 col-lg-4">
-        <!-- 移动端单列，平板双列，桌面三列 -->
+    <div class="col-12 col-md-6 col-lg-4 col-xl-3">
+        <!-- 移动端单列，平板双列，桌面三列，大屏四列 -->
     </div>
 </div>
 ```
@@ -711,27 +1369,56 @@ showNotification(title, message, type = 'info') {
 - 表单控件高度: 最小 44px
 
 **手势支持**:
-- 侧滑打开/关闭侧边栏
-- 下拉刷新（在移动端）
-- 双击放大表格内容
+```javascript
+// 滑动手势支持
+let touchStartX = 0;
+let touchStartY = 0;
+
+document.addEventListener('touchstart', (e) => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+});
+
+document.addEventListener('touchend', (e) => {
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    
+    const deltaX = touchEndX - touchStartX;
+    const deltaY = touchEndY - touchStartY;
+    
+    // 水平滑动距离大于垂直滑动，且大于最小滑动距离
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+        if (deltaX > 0) {
+            // 右滑，打开侧边栏
+            this.sidebarCollapsed = false;
+        } else {
+            // 左滑，关闭侧边栏
+            this.sidebarCollapsed = true;
+        }
+    }
+});
+```
 
 ---
 
 ## 🎨 动画和过渡
 
-### Alpine.js 过渡
+### Alpine.js 过渡增强
 
 **页面切换动画**:
 ```html
 <div x-show="currentTab === 'books'" 
      x-transition:enter="transition ease-out duration-300"
-     x-transition:enter-start="opacity-0 transform scale-90"
-     x-transition:enter-end="opacity-100 transform scale-100">
+     x-transition:enter-start="opacity-0 transform scale-90 translate-y-4"
+     x-transition:enter-end="opacity-100 transform scale-100 translate-y-0"
+     x-transition:leave="transition ease-in duration-200"
+     x-transition:leave-start="opacity-100 transform scale-100 translate-y-0"
+     x-transition:leave-end="opacity-0 transform scale-95 translate-y-2">
     <!-- 内容 -->
 </div>
 ```
 
-**模态框动画**:
+**模态框动画增强**:
 ```html
 <div x-show="showModal" 
      x-transition:enter="transition ease-out duration-300"
@@ -739,46 +1426,126 @@ showNotification(title, message, type = 'info') {
      x-transition:enter-end="opacity-100"
      x-transition:leave="transition ease-in duration-200"
      x-transition:leave-start="opacity-100"
-     x-transition:leave-end="opacity-0">
-    <!-- 模态框内容 -->
+     x-transition:leave-end="opacity-0"
+     class="modal-backdrop">
+    
+    <div x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 transform scale-75"
+         x-transition:enter-end="opacity-100 transform scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 transform scale-100"
+         x-transition:leave-end="opacity-0 transform scale-75"
+         class="modal-dialog">
+        <!-- 模态框内容 -->
+    </div>
 </div>
 ```
 
-### CSS 动画
+**列表项动画**:
+```html
+<template x-for="(item, index) in items" :key="item.id">
+    <div x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 transform translate-x-4"
+         x-transition:enter-end="opacity-100 transform translate-x-0"
+         :style="`transition-delay: ${index * 50}ms`">
+        <!-- 列表项内容 -->
+    </div>
+</template>
+```
+
+### CSS 动画增强
 
 **悬停效果**:
 ```css
 .btn {
     transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
 }
 
 .btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
+
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.btn:hover::before {
+    left: 100%;
+}
 ```
 
-**加载动画**:
+**加载动画增强**:
 ```css
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
 
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes bounce {
+    0%, 20%, 53%, 80%, 100% { transform: translate3d(0,0,0); }
+    40%, 43% { transform: translate3d(0,-30px,0); }
+    70% { transform: translate3d(0,-15px,0); }
+    90% { transform: translate3d(0,-4px,0); }
+}
+
 .loading-spinner {
     animation: spin 1s linear infinite;
 }
-```
 
-**淡入动画**:
-```css
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+.pulse {
+    animation: pulse 2s infinite;
 }
 
-.fade-in {
-    animation: fadeIn 0.5s ease-out;
+.bounce {
+    animation: bounce 1s infinite;
+}
+```
+
+**淡入动画增强**:
+```css
+@keyframes fadeInUp {
+    from { 
+        opacity: 0; 
+        transform: translateY(30px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.fade-in-up {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.slide-in-right {
+    animation: slideInRight 0.5s ease-out;
 }
 ```
 
@@ -790,17 +1557,55 @@ showNotification(title, message, type = 'info') {
 - 使用适当的图片格式 (WebP, AVIF)
 - 实施懒加载
 - 提供多种尺寸的响应式图片
+- 图片压缩和优化
 
 ### 代码分割
 - 按页面分割 JavaScript 代码
 - 延迟加载非关键组件
 - 使用 CDN 加载第三方库
+- 模块化加载Alpine.js组件
 
 ### 缓存策略
 - HTML 文件: 3分钟缓存
 - CSS/JS 文件: 1天缓存
 - 图片资源: 1天缓存
-- API 响应: 不缓存
+- API 响应: 使用Redis缓存
+
+### 前端性能优化
+```javascript
+// 防抖搜索
+const debouncedSearch = debounce((searchTerm) => {
+    this.performSearch(searchTerm);
+}, 300);
+
+// 虚拟滚动（大数据列表）
+const virtualScroll = {
+    itemHeight: 50,
+    visibleItems: 10,
+    scrollTop: 0,
+    
+    get visibleData() {
+        const start = Math.floor(this.scrollTop / this.itemHeight);
+        const end = start + this.visibleItems;
+        return this.allData.slice(start, end);
+    }
+};
+
+// 图片懒加载
+const lazyImages = document.querySelectorAll('img[data-src]');
+const imageObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const img = entry.target;
+            img.src = img.dataset.src;
+            img.removeAttribute('data-src');
+            imageObserver.unobserve(img);
+        }
+    });
+});
+
+lazyImages.forEach(img => imageObserver.observe(img));
+```
 
 ---
 
@@ -816,10 +1621,81 @@ showNotification(title, message, type = 'info') {
 - 适当的 ARIA 标签
 - 图片的 alt 文本
 
-### 颜色对比
+```html
+<!-- 语义化表单 -->
+<form role="form">
+    <fieldset>
+        <legend>图书信息</legend>
+        <label for="bookTitle">图书标题 <span aria-label="必填项">*</span></label>
+        <input type="text" id="bookTitle" name="title" required 
+               aria-describedby="titleHelp" aria-invalid="false">
+        <div id="titleHelp" class="form-text">请输入图书的完整标题</div>
+    </fieldset>
+</form>
+
+<!-- 可访问的表格 -->
+<table role="table" aria-label="图书列表">
+    <caption>当前显示第1页，共10页图书信息</caption>
+    <thead>
+        <tr role="row">
+            <th scope="col" aria-sort="none">图书ID</th>
+            <th scope="col" aria-sort="ascending">书名</th>
+            <th scope="col">作者</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr role="row">
+            <td role="cell">1</td>
+            <td role="cell">红楼梦</td>
+            <td role="cell">曹雪芹</td>
+        </tr>
+    </tbody>
+</table>
+
+<!-- 可访问的按钮 -->
+<button type="button" aria-label="删除图书《红楼梦》" 
+        aria-describedby="deleteWarning">
+    <i class="fas fa-trash" aria-hidden="true"></i>
+    删除
+</button>
+<div id="deleteWarning" class="sr-only">
+    此操作将永久删除图书记录且无法恢复
+</div>
+```
+
+### 颜色对比增强
 - 文本颜色对比度 ≥ 4.5:1
 - 大文本对比度 ≥ 3:1
 - 不仅依赖颜色传达信息
+
+```css
+/* 高对比度模式 */
+@media (prefers-contrast: high) {
+    .card {
+        border: 2px solid #000;
+        background: #fff;
+    }
+    
+    .btn-primary {
+        background-color: #000;
+        border-color: #000;
+        color: #fff;
+    }
+    
+    .text-muted {
+        color: #333 !important;
+    }
+}
+
+/* 减少动画模式 */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+```
 
 ---
 
@@ -832,14 +1708,82 @@ showNotification(title, message, type = 'info') {
 - **Edge**: 80+
 
 ### Polyfills
-- CSS Grid 支持
-- ES6+ 特性支持
-- WebSocket 兼容性
+```html
+<!-- 在不支持的浏览器中加载polyfill -->
+<script>
+if (!window.fetch) {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/whatwg-fetch@3.6.2/dist/fetch.umd.js"><\/script>');
+}
+
+if (!window.IntersectionObserver) {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/intersection-observer@0.12.0/intersection-observer.js"><\/script>');
+}
+
+if (!window.ResizeObserver) {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/resize-observer-polyfill@1.5.1/dist/ResizeObserver.js"><\/script>');
+}
+</script>
+```
 
 ### 优雅降级
-- JavaScript 禁用时的基本功能
-- CSS 不支持时的回退样式
-- 图片加载失败的占位符
+```css
+/* CSS Grid 回退 */
+.grid-container {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+@supports (display: grid) {
+    .grid-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1rem;
+    }
+}
+
+/* 自定义属性回退 */
+.card {
+    background-color: #ffffff;
+    background-color: var(--card-bg, #ffffff);
+}
+
+/* Flexbox回退 */
+.nav-items {
+    float: left; /* 回退方案 */
+    display: flex; /* 现代浏览器 */
+}
+```
+
+```javascript
+// JavaScript功能检测
+const features = {
+    localStorage: (() => {
+        try {
+            localStorage.setItem('test', 'test');
+            localStorage.removeItem('test');
+            return true;
+        } catch (e) {
+            return false;
+        }
+    })(),
+    
+    webSocket: 'WebSocket' in window,
+    
+    notifications: 'Notification' in window,
+    
+    serviceWorker: 'serviceWorker' in navigator
+};
+
+// 根据功能支持情况调整UI
+if (!features.localStorage) {
+    console.warn('LocalStorage不可用，将使用内存存储');
+}
+
+if (!features.webSocket) {
+    console.warn('WebSocket不可用，将禁用实时功能');
+    document.querySelector('#realtime-indicator').style.display = 'none';
+}
+```
 
 ---
 
@@ -855,12 +1799,19 @@ showNotification(title, message, type = 'info') {
 - **页面加载时间**: < 3秒
 - **交互响应时间**: < 200毫秒
 - **表单提交时间**: < 1秒
+- **搜索响应时间**: < 300毫秒
 
 ### 设计一致性
 - **颜色使用**: 遵循设计系统
 - **字体大小**: 保持层级关系
 - **间距规范**: 使用 8px 网格系统
 - **组件复用**: 提高设计效率
+
+### 可用性指标
+- **任务完成率**: > 95%
+- **错误率**: < 3%
+- **用户满意度**: > 4.5/5
+- **学习时间**: < 10分钟
 
 ---
 
@@ -872,7 +1823,27 @@ showNotification(title, message, type = 'info') {
 - ✅ WebSocket 实时通知
 - ✅ 无障碍访问支持
 - ✅ 移动端优化
-- ✅ 暗色主题支持（规划中）
+- ✅ 数据库字段映射完善
+- ✅ 表单验证增强
+- ✅ 性能优化和缓存
+- ✅ 错误处理改进
+- ✅ 用户体验提升
+
+### 未来版本规划
+
+#### v1.1.0
+- 📋 暗色主题支持
+- 📋 更多图表类型
+- 📋 拖拽功能
+- 📋 键盘快捷键
+- 📋 离线功能支持
+
+#### v1.2.0
+- 📋 多语言界面
+- 📋 自定义主题
+- 📋 高级筛选组件
+- 📋 数据导入导出界面
+- 📋 打印功能
 
 ---
 
