@@ -169,12 +169,14 @@ export async function createCachedResponse(filePath) {
       'Last-Modified': formatLastModified(lastModified)
     };
 
-
     
     // 添加ETag头
     if (etag) {
       headers['ETag'] = etag;
     }
+
+    // 设置缓存控制头
+    headers['Cache-Control'] = 'public, max-age=3';
     
     return new Response(file, { headers });
   } catch (e) {
