@@ -392,7 +392,8 @@ export class DataAccess {
           b.created_at,
           b.updated_at,
           bk.stock,
-          COALESCE(bk.title, b.book_title) as book_title_display
+          COALESCE(bk.title, b.book_title) as book_title_display,
+          CASE WHEN bk.deleted_at IS NOT NULL THEN true ELSE false END as is_book_deleted
         FROM borrows b
         LEFT JOIN books bk ON b.book_id = bk.id
       `;
@@ -413,7 +414,8 @@ export class DataAccess {
             b.created_at,
             b.updated_at,
             bk.stock,
-            COALESCE(bk.title, b.book_title) as book_title_display
+            COALESCE(bk.title, b.book_title) as book_title_display,
+            CASE WHEN bk.deleted_at IS NOT NULL THEN true ELSE false END as is_book_deleted
           FROM borrows b
           LEFT JOIN books bk ON b.book_id = bk.id
           WHERE b.book_title ILIKE ${`%${search}%`} OR b.borrower_name ILIKE ${`%${search}%`}
@@ -439,7 +441,8 @@ export class DataAccess {
             b.created_at,
             b.updated_at,
             bk.stock,
-            COALESCE(bk.title, b.book_title) as book_title_display
+            COALESCE(bk.title, b.book_title) as book_title_display,
+            CASE WHEN bk.deleted_at IS NOT NULL THEN true ELSE false END as is_book_deleted
           FROM borrows b
           LEFT JOIN books bk ON b.book_id = bk.id
           ORDER BY b.id DESC
@@ -457,6 +460,7 @@ export class DataAccess {
         bookId: borrow.book_id,
         bookTitle: borrow.book_title,
         bookTitleDisplay: borrow.book_title_display,
+        isBookDeleted: borrow.is_book_deleted || false,
         borrowerName: borrow.borrower_name,
         borrowDate: borrow.borrow_date,
         dueDate: borrow.due_date,
