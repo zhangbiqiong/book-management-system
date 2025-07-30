@@ -79,7 +79,7 @@ export async function handleRoutes(req, url) {
   // 处理公共资源文件
   if (url.pathname === "/common.css" || url.pathname === "/common.js" || url.pathname === "/common.less") {
     const filePath = `front${url.pathname}`; // 映射到front目录下
-    return await handleStaticCache(req, filePath, 'max-age=86400');
+    return await handleStaticCache(req, filePath);
   }
 
   // 处理其他静态文件
@@ -89,7 +89,7 @@ export async function handleRoutes(req, url) {
       url.pathname.startsWith("/images/") || 
       url.pathname.startsWith("/fonts/")) {
     const filePath = url.pathname.substring(1); // 移除开头的 "/"
-    return await handleStaticCache(req, filePath, 'max-age=86400');
+    return await handleStaticCache(req, filePath);
   }
   
   // API 路由
@@ -295,7 +295,7 @@ async function handleFaviconCache(req) {
   return await createCachedResponse(filePath, 'max-age=86400'); // favicon缓存1天
 }
 
-async function handleStaticCache(req, filePath, cacheControl = 'max-age=86400') {
+async function handleStaticCache(req, filePath, cacheControl) {
   const ifModifiedSince = req.headers.get("if-modified-since");
   const ifNoneMatch = req.headers.get("if-none-match");
   
