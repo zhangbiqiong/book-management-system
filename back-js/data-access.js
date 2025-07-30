@@ -62,7 +62,8 @@ export class DataAccess {
 
   // 用户相关操作
   static async getAllUsers(search = '', page = 1, pageSize = 10) {
-    const cacheKey = `${CACHE_PREFIX.LIST}users:${search}:${page}:${pageSize}`;
+    const searchParam = search || 'all';
+    const cacheKey = `${CACHE_PREFIX.LIST}users:${searchParam}:${page}:${pageSize}`;
     
     // 尝试从缓存获取
     const cached = await CacheManager.get(cacheKey);
@@ -221,7 +222,8 @@ export class DataAccess {
 
   // 图书相关操作
   static async getAllBooks(search = '', page = 1, pageSize = 10) {
-    const cacheKey = `${CACHE_PREFIX.LIST}books:${search}:${page}:${pageSize}`;
+    const searchParam = search || 'all';
+    const cacheKey = `${CACHE_PREFIX.LIST}books:${searchParam}:${page}:${pageSize}`;
     
     // 尝试从缓存获取
     const cached = await CacheManager.get(cacheKey);
@@ -360,7 +362,8 @@ export class DataAccess {
 
   // 借阅相关操作
   static async getAllBorrows(search = '', page = 1, pageSize = 10) {
-    const cacheKey = `${CACHE_PREFIX.LIST}borrows:${search}:${page}:${pageSize}`;
+    const searchParam = search || 'all';
+    const cacheKey = `${CACHE_PREFIX.LIST}borrows:${searchParam}:${page}:${pageSize}`;
     
     // 尝试从缓存获取
     const cached = await CacheManager.get(cacheKey);
