@@ -23,6 +23,8 @@
 - **缓存**: Redis 6+
 - **数据库驱动**: Bun SQL (内置原生支持)
 - **连接池**: 自动管理，最大连接数 10
+- **事务支持**: ACID事务，支持复杂操作的原子性
+- **缓存策略**: 分层缓存，智能失效，5分钟TTL
 
 ### 数据表结构
 
@@ -36,8 +38,17 @@ CREATE TABLE users (
   role VARCHAR(20) NOT NULL DEFAULT 'user',
   status VARCHAR(20) NOT NULL DEFAULT 'enabled',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  
+  CONSTRAINT users_role_check CHECK (role IN ('admin', 'user')),
+  CONSTRAINT users_status_check CHECK (status IN ('enabled', 'disabled'))
 );
+
+-- 索引优化
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_status ON users(status);
 ```
 
 #### 图书表 (books)
@@ -49,13 +60,24 @@ CREATE TABLE books (
   publisher VARCHAR(100) NOT NULL,
   isbn VARCHAR(20) UNIQUE NOT NULL,
   publish_date DATE NOT NULL,
-  price DECIMAL(10,2) NOT NULL,
+  price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   stock INTEGER NOT NULL DEFAULT 0,
   description TEXT,
   category VARCHAR(50),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  
+  CONSTRAINT books_price_check CHECK (price >= 0),
+  CONSTRAINT books_stock_check CHECK (stock >= 0)
 );
+
+-- 索引优化
+CREATE INDEX idx_books_title ON books(title);
+CREATE INDEX idx_books_author ON books(author);
+CREATE INDEX idx_books_publisher ON books(publisher);
+CREATE INDEX idx_books_isbn ON books(isbn);
+CREATE INDEX idx_books_category ON books(category);
+CREATE INDEX idx_books_publish_date ON books(publish_date);
 ```
 
 #### 借阅记录表 (borrows)
@@ -71,16 +93,91 @@ CREATE TABLE borrows (
   return_date DATE,
   status VARCHAR(20) NOT NULL DEFAULT 'borrowed',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  
+  CONSTRAINT borrows_status_check CHECK (status IN ('borrowed', 'returned', 'overdue')),
+  CONSTRAINT borrows_dates_check CHECK (due_date >= borrow_date),
+  CONSTRAINT borrows_return_date_check CHECK (return_date IS NULL OR return_date >= borrow_date)
 );
+
+-- 索引优化
+CREATE INDEX idx_borrows_user_id ON borrows(user_id);
+CREATE INDEX idx_borrows_book_id ON borrows(book_id);
+CREATE INDEX idx_borrows_status ON borrows(status);
+CREATE INDEX idx_borrows_borrow_date ON borrows(borrow_date);
+CREATE INDEX idx_borrows_due_date ON borrows(due_date);
+CREATE INDEX idx_borrows_return_date ON borrows(return_date);
 ```
 
 ### 数据访问层特性
-- **Redis缓存**: 5分钟TTL，自动缓存管理
+- **Redis缓存**: 5分钟TTL，自动缓存管理，支持模式匹配批量清除
 - **字段映射**: 数据库下划线命名 ↔ 前端驼峰命名自动转换
-- **分页查询**: 支持搜索、排序、分页
-- **事务支持**: 复杂操作的事务保证
-- **连接池**: 自动管理数据库连接，优化性能
+- **分页查询**: 支持搜索、排序、分页，优化大数据集查询
+- **事务支持**: 复杂操作的事务保证，确保数据一致性
+- **连接池**: 自动管理数据库连接，优化性能，支持并发访问
+- **错误处理**: 数据库约束错误的友好提示和自动恢复
+
+### 缓存策略详解
+
+#### 缓存键命名规范
+```javascript
+const CACHE_PREFIX = {
+  USER: 'cache:user:',          // 用户缓存
+  BOOK: 'cache:book:',          // 图书缓存
+  BORROW: 'cache:borrow:',      // 借阅记录缓存
+  LIST: 'cache:list:'           // 列表查询缓存
+};
+```
+
+#### 缓存操作
+- **设置缓存**: 自动序列化JSON数据，设置TTL
+- **获取缓存**: 自动反序列化，异常处理
+- **删除缓存**: 支持单个删除和模式匹配批量删除
+- **缓存失效**: 数据更新时自动清除相关缓存
+
+#### 缓存场景
+1. **用户查询**: 缓存用户基本信息和权限
+2. **图书列表**: 缓存分页查询结果和搜索结果
+3. **借阅记录**: 缓存用户借阅历史和统计数据
+4. **统计数据**: 缓存复杂的统计查询结果
+
+### 字段映射说明
+
+#### 数据库字段 → API响应字段
+系统自动处理数据库字段名与API响应字段名的转换：
+
+**通用字段**:
+- `created_at` (数据库) → `createdAt` (API)
+- `updated_at` (数据库) → `updatedAt` (API)
+- `user_id` (数据库) → `userId` (API)
+- `book_id` (数据库) → `bookId` (API)
+
+**图书相关**:
+- `publish_date` (数据库) → `publishDate` (API)
+
+**借阅相关**:
+- `book_title` (数据库) → `bookTitle` (API)
+- `borrower_name` (数据库) → `borrowerName` (API)
+- `borrow_date` (数据库) → `borrowDate` (API)
+- `due_date` (数据库) → `dueDate` (API)
+- `return_date` (数据库) → `returnDate` (API)
+
+#### API请求字段 → 数据库字段
+前端表单提交时自动转换：
+
+```javascript
+// 前端提交数据
+{
+  "title": "书名",
+  "publishDate": "2024-01-01"
+}
+
+// 自动转换为数据库字段
+{
+  "title": "书名",
+  "publish_date": "2024-01-01"
+}
+```
 
 ---
 
@@ -107,8 +204,12 @@ curl -X GET http://localhost:3000/api/current-user \
 {
   "success": true,
   "user": {
+    "id": 1,
     "username": "admin",
-    "role": "admin"
+    "email": "admin@example.com",
+    "role": "admin",
+    "status": "enabled",
+    "createdAt": "2024-01-01T00:00:00.000Z"
   }
 }
 ```
@@ -155,13 +256,19 @@ curl -X POST http://localhost:3000/api/login \
 ```json
 {
   "success": true,
-  "message": "登录成功"
+  "message": "登录成功",
+  "user": {
+    "id": 1,
+    "username": "admin",
+    "role": "admin",
+    "status": "enabled"
+  }
 }
 ```
 
 **Set-Cookie 头部**:
 ```
-Set-Cookie: token=<jwt_token>; Path=/; SameSite=Lax
+Set-Cookie: token=<jwt_token>; Path=/; SameSite=Lax; HttpOnly
 ```
 
 **错误响应**:
@@ -179,10 +286,18 @@ Set-Cookie: token=<jwt_token>; Path=/; SameSite=Lax
 }
 ```
 
+```json
+{
+  "success": false,
+  "message": "用户已被禁用"
+}
+```
+
 **状态码**:
 - `200` - 成功
 - `400` - 请求参数错误
 - `401` - 用户名或密码错误
+- `403` - 用户已被禁用
 - `500` - 服务器错误
 
 ---
@@ -198,7 +313,8 @@ Set-Cookie: token=<jwt_token>; Path=/; SameSite=Lax
 **请求参数**:
 ```json
 {
-  "username": "string",        // 必填，用户名，3-20字符
+  "username": "string",        // 必填，用户名，3-20字符，仅支持字母数字下划线
+  "email": "string",           // 必填，邮箱地址，格式验证
   "password": "string",        // 必填，密码，6位以上
   "confirmPassword": "string", // 必填，确认密码，必须与密码一致
   "role": "string"            // 可选，用户角色，默认为"user"
@@ -211,6 +327,7 @@ curl -X POST http://localhost:3000/api/register \
   -H "Content-Type: application/json" \
   -d '{
     "username": "newuser",
+    "email": "newuser@example.com",
     "password": "password123",
     "confirmPassword": "password123",
     "role": "user"
@@ -221,7 +338,15 @@ curl -X POST http://localhost:3000/api/register \
 ```json
 {
   "success": true,
-  "message": "注册成功"
+  "message": "注册成功",
+  "user": {
+    "id": 2,
+    "username": "newuser",
+    "email": "newuser@example.com",
+    "role": "user",
+    "status": "enabled",
+    "createdAt": "2024-01-01T00:00:00.000Z"
+  }
 }
 ```
 
@@ -229,7 +354,7 @@ curl -X POST http://localhost:3000/api/register \
 ```json
 {
   "success": false,
-  "message": "用户名、密码和确认密码不能为空"
+  "message": "用户名、邮箱、密码和确认密码不能为空"
 }
 ```
 
@@ -247,10 +372,17 @@ curl -X POST http://localhost:3000/api/register \
 }
 ```
 
+```json
+{
+  "success": false,
+  "message": "邮箱已被注册"
+}
+```
+
 **状态码**:
 - `200` - 成功
 - `400` - 请求参数错误
-- `409` - 用户名已存在
+- `409` - 用户名或邮箱已存在
 - `500` - 服务器错误
 
 ---
@@ -268,7 +400,7 @@ curl -X POST http://localhost:3000/api/register \
 {
   "username": "string",     // 必填，用户名
   "oldPassword": "string",  // 必填，旧密码
-  "newPassword": "string"   // 必填，新密码
+  "newPassword": "string"   // 必填，新密码，6位以上
 }
 ```
 
@@ -303,6 +435,13 @@ curl -X POST http://localhost:3000/api/change-password \
 {
   "success": false,
   "message": "用户不存在或旧密码错误"
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "新密码长度至少6位"
 }
 ```
 
@@ -365,18 +504,20 @@ Set-Cookie: token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT
 
 **接口地址**: `GET /api/books`
 
-**功能描述**: 获取图书列表，支持搜索和分页
+**功能描述**: 获取图书列表，支持搜索和分页，集成缓存优化
 
 **认证要求**: 需要有效的JWT Token
 
 **查询参数**:
 - `search` (可选): 搜索关键词，支持书名、作者、出版社模糊搜索
 - `page` (可选): 页码，默认为1
-- `pageSize` (可选): 每页数量，默认为5
+- `pageSize` (可选): 每页数量，默认为5，最大100
+- `sortBy` (可选): 排序字段，支持 title, author, publish_date, created_at
+- `sortOrder` (可选): 排序方向，asc/desc，默认desc
 
 **请求示例**:
 ```bash
-curl -X GET "http://localhost:3000/api/books?search=小说&page=1&pageSize=10" \
+curl -X GET "http://localhost:3000/api/books?search=小说&page=1&pageSize=10&sortBy=publish_date&sortOrder=desc" \
   -H "Cookie: token=<jwt_token>"
 ```
 
@@ -386,11 +527,16 @@ curl -X GET "http://localhost:3000/api/books?search=小说&page=1&pageSize=10" \
   "success": true,
   "data": [
     {
-      "id": "1",
+      "id": 1,
       "title": "红楼梦",
       "author": "曹雪芹",
       "publisher": "人民文学出版社",
+      "isbn": "9787020002207",
       "publishDate": "2020-01-01",
+      "price": 49.80,
+      "stock": 10,
+      "description": "中国古典四大名著之一",
+      "category": "古典文学",
       "createdAt": "2024-01-01T00:00:00.000Z",
       "updatedAt": "2024-01-01T00:00:00.000Z"
     }
@@ -400,7 +546,8 @@ curl -X GET "http://localhost:3000/api/books?search=小说&page=1&pageSize=10" \
     "page": 1,
     "pageSize": 10,
     "totalPages": 1
-  }
+  },
+  "cached": false  // 是否来自缓存
 }
 ```
 
@@ -423,17 +570,22 @@ curl -X GET "http://localhost:3000/api/books?search=小说&page=1&pageSize=10" \
 
 **接口地址**: `POST /api/books`
 
-**功能描述**: 添加新图书
+**功能描述**: 添加新图书，支持完整的字段验证
 
 **认证要求**: 需要有效的JWT Token
 
 **请求参数**:
 ```json
 {
-  "title": "string",       // 必填，图书标题
-  "author": "string",      // 必填，作者
-  "publisher": "string",   // 必填，出版社
-  "publishDate": "string"  // 必填，出版日期，格式: YYYY-MM-DD
+  "title": "string",       // 必填，图书标题，最大200字符
+  "author": "string",      // 必填，作者，最大100字符
+  "publisher": "string",   // 必填，出版社，最大100字符
+  "isbn": "string",        // 必填，ISBN号，格式验证
+  "publishDate": "string", // 必填，出版日期，格式: YYYY-MM-DD
+  "price": "number",       // 可选，价格，默认0.00，必须>=0
+  "stock": "number",       // 可选，库存，默认0，必须>=0
+  "description": "string", // 可选，图书描述
+  "category": "string"     // 可选，图书分类
 }
 ```
 
@@ -446,7 +598,11 @@ curl -X POST http://localhost:3000/api/books \
     "title": "西游记",
     "author": "吴承恩",
     "publisher": "人民文学出版社",
-    "publishDate": "2020-01-01"
+    "isbn": "9787020002214",
+    "publishDate": "2020-01-01",
+    "price": 39.80,
+    "stock": 15,
+    "category": "古典文学"
   }'
 ```
 
@@ -456,11 +612,16 @@ curl -X POST http://localhost:3000/api/books \
   "success": true,
   "message": "图书添加成功",
   "data": {
-    "id": "2",
+    "id": 2,
     "title": "西游记",
     "author": "吴承恩",
     "publisher": "人民文学出版社",
+    "isbn": "9787020002214",
     "publishDate": "2020-01-01",
+    "price": 39.80,
+    "stock": 15,
+    "description": "中国古典四大名著之一",
+    "category": "古典文学",
     "createdAt": "2024-01-01T00:00:00.000Z",
     "updatedAt": "2024-01-01T00:00:00.000Z"
   }
@@ -471,7 +632,21 @@ curl -X POST http://localhost:3000/api/books \
 ```json
 {
   "success": false,
-  "message": "所有字段都必须填写"
+  "message": "所有必填字段都必须填写"
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "ISBN号已存在"
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "价格必须大于等于0"
 }
 ```
 
@@ -479,6 +654,7 @@ curl -X POST http://localhost:3000/api/books \
 - `200` - 成功
 - `400` - 请求参数错误
 - `401` - 未授权访问
+- `409` - ISBN号已存在
 - `500` - 服务器错误
 
 ---
@@ -487,7 +663,7 @@ curl -X POST http://localhost:3000/api/books \
 
 **接口地址**: `PUT /api/books/:id`
 
-**功能描述**: 更新指定图书信息
+**功能描述**: 更新指定图书信息，支持部分字段更新
 
 **认证要求**: 需要有效的JWT Token
 
@@ -497,10 +673,15 @@ curl -X POST http://localhost:3000/api/books \
 **请求参数**:
 ```json
 {
-  "title": "string",       // 必填，图书标题
-  "author": "string",      // 必填，作者
-  "publisher": "string",   // 必填，出版社
-  "publishDate": "string"  // 必填，出版日期，格式: YYYY-MM-DD
+  "title": "string",       // 可选，图书标题
+  "author": "string",      // 可选，作者
+  "publisher": "string",   // 可选，出版社
+  "isbn": "string",        // 可选，ISBN号
+  "publishDate": "string", // 可选，出版日期，格式: YYYY-MM-DD
+  "price": "number",       // 可选，价格
+  "stock": "number",       // 可选，库存
+  "description": "string", // 可选，图书描述
+  "category": "string"     // 可选，图书分类
 }
 ```
 
@@ -511,9 +692,8 @@ curl -X PUT http://localhost:3000/api/books/1 \
   -H "Cookie: token=<jwt_token>" \
   -d '{
     "title": "红楼梦（修订版）",
-    "author": "曹雪芹",
-    "publisher": "人民文学出版社",
-    "publishDate": "2021-01-01"
+    "price": 59.80,
+    "stock": 20
   }'
 ```
 
@@ -521,7 +701,21 @@ curl -X PUT http://localhost:3000/api/books/1 \
 ```json
 {
   "success": true,
-  "message": "图书更新成功"
+  "message": "图书更新成功",
+  "data": {
+    "id": 1,
+    "title": "红楼梦（修订版）",
+    "author": "曹雪芹",
+    "publisher": "人民文学出版社",
+    "isbn": "9787020002207",
+    "publishDate": "2020-01-01",
+    "price": 59.80,
+    "stock": 20,
+    "description": "中国古典四大名著之一",
+    "category": "古典文学",
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T12:00:00.000Z"
+  }
 }
 ```
 
@@ -536,7 +730,7 @@ curl -X PUT http://localhost:3000/api/books/1 \
 ```json
 {
   "success": false,
-  "message": "所有字段都必须填写"
+  "message": "ISBN号已被其他图书使用"
 }
 ```
 
@@ -544,6 +738,7 @@ curl -X PUT http://localhost:3000/api/books/1 \
 - `200` - 成功
 - `400` - 请求参数错误
 - `404` - 图书不存在
+- `409` - ISBN号冲突
 - `401` - 未授权访问
 - `500` - 服务器错误
 
@@ -553,7 +748,7 @@ curl -X PUT http://localhost:3000/api/books/1 \
 
 **接口地址**: `DELETE /api/books/:id`
 
-**功能描述**: 删除指定图书
+**功能描述**: 删除指定图书，会级联删除相关借阅记录
 
 **认证要求**: 需要有效的JWT Token
 
@@ -570,7 +765,11 @@ curl -X DELETE http://localhost:3000/api/books/1 \
 ```json
 {
   "success": true,
-  "message": "图书删除成功"
+  "message": "图书删除成功",
+  "details": {
+    "deletedBookId": 1,
+    "deletedBorrowsCount": 3  // 同时删除的借阅记录数
+  }
 }
 ```
 
@@ -582,9 +781,17 @@ curl -X DELETE http://localhost:3000/api/books/1 \
 }
 ```
 
+```json
+{
+  "success": false,
+  "message": "该图书有未归还的借阅记录，无法删除"
+}
+```
+
 **状态码**:
 - `200` - 成功
 - `404` - 图书不存在
+- `409` - 有未归还的借阅记录
 - `401` - 未授权访问
 - `500` - 服务器错误
 
@@ -596,18 +803,20 @@ curl -X DELETE http://localhost:3000/api/books/1 \
 
 **接口地址**: `GET /api/users`
 
-**功能描述**: 获取用户列表，支持搜索和分页
+**功能描述**: 获取用户列表，支持搜索和分页，管理员权限
 
-**认证要求**: 需要有效的JWT Token
+**认证要求**: 需要有效的JWT Token（仅管理员）
 
 **查询参数**:
-- `search` (可选): 搜索关键词，支持用户名、角色模糊搜索
+- `search` (可选): 搜索关键词，支持用户名、邮箱、角色模糊搜索
 - `page` (可选): 页码，默认为1
 - `pageSize` (可选): 每页数量，默认为5
+- `role` (可选): 角色过滤，admin/user
+- `status` (可选): 状态过滤，enabled/disabled
 
 **请求示例**:
 ```bash
-curl -X GET "http://localhost:3000/api/users?search=admin&page=1&pageSize=10" \
+curl -X GET "http://localhost:3000/api/users?search=admin&page=1&pageSize=10&role=admin" \
   -H "Cookie: token=<jwt_token>"
 ```
 
@@ -617,8 +826,9 @@ curl -X GET "http://localhost:3000/api/users?search=admin&page=1&pageSize=10" \
   "success": true,
   "data": [
     {
-      "id": "admin",
+      "id": 1,
       "username": "admin",
+      "email": "admin@example.com",
       "role": "admin",
       "status": "enabled",
       "createdAt": "2024-01-01T00:00:00.000Z",
@@ -637,6 +847,7 @@ curl -X GET "http://localhost:3000/api/users?search=admin&page=1&pageSize=10" \
 **状态码**:
 - `200` - 成功
 - `401` - 未授权访问
+- `403` - 权限不足（非管理员）
 - `500` - 服务器错误
 
 ---
@@ -647,13 +858,14 @@ curl -X GET "http://localhost:3000/api/users?search=admin&page=1&pageSize=10" \
 
 **功能描述**: 创建新用户（管理员功能）
 
-**认证要求**: 需要有效的JWT Token
+**认证要求**: 需要有效的JWT Token（仅管理员）
 
 **请求参数**:
 ```json
 {
-  "username": "string",  // 必填，用户名
-  "password": "string",  // 必填，密码
+  "username": "string",  // 必填，用户名，3-20字符
+  "email": "string",     // 必填，邮箱地址
+  "password": "string",  // 必填，密码，6位以上
   "role": "string",      // 必填，用户角色（admin/user）
   "status": "string"     // 必填，用户状态（enabled/disabled）
 }
@@ -666,6 +878,7 @@ curl -X POST http://localhost:3000/api/users \
   -H "Cookie: token=<jwt_token>" \
   -d '{
     "username": "newuser",
+    "email": "newuser@example.com",
     "password": "password123",
     "role": "user",
     "status": "enabled"
@@ -678,8 +891,9 @@ curl -X POST http://localhost:3000/api/users \
   "success": true,
   "message": "用户创建成功",
   "data": {
-    "id": "newuser",
+    "id": 2,
     "username": "newuser",
+    "email": "newuser@example.com",
     "role": "user",
     "status": "enabled",
     "createdAt": "2024-01-01T00:00:00.000Z",
@@ -703,11 +917,19 @@ curl -X POST http://localhost:3000/api/users \
 }
 ```
 
+```json
+{
+  "success": false,
+  "message": "邮箱已被注册"
+}
+```
+
 **状态码**:
 - `200` - 成功
 - `400` - 请求参数错误
-- `409` - 用户名已存在
 - `401` - 未授权访问
+- `403` - 权限不足
+- `409` - 用户名或邮箱已存在
 - `500` - 服务器错误
 
 ---
@@ -716,9 +938,9 @@ curl -X POST http://localhost:3000/api/users \
 
 **接口地址**: `PUT /api/users/:id`
 
-**功能描述**: 更新指定用户信息
+**功能描述**: 更新指定用户信息（管理员功能）
 
-**认证要求**: 需要有效的JWT Token
+**认证要求**: 需要有效的JWT Token（仅管理员）
 
 **路径参数**:
 - `id`: 用户ID
@@ -726,6 +948,7 @@ curl -X POST http://localhost:3000/api/users \
 **请求参数**:
 ```json
 {
+  "email": "string",     // 可选，邮箱地址
   "password": "string",  // 可选，新密码
   "role": "string",      // 可选，用户角色
   "status": "string"     // 可选，用户状态
@@ -734,7 +957,7 @@ curl -X POST http://localhost:3000/api/users \
 
 **请求示例**:
 ```bash
-curl -X PUT http://localhost:3000/api/users/testuser \
+curl -X PUT http://localhost:3000/api/users/2 \
   -H "Content-Type: application/json" \
   -H "Cookie: token=<jwt_token>" \
   -d '{
@@ -747,7 +970,16 @@ curl -X PUT http://localhost:3000/api/users/testuser \
 ```json
 {
   "success": true,
-  "message": "用户更新成功"
+  "message": "用户更新成功",
+  "data": {
+    "id": 2,
+    "username": "testuser",
+    "email": "testuser@example.com",
+    "role": "admin",
+    "status": "enabled",
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T12:00:00.000Z"
+  }
 }
 ```
 
@@ -759,10 +991,20 @@ curl -X PUT http://localhost:3000/api/users/testuser \
 }
 ```
 
+```json
+{
+  "success": false,
+  "message": "邮箱已被其他用户使用"
+}
+```
+
 **状态码**:
 - `200` - 成功
-- `404` - 用户不存在
+- `400` - 请求参数错误
 - `401` - 未授权访问
+- `403` - 权限不足
+- `404` - 用户不存在
+- `409` - 邮箱冲突
 - `500` - 服务器错误
 
 ---
@@ -771,16 +1013,16 @@ curl -X PUT http://localhost:3000/api/users/testuser \
 
 **接口地址**: `DELETE /api/users/:id`
 
-**功能描述**: 删除指定用户
+**功能描述**: 删除指定用户，会级联删除相关借阅记录
 
-**认证要求**: 需要有效的JWT Token
+**认证要求**: 需要有效的JWT Token（仅管理员）
 
 **路径参数**:
 - `id`: 用户ID
 
 **请求示例**:
 ```bash
-curl -X DELETE http://localhost:3000/api/users/testuser \
+curl -X DELETE http://localhost:3000/api/users/2 \
   -H "Cookie: token=<jwt_token>"
 ```
 
@@ -788,7 +1030,11 @@ curl -X DELETE http://localhost:3000/api/users/testuser \
 ```json
 {
   "success": true,
-  "message": "用户删除成功"
+  "message": "用户删除成功",
+  "details": {
+    "deletedUserId": 2,
+    "deletedBorrowsCount": 5  // 同时删除的借阅记录数
+  }
 }
 ```
 
@@ -800,10 +1046,19 @@ curl -X DELETE http://localhost:3000/api/users/testuser \
 }
 ```
 
+```json
+{
+  "success": false,
+  "message": "不能删除自己的账户"
+}
+```
+
 **状态码**:
 - `200` - 成功
-- `404` - 用户不存在
+- `400` - 不能删除自己
 - `401` - 未授权访问
+- `403` - 权限不足
+- `404` - 用户不存在
 - `500` - 服务器错误
 
 ---
@@ -814,7 +1069,7 @@ curl -X DELETE http://localhost:3000/api/users/testuser \
 
 **接口地址**: `GET /api/borrows`
 
-**功能描述**: 获取借阅记录列表，支持搜索和分页
+**功能描述**: 获取借阅记录列表，支持搜索和分页，智能状态计算
 
 **认证要求**: 需要有效的JWT Token
 
@@ -822,10 +1077,13 @@ curl -X DELETE http://localhost:3000/api/users/testuser \
 - `search` (可选): 搜索关键词，支持图书名、借阅者模糊搜索
 - `page` (可选): 页码，默认为1
 - `pageSize` (可选): 每页数量，默认为5
+- `status` (可选): 状态过滤，borrowed/returned/overdue
+- `userId` (可选): 用户ID过滤
+- `bookId` (可选): 图书ID过滤
 
 **请求示例**:
 ```bash
-curl -X GET "http://localhost:3000/api/borrows?search=红楼梦&page=1&pageSize=10" \
+curl -X GET "http://localhost:3000/api/borrows?search=红楼梦&page=1&pageSize=10&status=borrowed" \
   -H "Cookie: token=<jwt_token>"
 ```
 
@@ -835,11 +1093,17 @@ curl -X GET "http://localhost:3000/api/borrows?search=红楼梦&page=1&pageSize=
   "success": true,
   "data": [
     {
-      "id": "1",
+      "id": 1,
+      "userId": 2,
+      "bookId": 1,
       "bookTitle": "红楼梦",
-      "borrower": "张三",
+      "borrowerName": "张三",
       "borrowDate": "2024-01-01",
+      "dueDate": "2024-01-31",
       "returnDate": null,
+      "status": "borrowed",
+      "computedStatus": "overdue",  // 系统计算的实际状态
+      "overdueDays": 5,            // 逾期天数
       "createdAt": "2024-01-01T00:00:00.000Z",
       "updatedAt": "2024-01-01T00:00:00.000Z"
     }
@@ -864,17 +1128,17 @@ curl -X GET "http://localhost:3000/api/borrows?search=红楼梦&page=1&pageSize=
 
 **接口地址**: `POST /api/borrows`
 
-**功能描述**: 创建新的借阅记录
+**功能描述**: 创建新的借阅记录，支持外键验证
 
 **认证要求**: 需要有效的JWT Token
 
 **请求参数**:
 ```json
 {
-  "bookTitle": "string",    // 必填，图书标题
-  "borrower": "string",     // 必填，借阅者姓名
+  "userId": "number",       // 必填，用户ID，必须存在
+  "bookId": "number",       // 必填，图书ID，必须存在
   "borrowDate": "string",   // 必填，借阅日期，格式: YYYY-MM-DD
-  "returnDate": "string"    // 可选，归还日期，格式: YYYY-MM-DD
+  "dueDate": "string"       // 可选，到期日期，默认借阅日期+30天
 }
 ```
 
@@ -884,9 +1148,10 @@ curl -X POST http://localhost:3000/api/borrows \
   -H "Content-Type: application/json" \
   -H "Cookie: token=<jwt_token>" \
   -d '{
-    "bookTitle": "西游记",
-    "borrower": "李四",
-    "borrowDate": "2024-01-10"
+    "userId": 2,
+    "bookId": 1,
+    "borrowDate": "2024-01-10",
+    "dueDate": "2024-02-09"
   }'
 ```
 
@@ -896,11 +1161,15 @@ curl -X POST http://localhost:3000/api/borrows \
   "success": true,
   "message": "借阅记录创建成功",
   "data": {
-    "id": "2",
-    "bookTitle": "西游记",
-    "borrower": "李四",
+    "id": 2,
+    "userId": 2,
+    "bookId": 1,
+    "bookTitle": "红楼梦",
+    "borrowerName": "李四",
     "borrowDate": "2024-01-10",
+    "dueDate": "2024-02-09",
     "returnDate": null,
+    "status": "borrowed",
     "createdAt": "2024-01-10T00:00:00.000Z",
     "updatedAt": "2024-01-10T00:00:00.000Z"
   }
@@ -911,13 +1180,36 @@ curl -X POST http://localhost:3000/api/borrows \
 ```json
 {
   "success": false,
-  "message": "图书标题、借阅者和借阅日期不能为空"
+  "message": "用户ID和图书ID不能为空"
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "指定的用户不存在"
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "指定的图书不存在"
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "图书库存不足"
 }
 ```
 
 **状态码**:
 - `200` - 成功
 - `400` - 请求参数错误
+- `404` - 用户或图书不存在
+- `409` - 库存不足
 - `401` - 未授权访问
 - `500` - 服务器错误
 
@@ -927,7 +1219,7 @@ curl -X POST http://localhost:3000/api/borrows \
 
 **接口地址**: `PUT /api/borrows/:id`
 
-**功能描述**: 更新指定借阅记录
+**功能描述**: 更新指定借阅记录，支持归还操作
 
 **认证要求**: 需要有效的JWT Token
 
@@ -937,10 +1229,9 @@ curl -X POST http://localhost:3000/api/borrows \
 **请求参数**:
 ```json
 {
-  "bookTitle": "string",    // 可选，图书标题
-  "borrower": "string",     // 可选，借阅者姓名
-  "borrowDate": "string",   // 可选，借阅日期
-  "returnDate": "string"    // 可选，归还日期
+  "returnDate": "string",   // 可选，归还日期，格式: YYYY-MM-DD
+  "status": "string",       // 可选，状态更新
+  "dueDate": "string"       // 可选，到期日期修改
 }
 ```
 
@@ -950,7 +1241,8 @@ curl -X PUT http://localhost:3000/api/borrows/1 \
   -H "Content-Type: application/json" \
   -H "Cookie: token=<jwt_token>" \
   -d '{
-    "returnDate": "2024-01-15"
+    "returnDate": "2024-01-15",
+    "status": "returned"
   }'
 ```
 
@@ -958,7 +1250,20 @@ curl -X PUT http://localhost:3000/api/borrows/1 \
 ```json
 {
   "success": true,
-  "message": "借阅记录更新成功"
+  "message": "借阅记录更新成功",
+  "data": {
+    "id": 1,
+    "userId": 2,
+    "bookId": 1,
+    "bookTitle": "红楼梦",
+    "borrowerName": "张三",
+    "borrowDate": "2024-01-01",
+    "dueDate": "2024-01-31",
+    "returnDate": "2024-01-15",
+    "status": "returned",
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-15T12:00:00.000Z"
+  }
 }
 ```
 
@@ -970,8 +1275,16 @@ curl -X PUT http://localhost:3000/api/borrows/1 \
 }
 ```
 
+```json
+{
+  "success": false,
+  "message": "归还日期不能早于借阅日期"
+}
+```
+
 **状态码**:
 - `200` - 成功
+- `400` - 请求参数错误
 - `404` - 借阅记录不存在
 - `401` - 未授权访问
 - `500` - 服务器错误
@@ -1025,15 +1338,17 @@ curl -X DELETE http://localhost:3000/api/borrows/1 \
 
 **接口地址**: `GET /api/statistics/borrow`
 
-**功能描述**: 获取借阅数据统计信息
+**功能描述**: 获取借阅数据统计信息，支持缓存优化
 
 **认证要求**: 需要有效的JWT Token
 
-**查询参数**: 无
+**查询参数**:
+- `period` (可选): 统计周期，7/30/90天，默认30天
+- `refresh` (可选): 是否强制刷新缓存，true/false
 
 **请求示例**:
 ```bash
-curl -X GET http://localhost:3000/api/statistics/borrow \
+curl -X GET "http://localhost:3000/api/statistics/borrow?period=30&refresh=false" \
   -H "Cookie: token=<jwt_token>"
 ```
 
@@ -1043,14 +1358,34 @@ curl -X GET http://localhost:3000/api/statistics/borrow \
   "success": true,
   "data": {
     "total": 50,           // 总借阅记录数
-    "normal": 30,          // 正常借阅数
-    "overdue": 5,          // 逾期数
+    "borrowed": 30,        // 当前借阅数
     "returned": 15,        // 已归还数
-    "trendData": {         // 最近30天趋势数据
+    "overdue": 5,          // 逾期数
+    "totalUsers": 20,      // 总用户数
+    "totalBooks": 100,     // 总图书数
+    "activeUsers": 15,     // 活跃用户数（有借阅记录）
+    "popularBooks": [      // 热门图书Top5
+      {
+        "bookId": 1,
+        "title": "红楼梦",
+        "borrowCount": 10
+      }
+    ],
+    "trendData": {         // 最近N天趋势数据
       "dates": ["2024-01-01", "2024-01-02", "..."],
-      "counts": [3, 5, 2, 8, "..."]
-    }
-  }
+      "borrowCounts": [3, 5, 2, 8, "..."],
+      "returnCounts": [2, 3, 1, 5, "..."]
+    },
+    "categoryStats": [     // 分类统计
+      {
+        "category": "古典文学",
+        "count": 15,
+        "percentage": 30
+      }
+    ]
+  },
+  "cached": true,          // 是否来自缓存
+  "generatedAt": "2024-01-01T12:00:00.000Z"
 }
 ```
 
@@ -1069,7 +1404,7 @@ curl -X GET http://localhost:3000/api/statistics/borrow \
 
 **功能描述**: 获取后台任务状态信息
 
-**认证要求**: 需要有效的JWT Token
+**认证要求**: 需要有效的JWT Token（仅管理员）
 
 **请求示例**:
 ```bash
@@ -1085,8 +1420,12 @@ curl -X GET http://localhost:3000/api/task/status \
     "taskName": "借阅状态更新任务",
     "status": "running",           // running, stopped, unknown
     "lastExecuteTime": "2024-01-01T12:00:00.000Z",
+    "nextExecuteTime": "2024-01-01T12:01:00.000Z",
     "interval": 60000,             // 执行间隔(毫秒)
-    "isRunning": true
+    "isRunning": true,
+    "executionCount": 1440,        // 执行次数
+    "errorCount": 0,               // 错误次数
+    "lastError": null              // 最后一次错误
   }
 }
 ```
@@ -1094,6 +1433,7 @@ curl -X GET http://localhost:3000/api/task/status \
 **状态码**:
 - `200` - 成功
 - `401` - 未授权访问
+- `403` - 权限不足
 - `500` - 服务器错误
 
 ---
@@ -1104,7 +1444,7 @@ curl -X GET http://localhost:3000/api/task/status \
 
 **功能描述**: 启动后台任务
 
-**认证要求**: 需要有效的JWT Token
+**认证要求**: 需要有效的JWT Token（仅管理员）
 
 **请求示例**:
 ```bash
@@ -1116,7 +1456,12 @@ curl -X POST http://localhost:3000/api/task/start \
 ```json
 {
   "success": true,
-  "message": "任务启动成功"
+  "message": "任务启动成功",
+  "data": {
+    "taskName": "借阅状态更新任务",
+    "status": "running",
+    "startTime": "2024-01-01T12:00:00.000Z"
+  }
 }
 ```
 
@@ -1132,6 +1477,7 @@ curl -X POST http://localhost:3000/api/task/start \
 - `200` - 成功
 - `400` - 任务已在运行
 - `401` - 未授权访问
+- `403` - 权限不足
 - `500` - 服务器错误
 
 ---
@@ -1142,7 +1488,7 @@ curl -X POST http://localhost:3000/api/task/start \
 
 **功能描述**: 停止后台任务
 
-**认证要求**: 需要有效的JWT Token
+**认证要求**: 需要有效的JWT Token（仅管理员）
 
 **请求示例**:
 ```bash
@@ -1154,7 +1500,12 @@ curl -X POST http://localhost:3000/api/task/stop \
 ```json
 {
   "success": true,
-  "message": "任务停止成功"
+  "message": "任务停止成功",
+  "data": {
+    "taskName": "借阅状态更新任务",
+    "status": "stopped",
+    "stopTime": "2024-01-01T12:00:00.000Z"
+  }
 }
 ```
 
@@ -1170,6 +1521,7 @@ curl -X POST http://localhost:3000/api/task/stop \
 - `200` - 成功
 - `400` - 任务未在运行
 - `401` - 未授权访问
+- `403` - 权限不足
 - `500` - 服务器错误
 
 ---
@@ -1180,7 +1532,7 @@ curl -X POST http://localhost:3000/api/task/stop \
 
 **功能描述**: 手动执行一次任务
 
-**认证要求**: 需要有效的JWT Token
+**认证要求**: 需要有效的JWT Token（仅管理员）
 
 **请求示例**:
 ```bash
@@ -1192,13 +1544,22 @@ curl -X POST http://localhost:3000/api/task/execute \
 ```json
 {
   "success": true,
-  "message": "任务执行成功"
+  "message": "任务执行成功",
+  "data": {
+    "executeTime": "2024-01-01T12:00:00.000Z",
+    "result": {
+      "processedRecords": 25,
+      "updatedStatuses": 3,
+      "errors": 0
+    }
+  }
 }
 ```
 
 **状态码**:
 - `200` - 成功
 - `401` - 未授权访问
+- `403` - 权限不足
 - `500` - 服务器错误
 
 ---
@@ -1242,7 +1603,9 @@ ws.onopen = function() {
 ```json
 {
     "type": "auth_success",
-    "message": "WebSocket 连接成功"
+    "message": "WebSocket 连接成功",
+    "userId": 1,
+    "username": "admin"
 }
 ```
 
@@ -1250,7 +1613,8 @@ ws.onopen = function() {
 ```json
 {
     "type": "auth_error",
-    "message": "身份验证失败"
+    "message": "身份验证失败",
+    "reason": "invalid_token"
 }
 ```
 
@@ -1258,9 +1622,14 @@ ws.onopen = function() {
 ```json
 {
     "type": "notification",
-    "title": "通知标题",
-    "message": "通知内容",
-    "time": "2024-01-01T12:00:00.000Z"
+    "title": "系统通知",
+    "message": "新的借阅记录已创建",
+    "level": "info",
+    "time": "2024-01-01T12:00:00.000Z",
+    "data": {
+        "borrowId": 123,
+        "bookTitle": "红楼梦"
+    }
 }
 ```
 
@@ -1270,7 +1639,12 @@ ws.onopen = function() {
     "type": "data_update",
     "module": "books",        // books, users, borrows
     "action": "create",       // create, update, delete
-    "data": { /* 更新的数据 */ }
+    "data": {
+        "id": 1,
+        "title": "新图书",
+        "author": "作者"
+    },
+    "userId": 1               // 操作用户ID
 }
 ```
 
@@ -1278,8 +1652,22 @@ ws.onopen = function() {
 ```json
 {
     "type": "task_status_update",
-    "status": "running",      // running, stopped
-    "lastExecuteTime": "2024-01-01T12:00:00.000Z"
+    "taskName": "借阅状态更新任务",
+    "status": "running",      // running, stopped, error
+    "lastExecuteTime": "2024-01-01T12:00:00.000Z",
+    "executionCount": 1440
+}
+```
+
+#### 用户状态变更
+```json
+{
+    "type": "user_status_change",
+    "userId": 2,
+    "username": "testuser",
+    "newStatus": "disabled",
+    "reason": "管理员操作",
+    "time": "2024-01-01T12:00:00.000Z"
 }
 ```
 
@@ -1296,7 +1684,8 @@ ws.onopen = function() {
     "success": false,
     "message": "错误描述信息",
     "error": "ERROR_CODE",     // 可选，错误代码
-    "details": {}              // 可选，详细错误信息
+    "details": {},             // 可选，详细错误信息
+    "timestamp": "2024-01-01T12:00:00.000Z"
 }
 ```
 
@@ -1308,20 +1697,24 @@ ws.onopen = function() {
 | `401` | 未授权访问 | 检查JWT Token是否有效 |
 | `403` | 权限不足 | 检查用户权限设置 |
 | `404` | 资源不存在 | 检查资源ID是否正确 |
-| `409` | 资源冲突 | 检查是否存在重复数据 |
+| `409` | 资源冲突 | 检查是否存在重复数据或约束冲突 |
+| `422` | 数据验证失败 | 检查数据格式和约束条件 |
+| `429` | 请求过于频繁 | 减少请求频率或稍后重试 |
 | `500` | 服务器内部错误 | 联系系统管理员 |
+| `503` | 服务不可用 | 检查数据库连接或稍后重试 |
 
 ### 错误示例
 
-#### 参数验证错误
+#### 数据库约束错误
 ```json
 {
     "success": false,
-    "message": "参数验证失败",
-    "error": "VALIDATION_ERROR",
+    "message": "数据约束违反",
+    "error": "CONSTRAINT_VIOLATION",
     "details": {
-        "username": "用户名不能为空",
-        "password": "密码长度至少6位"
+        "constraint": "books_isbn_key",
+        "field": "isbn",
+        "message": "ISBN号已存在"
     }
 }
 ```
@@ -1331,7 +1724,11 @@ ws.onopen = function() {
 {
     "success": false,
     "message": "Token已过期",
-    "error": "TOKEN_EXPIRED"
+    "error": "TOKEN_EXPIRED",
+    "details": {
+        "expiredAt": "2024-01-01T12:00:00.000Z",
+        "currentTime": "2024-01-01T13:00:00.000Z"
+    }
 }
 ```
 
@@ -1340,7 +1737,25 @@ ws.onopen = function() {
 {
     "success": false,
     "message": "权限不足，仅管理员可执行此操作",
-    "error": "PERMISSION_DENIED"
+    "error": "PERMISSION_DENIED",
+    "details": {
+        "requiredRole": "admin",
+        "currentRole": "user"
+    }
+}
+```
+
+#### 外键约束错误
+```json
+{
+    "success": false,
+    "message": "关联数据不存在",
+    "error": "FOREIGN_KEY_VIOLATION",
+    "details": {
+        "field": "user_id",
+        "value": 999,
+        "referencedTable": "users"
+    }
 }
 ```
 
@@ -1354,25 +1769,30 @@ ws.onopen = function() {
 ```bash
 curl -X POST http://localhost:3000/api/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "admin123"}'
+  -d '{"username": "admin", "password": "admin123"}' \
+  -c cookies.txt
 ```
 
 #### 2. 获取图书列表
 ```bash
 curl -X GET http://localhost:3000/api/books \
-  -H "Cookie: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  -b cookies.txt
 ```
 
 #### 3. 添加图书
 ```bash
 curl -X POST http://localhost:3000/api/books \
   -H "Content-Type: application/json" \
-  -H "Cookie: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -b cookies.txt \
   -d '{
     "title": "三国演义",
     "author": "罗贯中",
     "publisher": "人民文学出版社",
-    "publishDate": "2020-03-01"
+    "isbn": "9787020002221",
+    "publishDate": "2020-03-01",
+    "price": 45.00,
+    "stock": 20,
+    "category": "古典文学"
   }'
 ```
 
@@ -1380,10 +1800,10 @@ curl -X POST http://localhost:3000/api/books \
 ```bash
 curl -X POST http://localhost:3000/api/borrows \
   -H "Content-Type: application/json" \
-  -H "Cookie: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -b cookies.txt \
   -d '{
-    "bookTitle": "三国演义",
-    "borrower": "王五",
+    "userId": 2,
+    "bookId": 1,
     "borrowDate": "2024-01-15"
   }'
 ```
@@ -1391,7 +1811,7 @@ curl -X POST http://localhost:3000/api/borrows \
 #### 5. 获取统计数据
 ```bash
 curl -X GET http://localhost:3000/api/statistics/borrow \
-  -H "Cookie: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  -b cookies.txt
 ```
 
 ---
@@ -1409,20 +1829,32 @@ function bookManagement() {
         pageSize: 5,
         searchTerm: '',
         isLoading: false,
+        sortBy: 'created_at',
+        sortOrder: 'desc',
 
         async init() {
             await this.loadBooks();
+            this.setupWebSocket();
         },
 
         async loadBooks() {
             this.isLoading = true;
             try {
-                const response = await fetch(`/api/books?page=${this.currentPage}&pageSize=${this.pageSize}&search=${this.searchTerm}`);
+                const params = new URLSearchParams({
+                    page: this.currentPage,
+                    pageSize: this.pageSize,
+                    search: this.searchTerm,
+                    sortBy: this.sortBy,
+                    sortOrder: this.sortOrder
+                });
+                
+                const response = await fetch(`/api/books?${params}`);
                 const data = await response.json();
                 
                 if (data.success) {
                     this.books = data.data;
                     this.pagination = data.pagination;
+                    this.cached = data.cached;
                 } else {
                     this.showError(data.message);
                 }
@@ -1454,6 +1886,24 @@ function bookManagement() {
             } catch (error) {
                 this.showError('添加图书失败');
             }
+        },
+
+        setupWebSocket() {
+            const ws = new WebSocket('ws://localhost:3000/ws');
+            
+            ws.onopen = () => {
+                ws.send(JSON.stringify({
+                    type: 'auth',
+                    token: this.getToken()
+                }));
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'data_update' && data.module === 'books') {
+                    this.loadBooks(); // 实时更新图书列表
+                }
+            };
         }
     }
 }
@@ -1466,6 +1916,8 @@ function websocketManager() {
         ws: null,
         isConnected: false,
         notifications: [],
+        reconnectAttempts: 0,
+        maxReconnectAttempts: 5,
 
         init() {
             this.connectWebSocket();
@@ -1476,6 +1928,9 @@ function websocketManager() {
             
             this.ws.onopen = () => {
                 this.isConnected = true;
+                this.reconnectAttempts = 0;
+                console.log('WebSocket连接成功');
+                
                 // 发送认证消息
                 this.ws.send(JSON.stringify({
                     type: 'auth',
@@ -1490,8 +1945,16 @@ function websocketManager() {
 
             this.ws.onclose = () => {
                 this.isConnected = false;
+                console.log('WebSocket连接断开');
+                
                 // 尝试重连
-                setTimeout(() => this.connectWebSocket(), 3000);
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    setTimeout(() => {
+                        console.log(`尝试重连 ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
+                        this.connectWebSocket();
+                    }, 3000 * this.reconnectAttempts);
+                }
             };
 
             this.ws.onerror = (error) => {
@@ -1504,11 +1967,17 @@ function websocketManager() {
                 case 'auth_success':
                     console.log('WebSocket认证成功');
                     break;
+                case 'auth_error':
+                    console.error('WebSocket认证失败:', data.message);
+                    break;
                 case 'notification':
                     this.addNotification(data);
                     break;
                 case 'data_update':
                     this.handleDataUpdate(data);
+                    break;
+                case 'task_status_update':
+                    this.updateTaskStatus(data);
                     break;
             }
         },
@@ -1520,9 +1989,17 @@ function websocketManager() {
                 time: new Date().toLocaleTimeString()
             });
             
-            // 只保留最近10条通知
-            if (this.notifications.length > 10) {
-                this.notifications = this.notifications.slice(0, 10);
+            // 只保留最近20条通知
+            if (this.notifications.length > 20) {
+                this.notifications = this.notifications.slice(0, 20);
+            }
+            
+            // 显示浏览器通知
+            if (Notification.permission === 'granted') {
+                new Notification(notification.title, {
+                    body: notification.message,
+                    icon: '/favicon.ico'
+                });
             }
         }
     }
@@ -1548,6 +2025,10 @@ curl -X POST "$BASE_URL/api/login" \
 
 # 使用Cookie访问其他API
 curl -X GET "$BASE_URL/api/books" \
+  -b cookies.txt
+
+# 测试带参数的请求
+curl -X GET "$BASE_URL/api/books?search=红楼梦&page=1&pageSize=5" \
   -b cookies.txt
 ```
 
@@ -1584,8 +2065,13 @@ class ApiTester {
         return response.json();
     }
 
-    async get(endpoint) {
-        return fetch(`${this.baseUrl}${endpoint}`, {
+    async get(endpoint, params = {}) {
+        const url = new URL(`${this.baseUrl}${endpoint}`);
+        Object.keys(params).forEach(key => 
+            url.searchParams.append(key, params[key])
+        );
+        
+        return fetch(url.toString(), {
             headers: { 'Cookie': `token=${this.token}` }
         }).then(res => res.json());
     }
@@ -1600,12 +2086,30 @@ class ApiTester {
             body: JSON.stringify(data)
         }).then(res => res.json());
     }
+
+    async put(endpoint, data) {
+        return fetch(`${this.baseUrl}${endpoint}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Cookie': `token=${this.token}`
+            },
+            body: JSON.stringify(data)
+        }).then(res => res.json());
+    }
+
+    async delete(endpoint) {
+        return fetch(`${this.baseUrl}${endpoint}`, {
+            method: 'DELETE',
+            headers: { 'Cookie': `token=${this.token}` }
+        }).then(res => res.json());
+    }
 }
 
 // 使用示例
 const api = new ApiTester();
 await api.login('admin', 'admin123');
-const books = await api.get('/api/books');
+const books = await api.get('/api/books', { search: '红楼梦', page: 1 });
 console.log(books);
 ```
 
@@ -1614,15 +2118,17 @@ console.log(books);
 #### 1. 日志记录
 服务器会在控制台输出详细的请求日志：
 ```
-[2024-01-01T12:00:00.000Z] POST /api/login - 200 (50ms)
-[2024-01-01T12:00:01.000Z] GET /api/books - 200 (25ms)
-[2024-01-01T12:00:02.000Z] WebSocket 连接已建立
+[2024-01-01T12:00:00.000Z] POST /api/login - 200 (50ms) - Cache: MISS
+[2024-01-01T12:00:01.000Z] GET /api/books - 200 (25ms) - Cache: HIT
+[2024-01-01T12:00:02.000Z] WebSocket 连接已建立 - User: admin
 ```
 
 #### 2. 错误追踪
 - 检查浏览器开发者工具的Network标签
-- 查看Console中的错误信息
+- 查看Console中的错误信息  
 - 检查服务器控制台输出
+- 查看PostgreSQL日志: `tail -f /var/log/postgresql/postgresql-*.log`
+- 监控Redis: `redis-cli monitor`
 
 #### 3. Token 验证
 ```javascript
@@ -1641,35 +2147,98 @@ const token = document.cookie.split('token=')[1].split(';')[0];
 console.log(parseJWT(token));
 ```
 
+#### 4. 数据库调试
+```sql
+-- 查看活跃连接
+SELECT * FROM pg_stat_activity WHERE state = 'active';
+
+-- 查看表大小
+SELECT 
+    schemaname,
+    tablename,
+    attname,
+    n_distinct,
+    correlation
+FROM pg_stats
+WHERE tablename IN ('users', 'books', 'borrows');
+
+-- 查看索引使用情况
+SELECT 
+    t.tablename,
+    indexname,
+    c.reltuples AS num_rows,
+    pg_size_pretty(pg_relation_size(quote_ident(t.tablename)::text)) AS table_size,
+    pg_size_pretty(pg_relation_size(quote_ident(indexrelname)::text)) AS index_size
+FROM pg_tables t
+LEFT OUTER JOIN pg_class c ON c.relname=t.tablename
+LEFT OUTER JOIN pg_indexes i ON i.tablename=t.tablename
+WHERE t.schemaname='public';
+```
+
+#### 5. 缓存调试
+```bash
+# 连接Redis查看缓存
+redis-cli
+
+# 查看所有缓存键
+KEYS cache:*
+
+# 查看特定缓存
+GET cache:book:list:page:1:size:5:search:
+
+# 查看缓存过期时间
+TTL cache:user:1
+
+# 清除所有缓存
+FLUSHALL
+
+# 查看Redis状态
+INFO memory
+INFO stats
+```
+
 ---
 
 ## 📖 版本历史
 
 ### v1.0.0 (当前版本)
-- ✅ 完整的用户认证API
-- ✅ 图书管理CRUD API
-- ✅ 用户管理API
-- ✅ 借阅管理API
-- ✅ 数据统计API
-- ✅ 任务管理API
-- ✅ WebSocket实时通信
-- ✅ JWT身份验证
-- ✅ 错误处理机制
-- ✅ Bun.password密码加密
+- ✅ 完整的用户认证API，支持JWT和cookie认证
+- ✅ 图书管理CRUD API，支持完整的字段验证
+- ✅ 用户管理API，支持角色和状态管理
+- ✅ 借阅管理API，支持外键约束和状态计算
+- ✅ 数据统计API，支持多维度统计分析
+- ✅ 任务管理API，支持后台任务控制
+- ✅ WebSocket实时通信，支持多种消息类型
+- ✅ PostgreSQL数据库支持，ACID事务保证
+- ✅ Redis缓存机制，智能缓存失效
+- ✅ 字段自动映射，数据库与API字段转换
+- ✅ 完善的错误处理机制
+- ✅ 外键约束和数据完整性检查
+- ✅ 分页、搜索、排序功能
+- ✅ Bun SQL原生驱动，高性能数据库操作
 
 ### 未来版本规划
 
 #### v1.1.0
-- 📋 批量操作API
-- 📋 高级搜索API
-- 📋 数据导出API
-- 📋 文件上传API
+- 📋 批量操作API（批量导入/导出/删除）
+- 📋 高级搜索API（多条件组合搜索）
+- 📋 文件上传API（图书封面、用户头像）
+- 📋 数据导出API（Excel、PDF格式）
+- 📋 邮件通知API（逾期提醒、密码重置）
 
 #### v1.2.0
-- 📋 权限管理API
-- 📋 日志记录API
-- 📋 系统配置API
-- 📋 通知管理API
+- 📋 细粒度权限管理API
+- 📋 操作日志记录API
+- 📋 系统配置管理API
+- 📋 通知模板管理API
+- 📋 多租户支持API
+
+#### v1.3.0
+- 📋 国际化支持API
+- 📋 数据备份/恢复API
+- 📋 性能监控API
+- 📋 审计日志API
+- 📋 API版本控制
 
 ---
 
@@ -1678,19 +2247,28 @@ console.log(parseJWT(token));
 ### 常见问题
 
 #### Q: 如何处理Token过期？
-A: 当接收到401状态码时，重新调用登录API获取新Token。
+A: 当接收到401状态码且错误类型为TOKEN_EXPIRED时，重新调用登录API获取新Token。前端可以实现自动刷新机制。
 
 #### Q: WebSocket连接失败怎么办？
-A: 检查服务器是否运行，Token是否有效，网络连接是否正常。
+A: 检查服务器是否运行，Token是否有效，网络连接是否正常。实现重连机制和降级方案。
+
+#### Q: 如何处理数据库约束错误？
+A: 系统会返回详细的约束错误信息，前端应根据错误类型提供用户友好的提示。
+
+#### Q: 缓存什么时候会失效？
+A: 缓存在以下情况会失效：1) TTL过期（5分钟）2) 相关数据更新时主动清除 3) 手动清除
 
 #### Q: 如何实现文件上传？
-A: 当前版本不支持文件上传，计划在v1.1.0版本中添加。
+A: 当前版本不支持文件上传，计划在v1.1.0版本中添加。可以使用第三方存储服务作为临时方案。
 
 #### Q: 是否支持批量操作？
-A: 当前版本不支持批量操作，计划在v1.1.0版本中添加。
+A: 当前版本不支持批量操作，计划在v1.1.0版本中添加。可以通过循环调用单个API实现。
 
-#### Q: 密码是如何加密的？
-A: 系统使用Bun.password进行密码加密，这是Bun内置的安全密码加密功能。
+#### Q: 如何监控API性能？
+A: 系统提供基本的响应时间日志，推荐使用APM工具进行深度监控。
+
+#### Q: 数据库连接池如何配置？
+A: 在`back-js/database.js`中修改DB_CONFIG的max、idleTimeout等参数。
 
 ### 联系方式
 
