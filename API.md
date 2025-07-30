@@ -16,6 +16,183 @@
 
 **密码加密**: Bun.password (内置密码加密)
 
+## 🏗️ API 架构图
+
+```mermaid
+graph TB
+    subgraph "客户端层"
+        A[Web浏览器] --> B[Alpine.js前端]
+        B --> C[Axios HTTP客户端]
+        B --> D[WebSocket客户端]
+    end
+    
+    subgraph "API网关层"
+        E[Bun HTTP服务器] --> F[路由分发]
+        F --> G[认证中间件]
+        F --> H[请求验证]
+    end
+    
+    subgraph "业务逻辑层"
+        I[用户管理API] --> J[认证逻辑]
+        K[图书管理API] --> L[图书业务]
+        M[借阅管理API] --> N[借阅业务]
+        O[统计API] --> P[数据统计]
+    end
+    
+    subgraph "数据访问层"
+        Q[数据访问类] --> R[Redis缓存]
+        Q --> S[PostgreSQL数据库]
+    end
+    
+    C --> E
+    D --> E
+    G --> I
+    G --> K
+    G --> M
+    G --> O
+    J --> Q
+    L --> Q
+    N --> Q
+    P --> Q
+```
+
+## 🔄 API 请求流程图
+
+```mermaid
+sequenceDiagram
+    participant Client as 客户端
+    participant Server as 服务器
+    participant Auth as 认证中间件
+    participant Route as 路由处理
+    participant Logic as 业务逻辑
+    participant Cache as Redis缓存
+    participant DB as PostgreSQL
+    
+    Client->>Server: HTTP请求
+    Server->>Auth: 验证JWT Token
+    alt Token有效
+        Auth->>Route: 路由分发
+        Route->>Logic: 执行业务逻辑
+        Logic->>Cache: 检查缓存
+        alt 缓存命中
+            Cache-->>Logic: 返回缓存数据
+        else 缓存未命中
+            Logic->>DB: 查询数据库
+            DB-->>Logic: 返回数据
+            Logic->>Cache: 更新缓存
+        end
+        Logic-->>Route: 返回结果
+        Route-->>Auth: 响应数据
+        Auth-->>Server: 成功响应
+        Server-->>Client: HTTP响应
+    else Token无效
+        Auth-->>Server: 认证失败
+        Server-->>Client: 401 Unauthorized
+    end
+```
+
+## 🗄️ 数据访问层架构
+
+```mermaid
+flowchart TD
+    subgraph "数据访问层"
+        A[DataAccess类] --> B[用户数据访问]
+        A --> C[图书数据访问]
+        A --> D[借阅数据访问]
+        A --> E[统计数据访问]
+    end
+    
+    subgraph "缓存策略"
+        F[Redis缓存] --> G[用户缓存]
+        F --> H[图书缓存]
+        F --> I[借阅缓存]
+        F --> J[列表缓存]
+    end
+    
+    subgraph "数据库操作"
+        K[Bun SQL] --> L[查询操作]
+        K --> M[插入操作]
+        K --> N[更新操作]
+        K --> O[删除操作]
+        K --> P[事务操作]
+    end
+    
+    subgraph "字段映射"
+        Q[数据库字段] --> R[下划线命名]
+        S[API字段] --> T[驼峰命名]
+        Q -.-> S
+    end
+    
+    B --> F
+    C --> F
+    D --> F
+    E --> F
+    
+    B --> K
+    C --> K
+    D --> K
+    E --> K
+```
+
+## 📊 缓存策略图
+
+```mermaid
+graph LR
+    subgraph "缓存层级"
+        A[用户缓存] --> B[cache:user:123]
+        C[图书缓存] --> D[cache:book:456]
+        E[借阅缓存] --> F[cache:borrow:789]
+        G[列表缓存] --> H[cache:list:books]
+    end
+    
+    subgraph "缓存操作"
+        I[数据查询] --> J{缓存检查}
+        J -->|命中| K[返回缓存]
+        J -->|未命中| L[查询数据库]
+        L --> M[序列化数据]
+        M --> N[设置TTL]
+        N --> O[存储缓存]
+        O --> K
+    end
+    
+    subgraph "缓存失效"
+        P[数据更新] --> Q[清除相关缓存]
+        Q --> R[模式匹配删除]
+        R --> S[WebSocket通知]
+    end
+    
+    B --> I
+    D --> I
+    F --> I
+    H --> I
+```
+
+## 🔐 认证流程架构
+
+```mermaid
+flowchart TD
+    A[用户登录] --> B[验证用户名密码]
+    B --> C{验证结果}
+    C -->|成功| D[生成JWT Token]
+    C -->|失败| E[返回错误信息]
+    
+    D --> F[存储用户会话]
+    F --> G[设置Cookie]
+    G --> H[返回Token]
+    
+    subgraph "Token验证"
+        I[API请求] --> J[提取Token]
+        J --> K[验证Token签名]
+        K --> L[检查Token过期]
+        L --> M[验证用户权限]
+    end
+    
+    H --> I
+    M --> N{权限检查}
+    N -->|通过| O[执行业务逻辑]
+    N -->|拒绝| P[返回403错误]
+```
+
 ## 🏗️ 数据库架构
 
 ### 技术栈
@@ -25,6 +202,102 @@
 - **连接池**: 自动管理，最大连接数 10
 - **事务支持**: ACID事务，支持复杂操作的原子性
 - **缓存策略**: 分层缓存，智能失效，5分钟TTL
+
+### 数据库架构图
+
+```mermaid
+graph TB
+    subgraph "应用层"
+        A[API接口] --> B[业务逻辑]
+        B --> C[数据访问层]
+    end
+    
+    subgraph "缓存层"
+        D[Redis缓存] --> E[用户缓存]
+        D --> F[图书缓存]
+        D --> G[借阅缓存]
+        D --> H[列表缓存]
+    end
+    
+    subgraph "数据库层"
+        I[PostgreSQL] --> J[用户表]
+        I --> K[图书表]
+        I --> L[借阅表]
+    end
+    
+    C --> D
+    C --> I
+    E --> J
+    F --> K
+    G --> L
+```
+
+### API请求流程图
+
+```mermaid
+sequenceDiagram
+    participant C as 客户端
+    participant A as API网关
+    participant M as 中间件
+    participant B as 业务逻辑
+    participant D as 数据访问
+    participant R as Redis
+    participant P as PostgreSQL
+    
+    C->>A: HTTP请求
+    A->>M: 认证/授权
+    M->>B: 业务处理
+    B->>D: 数据操作
+    D->>R: 检查缓存
+    alt 缓存命中
+        R-->>D: 返回缓存数据
+    else 缓存未命中
+        D->>P: 查询数据库
+        P-->>D: 返回数据
+        D->>R: 更新缓存
+    end
+    D-->>B: 返回数据
+    B-->>M: 业务结果
+    M-->>A: 响应数据
+    A-->>C: HTTP响应
+```
+
+### 数据访问层架构
+
+```mermaid
+flowchart TD
+    subgraph "数据访问层"
+        A[DataAccess类] --> B[用户管理]
+        A --> C[图书管理]
+        A --> D[借阅管理]
+        A --> E[统计管理]
+    end
+    
+    subgraph "缓存管理"
+        F[Redis客户端] --> G[缓存设置]
+        F --> H[缓存获取]
+        F --> I[缓存删除]
+        F --> J[模式匹配删除]
+    end
+    
+    subgraph "数据库操作"
+        K[Bun SQL] --> L[查询操作]
+        K --> M[插入操作]
+        K --> N[更新操作]
+        K --> O[删除操作]
+        K --> P[事务操作]
+    end
+    
+    B --> F
+    C --> F
+    D --> F
+    E --> F
+    
+    B --> K
+    C --> K
+    D --> K
+    E --> K
+```
 
 ### 数据表结构
 
@@ -49,6 +322,47 @@ CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_role ON users(role);
 CREATE INDEX idx_users_status ON users(status);
+```
+
+### 数据库索引架构图
+
+```mermaid
+graph TB
+    subgraph "用户表索引"
+        A[users表] --> B[主键索引: id]
+        A --> C[唯一索引: username]
+        A --> D[唯一索引: email]
+        A --> E[普通索引: role]
+        A --> F[普通索引: status]
+    end
+    
+    subgraph "图书表索引"
+        G[books表] --> H[主键索引: id]
+        G --> I[唯一索引: isbn]
+        G --> J[普通索引: title]
+        G --> K[普通索引: author]
+        G --> L[普通索引: publisher]
+        G --> M[普通索引: category]
+        G --> N[普通索引: publish_date]
+    end
+    
+    subgraph "借阅表索引"
+        O[borrows表] --> P[主键索引: id]
+        O --> Q[外键索引: user_id]
+        O --> R[外键索引: book_id]
+        O --> S[普通索引: status]
+        O --> T[普通索引: borrow_date]
+        O --> U[普通索引: due_date]
+        O --> V[普通索引: return_date]
+    end
+    
+    subgraph "索引类型说明"
+        W[主键索引] --> X[唯一且非空]
+        Y[唯一索引] --> Z[防止重复值]
+        AA[外键索引] --> BB[关联查询优化]
+        CC[普通索引] --> DD[查询性能提升]
+    end
+```
 ```
 
 #### 图书表 (books)
@@ -182,6 +496,48 @@ const CACHE_PREFIX = {
 ---
 
 ## 🔐 认证相关 API
+
+### 认证错误处理流程图
+
+```mermaid
+flowchart TD
+    A[API请求] --> B{Token存在}
+    B -->|是| C[验证Token]
+    B -->|否| D[返回401未授权]
+    
+    C --> E{Token有效}
+    E -->|是| F[获取用户信息]
+    E -->|否| G[返回401Token无效]
+    
+    F --> H{用户存在}
+    H -->|是| I[返回用户数据]
+    H -->|否| J[返回401用户不存在]
+    
+    subgraph "登录流程"
+        K[用户登录] --> L{参数验证}
+        L -->|失败| M[返回400参数错误]
+        L -->|成功| N[查询用户]
+        
+        N --> O{用户存在}
+        O -->|否| P[返回401用户不存在]
+        O -->|是| Q[验证密码]
+        
+        Q --> R{密码正确}
+        R -->|否| S[返回401密码错误]
+        R -->|是| T[生成JWT Token]
+        
+        T --> U[设置Cookie]
+        U --> V[返回成功响应]
+    end
+    
+    subgraph "权限检查"
+        W[业务请求] --> X{角色验证}
+        X -->|admin| Y[允许访问]
+        X -->|user| Z{资源权限}
+        Z -->|有权限| Y
+        Z -->|无权限| AA[返回403禁止访问]
+    end
+```
 
 ### 1. 获取当前用户信息
 

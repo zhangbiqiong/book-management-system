@@ -2,6 +2,524 @@
 
 一个使用 Bun、Alpine.js、Bootstrap 5、PostgreSQL、Redis 构建的现代化图书管理系统，支持用户管理、图书管理、借阅管理、实时通知等功能。采用响应式设计和声明式编程范式，提供完整的图书馆管理解决方案。
 
+## 🏗️ 系统架构图
+
+```mermaid
+graph TB
+    subgraph "前端层 (Frontend)"
+        A[用户界面] --> B[Alpine.js 响应式框架]
+        B --> C[Bootstrap 5 UI组件]
+        C --> D[WebSocket 客户端]
+    end
+    
+    subgraph "后端层 (Backend)"
+        E[Bun HTTP 服务器] --> F[路由处理]
+        F --> G[认证中间件]
+        G --> H[业务逻辑层]
+        H --> I[数据访问层]
+    end
+    
+    subgraph "数据层 (Data Layer)"
+        J[PostgreSQL 数据库] --> K[Redis 缓存]
+        I --> J
+        I --> K
+    end
+    
+    subgraph "实时通信"
+        L[WebSocket 服务器] --> M[实时通知]
+        D --> L
+    end
+    
+    A --> E
+    K --> I
+    J --> I
+```
+
+## 🔄 数据流程图
+
+```mermaid
+flowchart LR
+    subgraph "用户操作"
+        A[用户登录] --> B[表单验证]
+        B --> C[JWT Token生成]
+    end
+    
+    subgraph "数据查询"
+        D[API请求] --> E{Redis缓存}
+        E -->|命中| F[返回缓存数据]
+        E -->|未命中| G[查询PostgreSQL]
+        G --> H[更新Redis缓存]
+        H --> F
+    end
+    
+    subgraph "数据更新"
+        I[数据修改] --> J[更新PostgreSQL]
+        J --> K[清除相关缓存]
+        K --> L[WebSocket通知]
+    end
+    
+    C --> D
+    F --> I
+```
+
+## 🔐 用户认证流程图
+
+```mermaid
+sequenceDiagram
+    participant U as 用户
+    participant F as 前端
+    participant B as 后端
+    participant DB as PostgreSQL
+    participant R as Redis
+    
+    U->>F: 输入用户名密码
+    F->>B: POST /api/login
+    B->>DB: 查询用户信息
+    DB-->>B: 返回用户数据
+    B->>B: 验证密码
+    B->>R: 存储用户会话
+    B-->>F: 返回JWT Token
+    F->>F: 存储Token到Cookie
+    F-->>U: 跳转到主页面
+    
+    Note over U,F: 后续请求
+    U->>F: 访问受保护页面
+    F->>B: 请求携带JWT Token
+    B->>B: 验证Token
+    B->>R: 检查会话状态
+    R-->>B: 会话有效
+    B-->>F: 返回数据
+    F-->>U: 显示页面内容
+```
+
+## 📚 图书管理流程图
+
+```mermaid
+flowchart TD
+    A[图书管理] --> B{操作类型}
+    
+    B -->|查询| C[搜索图书]
+    B -->|添加| D[新增图书]
+    B -->|修改| E[编辑图书]
+    B -->|删除| F[删除图书]
+    
+    C --> G{Redis缓存}
+    G -->|命中| H[返回缓存数据]
+    G -->|未命中| I[查询PostgreSQL]
+    I --> J[更新缓存]
+    J --> H
+    
+    D --> K[表单验证]
+    K --> L[插入数据库]
+    L --> M[清除相关缓存]
+    M --> N[WebSocket通知]
+    
+    E --> O[表单验证]
+    O --> P[更新数据库]
+    P --> M
+    
+    F --> Q[删除确认]
+    Q --> R[删除数据库记录]
+    R --> M
+```
+
+## 📖 借阅管理流程图
+
+```mermaid
+flowchart LR
+    subgraph "借阅流程"
+        A[选择用户] --> B[选择图书]
+        B --> C[设置借阅日期]
+        C --> D[创建借阅记录]
+        D --> E[更新图书库存]
+        E --> F[发送通知]
+    end
+    
+    subgraph "归还流程"
+        G[选择借阅记录] --> H[确认归还]
+        H --> I[更新归还日期]
+        I --> J[更新图书库存]
+        J --> K[更新借阅状态]
+        K --> L[发送通知]
+    end
+    
+    subgraph "状态计算"
+        M[借阅记录] --> N{计算状态}
+        N -->|未到期| O[正常]
+        N -->|已到期| P[逾期]
+        N -->|已归还| Q[已归还]
+    end
+```
+
+## 🗄️ 数据库架构图
+
+```mermaid
+erDiagram
+    USERS {
+        int id PK
+        string username UK
+        string email UK
+        string password
+        string role
+        string status
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    BOOKS {
+        int id PK
+        string title
+        string author
+        string publisher
+        string isbn UK
+        date publish_date
+        decimal price
+        int stock
+        text description
+        string category
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    BORROWS {
+        int id PK
+        int user_id FK
+        int book_id FK
+        string book_title
+        string borrower_name
+        date borrow_date
+        date due_date
+        date return_date
+        string status
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    USERS ||--o{ BORROWS : "用户借阅"
+    BOOKS ||--o{ BORROWS : "图书被借阅"
+```
+
+## 🔄 缓存策略图
+
+```mermaid
+graph TD
+    subgraph "缓存层级"
+        A[用户缓存] --> B[cache:user:*]
+        C[图书缓存] --> D[cache:book:*]
+        E[借阅缓存] --> F[cache:borrow:*]
+        G[列表缓存] --> H[cache:list:*]
+    end
+    
+    subgraph "缓存操作"
+        I[数据查询] --> J{缓存检查}
+        J -->|命中| K[返回缓存]
+        J -->|未命中| L[查询数据库]
+        L --> M[更新缓存]
+        M --> K
+    end
+    
+    subgraph "缓存失效"
+        N[数据更新] --> O[清除相关缓存]
+        O --> P[模式匹配删除]
+        P --> Q[WebSocket通知]
+    end
+    
+    B --> I
+    D --> I
+    F --> I
+    H --> I
+```
+
+## 🚀 部署架构图
+
+```mermaid
+graph TB
+    subgraph "客户端"
+        A[浏览器] --> B[HTTPS/WebSocket]
+    end
+    
+    subgraph "服务器"
+        C[Bun HTTP服务器] --> D[端口3000]
+        E[WebSocket服务器] --> F[实时通信]
+    end
+    
+    subgraph "数据库"
+        G[PostgreSQL] --> H[端口5432]
+        I[Redis] --> J[端口6379]
+    end
+    
+    subgraph "文件系统"
+        K[静态文件] --> L[HTML/CSS/JS]
+        M[上传文件] --> N[图片/文档]
+    end
+    
+    B --> C
+    B --> E
+    C --> G
+    C --> I
+    C --> K
+    C --> M
+```
+
+## 🏗️ 系统架构图
+
+```mermaid
+graph TB
+    subgraph "前端层 (Frontend)"
+        A[用户界面] --> B[Alpine.js 响应式框架]
+        B --> C[Bootstrap 5 UI组件]
+        C --> D[WebSocket 客户端]
+    end
+    
+    subgraph "后端层 (Backend)"
+        E[Bun HTTP 服务器] --> F[路由处理]
+        F --> G[认证中间件]
+        G --> H[业务逻辑层]
+        H --> I[数据访问层]
+    end
+    
+    subgraph "数据层 (Data Layer)"
+        J[PostgreSQL 数据库] --> K[Redis 缓存]
+        I --> J
+        I --> K
+    end
+    
+    subgraph "实时通信"
+        L[WebSocket 服务器] --> M[实时通知]
+        D --> L
+    end
+    
+    A --> E
+    K --> I
+    J --> I
+```
+
+## 🔄 数据流程图
+
+```mermaid
+flowchart LR
+    subgraph "用户操作"
+        A[用户登录] --> B[表单验证]
+        B --> C[JWT Token生成]
+    end
+    
+    subgraph "数据查询"
+        D[API请求] --> E{Redis缓存}
+        E -->|命中| F[返回缓存数据]
+        E -->|未命中| G[查询PostgreSQL]
+        G --> H[更新Redis缓存]
+        H --> F
+    end
+    
+    subgraph "数据更新"
+        I[数据修改] --> J[更新PostgreSQL]
+        J --> K[清除相关缓存]
+        K --> L[WebSocket通知]
+    end
+    
+    C --> D
+    F --> I
+```
+
+## 🔐 用户认证流程图
+
+```mermaid
+sequenceDiagram
+    participant U as 用户
+    participant F as 前端
+    participant B as 后端
+    participant DB as PostgreSQL
+    participant R as Redis
+    
+    U->>F: 输入用户名密码
+    F->>B: POST /api/login
+    B->>DB: 查询用户信息
+    DB-->>B: 返回用户数据
+    B->>B: 验证密码
+    B->>R: 存储用户会话
+    B-->>F: 返回JWT Token
+    F->>F: 存储Token到Cookie
+    F-->>U: 跳转到主页面
+    
+    Note over U,F: 后续请求
+    U->>F: 访问受保护页面
+    F->>B: 请求携带JWT Token
+    B->>B: 验证Token
+    B->>R: 检查会话状态
+    R-->>B: 会话有效
+    B-->>F: 返回数据
+    F-->>U: 显示页面内容
+```
+
+## 📚 图书管理流程图
+
+```mermaid
+flowchart TD
+    A[图书管理] --> B{操作类型}
+    
+    B -->|查询| C[搜索图书]
+    B -->|添加| D[新增图书]
+    B -->|修改| E[编辑图书]
+    B -->|删除| F[删除图书]
+    
+    C --> G{Redis缓存}
+    G -->|命中| H[返回缓存数据]
+    G -->|未命中| I[查询PostgreSQL]
+    I --> J[更新缓存]
+    J --> H
+    
+    D --> K[表单验证]
+    K --> L[插入数据库]
+    L --> M[清除相关缓存]
+    M --> N[WebSocket通知]
+    
+    E --> O[表单验证]
+    O --> P[更新数据库]
+    P --> M
+    
+    F --> Q[删除确认]
+    Q --> R[删除数据库记录]
+    R --> M
+```
+
+## 📖 借阅管理流程图
+
+```mermaid
+flowchart LR
+    subgraph "借阅流程"
+        A[选择用户] --> B[选择图书]
+        B --> C[设置借阅日期]
+        C --> D[创建借阅记录]
+        D --> E[更新图书库存]
+        E --> F[发送通知]
+    end
+    
+    subgraph "归还流程"
+        G[选择借阅记录] --> H[确认归还]
+        H --> I[更新归还日期]
+        I --> J[更新图书库存]
+        J --> K[更新借阅状态]
+        K --> L[发送通知]
+    end
+    
+    subgraph "状态计算"
+        M[借阅记录] --> N{计算状态}
+        N -->|未到期| O[正常]
+        N -->|已到期| P[逾期]
+        N -->|已归还| Q[已归还]
+    end
+```
+
+## 🗄️ 数据库架构图
+
+```mermaid
+erDiagram
+    USERS {
+        int id PK
+        string username UK
+        string email UK
+        string password
+        string role
+        string status
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    BOOKS {
+        int id PK
+        string title
+        string author
+        string publisher
+        string isbn UK
+        date publish_date
+        decimal price
+        int stock
+        text description
+        string category
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    BORROWS {
+        int id PK
+        int user_id FK
+        int book_id FK
+        string book_title
+        string borrower_name
+        date borrow_date
+        date due_date
+        date return_date
+        string status
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    USERS ||--o{ BORROWS : "用户借阅"
+    BOOKS ||--o{ BORROWS : "图书被借阅"
+```
+
+## 🔄 缓存策略图
+
+```mermaid
+graph TD
+    subgraph "缓存层级"
+        A[用户缓存] --> B[cache:user:*]
+        C[图书缓存] --> D[cache:book:*]
+        E[借阅缓存] --> F[cache:borrow:*]
+        G[列表缓存] --> H[cache:list:*]
+    end
+    
+    subgraph "缓存操作"
+        I[数据查询] --> J{缓存检查}
+        J -->|命中| K[返回缓存]
+        J -->|未命中| L[查询数据库]
+        L --> M[更新缓存]
+        M --> K
+    end
+    
+    subgraph "缓存失效"
+        N[数据更新] --> O[清除相关缓存]
+        O --> P[模式匹配删除]
+        P --> Q[WebSocket通知]
+    end
+    
+    B --> I
+    D --> I
+    F --> I
+    H --> I
+```
+
+## 🚀 部署架构图
+
+```mermaid
+graph TB
+    subgraph "客户端"
+        A[浏览器] --> B[HTTPS/WebSocket]
+    end
+    
+    subgraph "服务器"
+        C[Bun HTTP服务器] --> D[端口3000]
+        E[WebSocket服务器] --> F[实时通信]
+    end
+    
+    subgraph "数据库"
+        G[PostgreSQL] --> H[端口5432]
+        I[Redis] --> J[端口6379]
+    end
+    
+    subgraph "文件系统"
+        K[静态文件] --> L[HTML/CSS/JS]
+        M[上传文件] --> N[图片/文档]
+    end
+    
+    B --> C
+    B --> E
+    C --> G
+    C --> I
+    C --> K
+    C --> M
+```
+
 ## ✨ 核心特性
 
 ### 🔐 用户认证系统
@@ -321,6 +839,44 @@ const DB_CONFIG = {
 
 ## 🧪 开发指南
 
+### 开发工作流程图
+
+```mermaid
+flowchart TD
+    A[开发需求] --> B[代码编写]
+    B --> C[本地测试]
+    C --> D{测试通过}
+    D -->|否| E[调试修复]
+    E --> C
+    D -->|是| F[代码提交]
+    
+    F --> G[Git Commit]
+    G --> H[推送到仓库]
+    H --> I[代码审查]
+    I --> J{审查通过}
+    J -->|否| K[修改代码]
+    K --> F
+    J -->|是| L[合并到主分支]
+    
+    L --> M[部署测试]
+    M --> N{测试通过}
+    N -->|否| O[回滚修复]
+    O --> M
+    N -->|是| P[生产部署]
+    
+    subgraph "开发工具"
+        Q[Bun运行时] --> R[热重载]
+        S[PostgreSQL] --> T[数据持久化]
+        U[Redis] --> V[缓存加速]
+        W[Git] --> X[版本控制]
+    end
+    
+    B --> Q
+    C --> S
+    C --> U
+    F --> W
+```
+
 ### 1. 开发环境设置
 
 ```bash
@@ -400,6 +956,51 @@ redis-cli
 - **缓存命中率**: 监控Redis缓存效果
 - **API响应时间**: 监控接口性能
 - **WebSocket连接**: 监控实时连接状态
+
+### 性能监控架构图
+
+```mermaid
+graph TB
+    subgraph "监控指标"
+        A[系统性能] --> B[响应时间]
+        A --> C[吞吐量]
+        A --> D[错误率]
+        A --> E[资源使用率]
+    end
+    
+    subgraph "数据库监控"
+        F[PostgreSQL] --> G[连接池状态]
+        F --> H[查询性能]
+        F --> I[事务处理]
+        F --> J[索引使用]
+    end
+    
+    subgraph "缓存监控"
+        K[Redis] --> L[缓存命中率]
+        K --> M[内存使用]
+        K --> N[连接数]
+        K --> O[过期策略]
+    end
+    
+    subgraph "应用监控"
+        P[API接口] --> Q[响应时间]
+        P --> R[并发处理]
+        P --> S[错误统计]
+        P --> T[用户行为]
+    end
+    
+    subgraph "实时监控"
+        U[WebSocket] --> V[连接数]
+        U --> W[消息吞吐]
+        U --> X[连接状态]
+        U --> Y[推送延迟]
+    end
+    
+    B --> F
+    C --> K
+    D --> P
+    E --> U
+```
 
 ## 📈 版本更新
 

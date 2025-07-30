@@ -1,0 +1,5 @@
+---
+globs: *.md
+alwaysApply: false
+---
+使用 Mermaid 
