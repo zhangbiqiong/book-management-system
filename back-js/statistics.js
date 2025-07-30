@@ -30,16 +30,12 @@ export const handleBorrowStatistics = ErrorHandler.asyncWrapper(async (req) => {
 
 // 库存统计
 export const handleStockStatistics = ErrorHandler.asyncWrapper(async (req) => {
-  // 获取所有图书
+  // 获取书籍统计信息（只统计未删除的书籍）
+  const bookStats = await DataAccess.getBookStatistics();
+  
+  // 获取所有未删除的图书用于详细分组
   const booksResult = await DataAccess.getAllBooks('', 1, 1000);
   const books = booksResult.data;
-  
-  // 统计库存信息
-  const totalBooks = books.length;
-  const totalStock = books.reduce((sum, book) => sum + (book.stock || 0), 0);
-  const outOfStock = books.filter(book => (book.stock || 0) <= 0).length;
-  const lowStock = books.filter(book => (book.stock || 0) > 0 && (book.stock || 0) <= 3).length;
-  const normalStock = books.filter(book => (book.stock || 0) > 3).length;
   
   // 按库存状态分组
   const stockStatus = {
@@ -49,15 +45,15 @@ export const handleStockStatistics = ErrorHandler.asyncWrapper(async (req) => {
   };
   
   const statistics = {
-    totalBooks,
-    totalStock,
-    outOfStock,
-    lowStock,
-    normalStock,
+    totalBooks: bookStats.totalBooks,
+    totalStock: bookStats.totalStock,
+    outOfStock: bookStats.outOfStock,
+    lowStock: bookStats.lowStock,
+    normalStock: bookStats.normalStock,
     stockStatus
   };
   
-  Logger.info(`获取库存统计: 图书总数=${totalBooks}, 总库存=${totalStock}, 缺货=${outOfStock}, 库存不足=${lowStock}`);
+  Logger.info(`获取库存统计: 图书总数=${statistics.totalBooks}, 总库存=${statistics.totalStock}, 缺货=${statistics.outOfStock}, 库存不足=${statistics.lowStock}`);
   
   return ResponseBuilder.success(statistics);
 });

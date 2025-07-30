@@ -182,7 +182,10 @@
           <!-- 借阅数据 -->
           <template x-for="borrow in data" :key="borrow.id">
             <tr>
-              <td x-text="borrow.bookTitle"></td>
+              <td>
+                <span x-text="borrow.bookTitleDisplay || borrow.bookTitle"></span>
+                <span x-show="borrow.bookTitleDisplay === '书籍已删除'" class="badge bg-secondary ms-1">已删除</span>
+              </td>
               <td x-text="borrow.borrowerName"></td>
               <td x-text="formatDate(borrow.borrowDate)"></td>
               <td x-text="formatDate(borrow.dueDate)"></td>
@@ -313,7 +316,7 @@
             <button type="button" class="btn-close btn-close-white" @click="closeDeleteModal()"></button>
           </div>
           <div class="modal-body">
-            <p>确定要删除借阅记录 <strong x-text="deletingBorrow ? deletingBorrow.bookTitle : ''"></strong> 吗？</p>
+            <p>确定要删除借阅记录 <strong x-text="deletingBorrow ? (deletingBorrow.bookTitleDisplay || deletingBorrow.bookTitle) : ''"></strong> 吗？</p>
             <p class="text-danger">此操作不可撤销！</p>
           </div>
           <div class="modal-footer">
@@ -576,7 +579,7 @@
             });
             
             if (borrowerOverdueBooks.length > 0) {
-              const overdueBookTitles = borrowerOverdueBooks.map(borrow => borrow.bookTitle).join('、');
+              const overdueBookTitles = borrowerOverdueBooks.map(borrow => borrow.bookTitleDisplay || borrow.bookTitle).join('、');
               this.showMessage(`借阅人"${this.formData.borrowerName}"存在逾期图书：${overdueBookTitles}，请先归还逾期图书后再借阅新图书`, 'error');
               return;
             }

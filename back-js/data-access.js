@@ -233,23 +233,24 @@ export class DataAccess {
 
     try {
       const offset = (page - 1) * pageSize;
-      let query = sql`SELECT * FROM books`;
-      let countQuery = sql`SELECT COUNT(*) as total FROM books`;
+      let query = sql`SELECT * FROM books WHERE deleted_at IS NULL`;
+      let countQuery = sql`SELECT COUNT(*) as total FROM books WHERE deleted_at IS NULL`;
       
       if (search) {
         query = sql`
           SELECT * FROM books 
-          WHERE title ILIKE ${`%${search}%`} OR author ILIKE ${`%${search}%`} OR publisher ILIKE ${`%${search}%`}
+          WHERE deleted_at IS NULL AND (title ILIKE ${`%${search}%`} OR author ILIKE ${`%${search}%`} OR publisher ILIKE ${`%${search}%`})
           ORDER BY id DESC
           LIMIT ${pageSize} OFFSET ${offset}
         `;
         countQuery = sql`
           SELECT COUNT(*) as total FROM books 
-          WHERE title ILIKE ${`%${search}%`} OR author ILIKE ${`%${search}%`} OR publisher ILIKE ${`%${search}%`}
+          WHERE deleted_at IS NULL AND (title ILIKE ${`%${search}%`} OR author ILIKE ${`%${search}%`} OR publisher ILIKE ${`%${search}%`})
         `;
       } else {
         query = sql`
           SELECT * FROM books 
+          WHERE deleted_at IS NULL
           ORDER BY id DESC
           LIMIT ${pageSize} OFFSET ${offset}
         `;
@@ -287,7 +288,7 @@ export class DataAccess {
     }
 
     try {
-      const books = await sql`SELECT * FROM books WHERE id = ${id}`;
+      const books = await sql`SELECT * FROM books WHERE id = ${id} AND deleted_at IS NULL`;
       const book = books[0] || null;
       
       if (book) {
@@ -347,7 +348,11 @@ export class DataAccess {
 
   static async deleteBook(id) {
     try {
-      await sql`DELETE FROM books WHERE id = ${id}`;
+      await sql`
+        UPDATE books 
+        SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${id}
+      `;
       
       // 清除相关缓存
       await CacheManager.clearRelated(`${CACHE_PREFIX.LIST}books:*`);
@@ -386,7 +391,8 @@ export class DataAccess {
           b.status,
           b.created_at,
           b.updated_at,
-          bk.stock
+          bk.stock,
+          CASE WHEN bk.deleted_at IS NOT NULL THEN '书籍已删除' ELSE bk.title END as book_title_display
         FROM borrows b
         LEFT JOIN books bk ON b.book_id = bk.id
       `;
@@ -406,7 +412,8 @@ export class DataAccess {
             b.status,
             b.created_at,
             b.updated_at,
-            bk.stock
+            bk.stock,
+            CASE WHEN bk.deleted_at IS NOT NULL THEN '书籍已删除' ELSE bk.title END as book_title_display
           FROM borrows b
           LEFT JOIN books bk ON b.book_id = bk.id
           WHERE b.book_title ILIKE ${`%${search}%`} OR b.borrower_name ILIKE ${`%${search}%`}
@@ -431,7 +438,8 @@ export class DataAccess {
             b.status,
             b.created_at,
             b.updated_at,
-            bk.stock
+            bk.stock,
+            CASE WHEN bk.deleted_at IS NOT NULL THEN '书籍已删除' ELSE bk.title END as book_title_display
           FROM borrows b
           LEFT JOIN books bk ON b.book_id = bk.id
           ORDER BY b.id DESC
@@ -448,6 +456,7 @@ export class DataAccess {
         userId: borrow.user_id,
         bookId: borrow.book_id,
         bookTitle: borrow.book_title,
+        bookTitleDisplay: borrow.book_title_display,
         borrowerName: borrow.borrower_name,
         borrowDate: borrow.borrow_date,
         dueDate: borrow.due_date,
@@ -595,6 +604,45 @@ export class DataAccess {
   }
 
   // 统计相关操作
+  static async getBookStatistics() {
+    const cacheKey = 'cache:stats:books';
+    
+    // 尝试从缓存获取
+    const cached = await CacheManager.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    try {
+      // 获取书籍基本统计（只统计未删除的书籍）
+      const stats = await sql`
+        SELECT 
+          COUNT(*) as total_books,
+          SUM(stock) as total_stock,
+          COUNT(CASE WHEN stock <= 0 THEN 1 END) as out_of_stock,
+          COUNT(CASE WHEN stock > 0 AND stock <= 3 THEN 1 END) as low_stock,
+          COUNT(CASE WHEN stock > 3 THEN 1 END) as normal_stock
+        FROM books
+        WHERE deleted_at IS NULL
+      `;
+      
+      const result = {
+        totalBooks: parseInt(stats[0]?.total_books || 0),
+        totalStock: parseInt(stats[0]?.total_stock || 0),
+        outOfStock: parseInt(stats[0]?.out_of_stock || 0),
+        lowStock: parseInt(stats[0]?.low_stock || 0),
+        normalStock: parseInt(stats[0]?.normal_stock || 0)
+      };
+      
+      // 设置缓存，统计缓存时间短一些
+      await CacheManager.set(cacheKey, result, 60);
+      return result;
+    } catch (error) {
+      Logger.error('获取书籍统计失败:', error);
+      throw error;
+    }
+  }
+
   static async getBorrowStatistics() {
     const cacheKey = 'cache:stats:borrow';
     

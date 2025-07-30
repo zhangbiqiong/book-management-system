@@ -91,6 +91,7 @@ export async function createTables() {
         stock INTEGER NOT NULL DEFAULT 0,
         description TEXT,
         category VARCHAR(50),
+        deleted_at TIMESTAMP WITH TIME ZONE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
@@ -119,6 +120,7 @@ export async function createTables() {
     await dbSql`CREATE INDEX IF NOT EXISTS idx_books_title ON books(title)`;
     await dbSql`CREATE INDEX IF NOT EXISTS idx_books_author ON books(author)`;
     await dbSql`CREATE INDEX IF NOT EXISTS idx_books_isbn ON books(isbn)`;
+    await dbSql`CREATE INDEX IF NOT EXISTS idx_books_deleted_at ON books(deleted_at)`;
     await dbSql`CREATE INDEX IF NOT EXISTS idx_borrows_user_id ON borrows(user_id)`;
     await dbSql`CREATE INDEX IF NOT EXISTS idx_borrows_book_id ON borrows(book_id)`;
     await dbSql`CREATE INDEX IF NOT EXISTS idx_borrows_borrower_name ON borrows(borrower_name)`;
