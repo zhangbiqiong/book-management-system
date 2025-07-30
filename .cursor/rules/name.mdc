@@ -1,0 +1,152 @@
+---
+alwaysApply: true
+---
+无论您的网站项目使用何种编程语言，一套清晰、一致的命名规范都是至关重要的。它能显著提高代码的可读性、可维护性和协作效率。以下是针对您项目技术栈（前端页面、后台JS、Redis、PostgreSQL）的命名规范建议，结合了常见的最佳实践：
+
+---
+
+## 代码命名规范
+
+### 1. 通用原则
+
+* **一致性**：这是最重要的原则。一旦选定了一种命名风格，请在整个项目中始终如一地使用它。
+* **可读性**：名称应清晰、简洁、富有表达力，让人一眼就能理解其用途。
+* **避免缩写**：除非是广为人知且无歧义的缩写（如 `id`、`src`、`API`），否则尽量使用完整的单词。
+* **英文命名**：所有代码中的命名（变量、函数、类、文件等）都应使用英文。
+* **避免保留字**：不要使用编程语言或数据库的保留字作为名称。
+
+---
+
+### 2. 前端 (HTML, CSS, JavaScript)
+
+#### HTML (文件和类名/ID)
+
+* **文件命名**：
+    * 使用**小写字母**和**连字符** (`-`) 分隔单词（kebab-case）。
+    * 示例：`about-us.html`, `product-detail.html`
+* **CSS 类名 (Class Names)**：
+    * 使用**小写字母**和**连字符** (`-`) 分隔单词（kebab-case），遵循BEM (Block Element Modifier) 命名法通常是个好选择。
+    * 示例：`header-nav`, `btn-primary`, `product-card__title`, `modal--active`
+* **HTML ID**：
+    * 使用**小写字母**和**连字符** (`-`) 分隔单词（kebab-case），ID应是唯一的。
+    * 示例：`main-content`, `user-profile-form`
+
+#### CSS (选择器、属性等)
+
+* **文件命名**：
+    * 使用**小写字母**和**连字符** (`-`) 分隔单词（kebab-case）。
+    * 示例：`main.css`, `components.css`, `layout.css`
+* **自定义属性/变量**：
+    * 使用两个连字符开头，然后是**小写字母**和**连字符** (`-`) 分隔单词。
+    * 示例：`--primary-color`, `--font-size-base`
+
+#### JavaScript (前端和后台)
+
+JavaScript 的命名规范在前后端是通用的。
+
+* **文件命名**：
+    * 使用**小写字母**和**连字符** (`-`) 分隔单词（kebab-case）。
+    * 示例：`utils.js`, `user-service.js`, `auth-middleware.js`
+* **变量和函数**：
+    * 使用**小驼峰命名法** (camelCase)。第一个单词小写，后续单词首字母大写。
+    * 示例：`userName`, `getProductList`, `calculateTotalPrice`
+* **常量**：
+    * 使用**全大写字母**，单词之间用**下划线** (`_`) 分隔。
+    * 示例：`MAX_ITEMS_PER_PAGE`, `API_KEY`, `DEFAULT_TIMEOUT`
+* **类 (Class)**：
+    * 使用**大驼峰命名法** (PascalCase)。每个单词的首字母都大写。
+    * 示例：`UserService`, `ProductController`, `DatabaseConfig`
+* **布尔变量**：
+    * 通常以 `is`, `has`, `can` 或 `should` 开头。
+    * 示例：`isActive`, `hasPermission`, `canEdit`, `shouldUpdate`
+
+---
+
+### 3. 后台 JavaScript (Node.js)
+
+与前端 JavaScript 规范相同，但针对后台特有的概念补充：
+
+* **路由 (Routes)**：
+    * URL 路径通常使用**小写字母**和**连字符** (`-`) 分隔单词（kebab-case）。
+    * 示例：`/api/users`, `/api/products/:id`, `/auth/login`
+* **数据库模型/Schema 文件**：
+    * 通常使用**单数形式**的**大驼峰命名法** (PascalCase)，表示一个实体。
+    * 示例：`User.js`, `Product.js`, `Order.js`
+* **控制器 (Controllers)**：
+    * 使用**大驼峰命名法** (PascalCase)，以 `Controller` 结尾。
+    * 示例：`UserController`, `ProductController`
+* **服务 (Services)**：
+    * 使用**大驼峰命名法** (PascalCase)，以 `Service` 结尾。
+    * 示例：`AuthService`, `EmailService`
+* **中间件 (Middlewares)**：
+    * 使用**小驼峰命名法** (camelCase)，以 `Middleware` 结尾。
+    * 示例：`authenticateUserMiddleware`, `logRequestMiddleware`
+
+---
+
+### 4. Redis
+
+Redis 的键名命名通常建议使用冒号 `:` 进行层级划分，并结合小写字母和连字符 `-` 或下划线 `_`。
+
+* **键名 (Keys)**：
+    * 使用**小写字母**。
+    * 使用**冒号** (`:`) 进行命名空间分隔，表示层级关系。
+    * 使用**连字符** (`-`) 或**下划线** (`_`) 分隔单词，推荐连字符以与URL/CSS保持一致。
+    * 示例：
+        * `user:123:profile` (用户 ID 123 的个人资料)
+        * `product:456:details` (产品 ID 456 的详细信息)
+        * `cache:news:latest` (最新新闻缓存)
+        * `session:abcxyz` (会话 ID 为 abcxyz 的会话数据)
+        * `lock:resource-id` (分布式锁)
+* **哈希字段 (Hash Fields)**：
+    * 与普通键名类似，但通常更简洁，使用**小驼峰命名法**或**小写连字符**。
+    * 示例（在 `user:123:profile` 这个哈希中）：`name`, `email`, `lastLogin` 或 `first-name`, `last-name`
+
+---
+
+### 5. PostgreSQL 数据库
+
+#### 1. 通用约定
+
+* **小写**：所有数据库对象名称（表名、列名、索引名、约束名等）都使用小写字母。
+* **下划线**：使用下划线 (`_`) 分隔单词。
+* **可读性**：名称应清晰描述其存储的内容。
+* **避免保留字**：不要使用 SQL 保留字。
+
+#### 2. 表名 (Table Names)
+
+* 使用**小写字母**和**下划线** (`_`) 分隔单词。
+* 使用**复数形式**，表示表中包含多个记录。
+* 示例：`users`, `products`, `orders`, `order_items`
+
+#### 3. 列名 (Column Names)
+
+* 使用**小写字母**和**下划线** (`_`) 分隔单词。
+* 使用**单数形式**，表示该列存储单个属性。
+* **主键**：通常命名为 `id`，或者 `表名_id`（例如：`user_id`，但如果表名是 `users`，通常直接使用 `id` 就足够清晰）。
+* **外键**：遵循 `相关表名_id` 的模式。
+    * 示例：在 `order_items` 表中引用 `orders` 表的主键，列名为 `order_id`。
+    * 在 `products` 表中引用 `categories` 表的主键，列名为 `category_id`。
+* **布尔列**：以 `is_`, `has_`, `can_` 或 `should_` 开头。
+    * 示例：`is_active`, `has_discount`
+* **时间戳列**：
+    * `created_at`: 记录创建时间。
+    * `updated_at`: 记录最后更新时间。
+    * 其他：`published_at`, `deleted_at` (软删除)。
+* 示例：`first_name`, `email_address`, `price`, `stock_quantity`
+
+#### 4. 索引名 (Index Names)
+
+* 遵循 `idx_表名_列名` 或 `idx_表名_列名1_列名2` 的模式。
+* 示例：`idx_users_email`, `idx_orders_user_id_created_at`
+
+#### 5. 约束名 (Constraint Names)
+
+* 遵循 `pk_表名` (主键)，`fk_表名_引用表名` (外键)，`uq_表名_列名` (唯一约束)，`chk_表名_列名` (检查约束) 的模式。
+* 示例：`pk_users`, `fk_order_items_product`, `uq_users_email`, `chk_products_price`
+
+---
+
+### 总结
+
+请与您的团队成员一起讨论并确定最终的命名规范，并将其作为项目文档的一部分。在开发过程中，使用 **代码 Linter** (如 ESLint) 和 **格式化工具** (如 Prettier) 可以帮助您强制执行这些规范，确保代码风格的一致性。

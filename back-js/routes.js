@@ -42,7 +42,7 @@ export async function handleRoutes(req, url) {
       });
     }
 
-    return await handleHtmlCache(req, "html/index.html");
+    return await handleHtmlCache(req, "front/index.html");
   }
 
   // 处理其他 HTML 文件
@@ -62,7 +62,7 @@ export async function handleRoutes(req, url) {
       }
     }
     
-    return await handleHtmlCache(req, `html/${htmlFile}`);
+    return await handleHtmlCache(req, `front/${htmlFile}`);
   }
   
   // 处理favicon
@@ -72,7 +72,7 @@ export async function handleRoutes(req, url) {
 
   // 处理公共资源文件
   if (url.pathname === "/common.css" || url.pathname === "/common.js" || url.pathname === "/common.less") {
-    const filePath = `html${url.pathname}`; // 映射到html目录下
+    const filePath = `front${url.pathname}`; // 映射到front目录下
     return await handleStaticCache(req, filePath, 'max-age=86400');
   }
 

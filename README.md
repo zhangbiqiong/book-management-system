@@ -178,7 +178,7 @@ book-management-system/
 ├── README.md            # 项目说明文档
 ├── UI.md                # 界面设计文档
 ├── API.md               # API接口文档
-├── html/                # 前端页面目录
+├── front/                # 前端页面目录
 │   ├── index.html       # 主页面
 │   ├── login.html       # 登录页面
 │   ├── book.html        # 图书管理页面
@@ -296,7 +296,7 @@ lsof -ti:3000 | xargs kill -9 && sleep 2 && bun run dev
 
 ### 2. 代码结构说明
 
-- **HTML文件**: 放在 `html/` 目录下，直接编写CSS和JavaScript
+- **HTML文件**: 放在 `front/` 目录下，直接编写CSS和JavaScript
 - **后端逻辑**: 除了 `server.js` 外，其他后端代码放在 `back-js/` 目录下
 - **静态资源**: 放在 `assert/` 目录下
 
