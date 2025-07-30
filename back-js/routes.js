@@ -88,7 +88,10 @@ export async function handleRoutes(req, url) {
       url.pathname.startsWith("/js/") || 
       url.pathname.startsWith("/images/") || 
       url.pathname.startsWith("/fonts/")) {
-    const filePath = url.pathname.substring(1); // 移除开头的 "/"
+    // 如果请求的是 assert 目录下的资源，则映射到前端目录下
+    const filePath = url.pathname.startsWith("/assert/")
+      ? `front${url.pathname}`
+      : url.pathname.substring(1); // 移除开头的 "/"
     return await handleStaticCache(req, filePath);
   }
   
@@ -275,7 +278,7 @@ async function handleHtmlCache(req, filePath) {
 }
 
 async function handleFaviconCache(req) {
-  const filePath = "favicon.ico";
+  const filePath = "front/assert/favicon.ico";
   const ifModifiedSince = req.headers.get("if-modified-since");
   const ifNoneMatch = req.headers.get("if-none-match");
   
