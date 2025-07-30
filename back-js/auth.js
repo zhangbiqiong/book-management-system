@@ -60,7 +60,43 @@ export async function handleLogin(req) {
     }
     
     // 从Redis获取用户数据
-    const userData = await redis.get(`user:${username}`);
+    let userData = await redis.get(`user:${username}`);
+    
+    // 如果Redis中没有用户数据，尝试从数据库同步
+    if (!userData) {
+      console.log(`[${new Date().toISOString()}] 用户 ${username} 在Redis中不存在，尝试从数据库同步...`);
+      
+      try {
+        // 从数据库获取用户数据
+        const { sql } = await import("bun");
+        const users = await sql`SELECT * FROM users WHERE username = ${username}`;
+        
+        if (users && users.length > 0) {
+          const user = users[0];
+          
+          // 构建Redis用户数据
+          const redisUserData = {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            password: user.password,
+            role: user.role,
+            status: user.status,
+            createdAt: user.created_at,
+            updatedAt: user.updated_at
+          };
+          
+          // 存储到Redis
+          await redis.set(`user:${username}`, JSON.stringify(redisUserData));
+          userData = JSON.stringify(redisUserData);
+          
+          console.log(`[${new Date().toISOString()}] 用户 ${username} 已从数据库同步到Redis`);
+        }
+      } catch (syncError) {
+        console.error(`[${new Date().toISOString()}] 同步用户 ${username} 失败:`, syncError);
+      }
+    }
+    
     if (!userData) {
       return new Response(JSON.stringify({ success: false, message: "用户名或密码错误" }), {
         headers: { "Content-Type": "application/json" }
