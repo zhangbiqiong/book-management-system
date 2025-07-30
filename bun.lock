@@ -6,7 +6,6 @@
       "dependencies": {
         "bun": "latest",
         "bun-jwt": "^1.0.1",
-        "postgres": "^3.4.4",
       },
     },
   },
@@ -38,8 +37,6 @@
     "bun-jwt": ["bun-jwt@1.0.1", "", { "dependencies": { "jose": "^5.5.0" }, "peerDependencies": { "typescript": "^5.0.0" } }, "sha512-i/Y31hF1NBqhUyrvEU/iid7BJ1ktzkqvqZPOM/+e5N0GpwAsq6S7ybRA+8mOAVMugSJcX3RvAy5JlViHwakPQw=="],
 
     "jose": ["jose@5.10.0", "", {}, "sha512-s+3Al/p9g32Iq+oqXxkW//7jk2Vig6FF1CFqzVXoTUXt2qz89YWbL+OwS17NFYEvxC35n0FKeGO2LGYSxeM2Gg=="],
-
-    "postgres": ["postgres@3.4.7", "", {}, "sha512-Jtc2612XINuBjIl/QTWsV5UvE8UHuNblcO3vVADSrKsrc6RqGX6lOW1cEo3CM2v0XG4Nat8nI+YM7/f26VxXLw=="],
 
     "typescript": ["typescript@5.8.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ=="],
   }

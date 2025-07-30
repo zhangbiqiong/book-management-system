@@ -2,10 +2,11 @@
 alwaysApply: true
 ---
 技术栈
-bun http
-bun websocket
-bun redis
-bun sql
+bun:http
+bun:websocket
+bun:redis
+bun:sql
+bun:test
 javascript
 html
 lesscss (CDN via jsDelivr)

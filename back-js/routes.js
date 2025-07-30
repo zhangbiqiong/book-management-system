@@ -62,6 +62,12 @@ export async function handleRoutes(req, url) {
       }
     }
     
+    // 检查是否是component目录下的文件
+    const componentFiles = ['book.html', 'borrow.html', 'user.html', 'monitor.html', 'statistics.html'];
+    if (componentFiles.includes(htmlFile)) {
+      return await handleHtmlCache(req, `front/component/${htmlFile}`);
+    }
+    
     return await handleHtmlCache(req, `front/${htmlFile}`);
   }
   
