@@ -12,9 +12,7 @@
   <script src="common.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
   <style>
-    .user-content {
-      padding: 2rem;
-    }
+
 
     /* 响应式样式 */
     @media (max-width: 768px) {
@@ -30,7 +28,7 @@
 </head>
 
 <body>
-  <div class="user-content" x-data="userManager()" x-init="init()">
+  <div class="main-content" x-data="userManager()" x-init="init()">
     <!-- 统计卡片 -->
     <div class="row mb-4">
       <div class="col-md-4">

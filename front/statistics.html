@@ -7,20 +7,17 @@
     <title>数据统计</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <!-- Apache ECharts -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
     <link rel="stylesheet/less" type="text/css" href="common.less" />
     <script src="https://cdn.jsdelivr.net/npm/less" type="text/javascript"></script>
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- 公共JavaScript -->
+    <script src="common.js"></script>
     <style>
-        body {
-            overflow: hidden;
-            /* 隐藏滚动条 */
-        }
-
-        .statistics-content {
-            padding: 2rem;
-        }
-
         .chart-container {
             background: white;
             border-radius: 8px;
@@ -28,8 +25,6 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
         }
-
-        /* 统计卡片样式已移至common.less */
 
         .loading {
             text-align: center;
@@ -42,35 +37,41 @@
             padding: 40px;
             color: #dc3545;
         }
+
+        /* 响应式样式 */
+        @media (max-width: 768px) {
+            .chart-container {
+                padding: 15px;
+            }
+        }
     </style>
 </head>
 
-<body >
-
-    <div class="statistics-content">
+<body>
+    <div class="main-content" x-data="statisticsManager()" x-init="init()">
         <!-- 借阅统计卡片 -->
         <div class="row mb-4">
             <div class="col-md-3">
                 <div class="stats-card">
-                    <div class="stats-number" id="totalBorrows">-</div>
+                    <div class="stats-number" x-text="borrowStats.total || '-'"></div>
                     <div class="stats-label">最近一个月总借阅量</div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stats-card">
-                    <div class="stats-number" id="avgDailyBorrows">-</div>
+                    <div class="stats-number" x-text="borrowStats.avgDaily || '-'"></div>
                     <div class="stats-label">日均借阅量</div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stats-card">
-                    <div class="stats-number" id="maxDailyBorrows">-</div>
+                    <div class="stats-number" x-text="borrowStats.maxDaily || '-'"></div>
                     <div class="stats-label">单日最高借阅量</div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stats-card">
-                    <div class="stats-number" id="totalReturns">-</div>
+                    <div class="stats-number" x-text="returnStats.totalReturns || '-'"></div>
                     <div class="stats-label">最近一个月总归还量</div>
                 </div>
             </div>
@@ -80,23 +81,24 @@
         <div class="row mb-4">
             <div class="col-md-4">
                 <div class="stats-card">
-                    <div class="stats-number" id="avgDailyReturns">-</div>
+                    <div class="stats-number" x-text="returnStats.avgDailyReturns || '-'"></div>
                     <div class="stats-label">日均归还量</div>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="stats-card">
-                    <div class="stats-number" id="maxDailyReturns">-</div>
+                    <div class="stats-number" x-text="returnStats.maxDailyReturns || '-'"></div>
                     <div class="stats-label">单日最高归还量</div>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="stats-card">
-                    <div class="stats-number" id="returnRate">-</div>
+                    <div class="stats-number" x-text="returnRate + '%'"></div>
                     <div class="stats-label">归还率</div>
                 </div>
             </div>
         </div>
+
         <!-- 图表卡片 -->
         <div class="row">
             <div class="col-md-6">
@@ -112,268 +114,291 @@
                 </div>
             </div>
         </div>
+
         <!-- 加载状态 -->
-        <div id="loading" class="loading card card-body my-4" style="box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+        <div x-show="loading" class="loading card card-body my-4" style="box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">加载中...</span>
             </div>
             <div class="mt-2">正在加载统计数据...</div>
         </div>
-        <!-- 错误状态 -->
-        <div id="error" class="error card card-body my-4"
-            style="display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-            <i class="bi bi-exclamation-triangle"></i>
-            <div class="mt-2">加载统计数据失败，请稍后重试</div>
-            <button class="btn btn-primary mt-3" onclick="loadStatistics()">重新加载</button>
-        </div>
 
+        <!-- 错误状态 -->
+        <div x-show="error" class="error card card-body my-4" style="box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+            <i class="bi bi-exclamation-triangle"></i>
+            <div class="mt-2" x-text="errorMessage"></div>
+            <button class="btn btn-primary mt-3" @click="loadStatistics()">重新加载</button>
+        </div>
     </div>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        let borrowChart = null;
-        let returnChart = null;
-
-        // 页面加载时初始化
-        document.addEventListener('DOMContentLoaded', function () {
-            loadStatistics();
-        });
-
-        // 加载统计数据
-        async function loadStatistics() {
-            try {
-                showLoading();
-
-                // 并行加载借阅和归还统计数据
-                const [borrowResponse, returnResponse] = await Promise.all([
-                    fetch('/api/statistics/borrow'),
-                    fetch('/api/statistics/return')
-                ]);
-
-                const borrowResult = await borrowResponse.json();
-                const returnResult = await returnResponse.json();
-
-                if (borrowResult.success && returnResult.success) {
-                    updateBorrowStatistics(borrowResult.data);
-                    updateReturnStatistics(returnResult.data);
-                    renderBorrowChart(borrowResult.data.days);
-                    renderReturnChart(returnResult.data.days);
-                    calculateReturnRate(borrowResult.data, returnResult.data);
-                    hideLoading();
-                } else {
-                    const errorMessage = borrowResult.success ? returnResult.message : borrowResult.message;
-                    showError(errorMessage || '获取统计数据失败');
-                    showMessage(errorMessage || '获取统计数据失败', 'danger');
-                }
-            } catch (error) {
-                console.error('加载统计数据错误:', error);
-                showError('网络错误，请检查连接');
-                showMessage('网络错误，请检查连接', 'danger');
-            }
-        }
-
-        // 更新借阅统计卡片
-        function updateBorrowStatistics(data) {
-            // 总借阅量
-            document.getElementById('totalBorrows').textContent = data.total || 0;
-
-            // 日均借阅量
-            const avgDaily = data.days && data.days.length > 0 ? 
-                (data.total / data.days.length).toFixed(1) : 0;
-            document.getElementById('avgDailyBorrows').textContent = avgDaily;
-
-            // 单日最高借阅量
-            const maxDaily = data.days && data.days.length > 0 ? 
-                Math.max(...data.days.map(item => item.count)) : 0;
-            document.getElementById('maxDailyBorrows').textContent = maxDaily;
-        }
-
-        // 更新归还统计卡片
-        function updateReturnStatistics(data) {
-            // 总归还量
-            document.getElementById('totalReturns').textContent = data.totalReturns || 0;
-
-            // 日均归还量
-            document.getElementById('avgDailyReturns').textContent = data.avgDailyReturns || 0;
-
-            // 单日最高归还量
-            document.getElementById('maxDailyReturns').textContent = data.maxDailyReturns || 0;
-        }
-
-        // 计算归还率
-        function calculateReturnRate(borrowData, returnData) {
-            const totalBorrows = borrowData.total || 0;
-            const totalReturns = returnData.totalReturns || 0;
-            
-            let returnRate = 0;
-            if (totalBorrows > 0) {
-                returnRate = ((totalReturns / totalBorrows) * 100).toFixed(1);
-            }
-            
-            document.getElementById('returnRate').textContent = returnRate + '%';
-        }
-
-        // 渲染借阅图表
-        function renderBorrowChart(days) {
-            const chartDom = document.getElementById('borrowChart');
-            if (borrowChart) {
-                borrowChart.dispose();
-            }
-            
-            // 初始化图表，添加配置以减少警告
-            borrowChart = echarts.init(chartDom, null, {
-                renderer: 'canvas',
-                useDirtyRect: false
-            });
-
-            const option = {
-                title: {
-                    text: '最近一个月借阅情况统计',
-                    left: 'center',
-                    textStyle: { fontSize: 16, fontWeight: 'normal' }
+        function statisticsManager() {
+            return {
+                // 数据状态
+                loading: false,
+                error: false,
+                errorMessage: '',
+                initialized: false,
+                
+                // 统计数据
+                borrowStats: {
+                    total: 0,
+                    avgDaily: 0,
+                    maxDaily: 0,
+                    days: []
                 },
-                tooltip: {
-                    trigger: 'axis',
-                    formatter: function (params) {
-                        const data = params[0];
-                        return `${data.name}<br/>借阅数量: ${data.value}`;
+                returnStats: {
+                    totalReturns: 0,
+                    avgDailyReturns: 0,
+                    maxDailyReturns: 0,
+                    days: []
+                },
+                returnRate: 0,
+                
+                // 图表实例
+                borrowChart: null,
+                returnChart: null,
+
+                // 初始化
+                async init() {
+                    try {
+                        this.initialized = true;
+                        await this.loadStatistics();
+                    } catch (error) {
+                        console.error('初始化失败:', error);
+                        this.showError('初始化失败，请刷新页面重试');
                     }
                 },
-                xAxis: {
-                    type: 'category',
-                    data: days.map(item => item.date), 
-                    axisLabel: { rotate: 45, fontSize: 10 } 
-                },
-                yAxis: {
-                    type: 'value',
-                    name: '借阅数量',
-                    minInterval: 1
-                },
-                series: [{
-                    name: '借阅数量',
-                    type: 'bar',
-                    data: days.map(item => item.count), 
-                    itemStyle: {
-                        color: '#007bff',
-                        borderRadius: [4, 4, 0, 0]
-                    },
-                    emphasis: {
-                        itemStyle: { color: '#0056b3' } 
+
+                // 加载统计数据
+                async loadStatistics() {
+                    try {
+                        this.showLoading();
+
+                        // 并行加载借阅和归还统计数据
+                        const [borrowResponse, returnResponse] = await Promise.all([
+                            fetch('/api/statistics/borrow'),
+                            fetch('/api/statistics/return')
+                        ]);
+
+                        const borrowResult = await borrowResponse.json();
+                        const returnResult = await returnResponse.json();
+
+                        if (borrowResult.success && returnResult.success) {
+                            this.updateBorrowStatistics(borrowResult.data);
+                            this.updateReturnStatistics(returnResult.data);
+                            this.calculateReturnRate();
+                            this.renderBorrowChart();
+                            this.renderReturnChart();
+                            this.hideLoading();
+                        } else {
+                            const errorMessage = borrowResult.success ? returnResult.message : borrowResult.message;
+                            this.showError(errorMessage || '获取统计数据失败');
+                        }
+                    } catch (error) {
+                        console.error('加载统计数据错误:', error);
+                        this.showError('网络错误，请检查连接');
                     }
-                }],
-                grid: {
-                    left: '3%',
-                    right: '4%',
-                    bottom: '15%',
-                    containLabel: true
+                },
+
+                // 更新借阅统计
+                updateBorrowStatistics(data) {
+                    this.borrowStats = {
+                        total: data.total || 0,
+                        avgDaily: data.days && data.days.length > 0 ? 
+                            (data.total / data.days.length).toFixed(1) : 0,
+                        maxDaily: data.days && data.days.length > 0 ? 
+                            Math.max(...data.days.map(item => item.count)) : 0,
+                        days: data.days || []
+                    };
+                },
+
+                // 更新归还统计
+                updateReturnStatistics(data) {
+                    this.returnStats = {
+                        totalReturns: data.totalReturns || 0,
+                        avgDailyReturns: data.avgDailyReturns || 0,
+                        maxDailyReturns: data.maxDailyReturns || 0,
+                        days: data.days || []
+                    };
+                },
+
+                // 计算归还率
+                calculateReturnRate() {
+                    const totalBorrows = this.borrowStats.total || 0;
+                    const totalReturns = this.returnStats.totalReturns || 0;
+                    
+                    if (totalBorrows > 0) {
+                        this.returnRate = ((totalReturns / totalBorrows) * 100).toFixed(1);
+                    } else {
+                        this.returnRate = 0;
+                    }
+                },
+
+                // 渲染借阅图表
+                renderBorrowChart() {
+                    this.$nextTick(() => {
+                        const chartDom = document.getElementById('borrowChart');
+                        if (!chartDom) return;
+
+                        if (this.borrowChart) {
+                            this.borrowChart.dispose();
+                        }
+                        
+                        this.borrowChart = echarts.init(chartDom, null, {
+                            renderer: 'canvas',
+                            useDirtyRect: false
+                        });
+
+                        const option = {
+                            title: {
+                                text: '最近一个月借阅情况统计',
+                                left: 'center',
+                                textStyle: { fontSize: 16, fontWeight: 'normal' }
+                            },
+                            tooltip: {
+                                trigger: 'axis',
+                                formatter: function (params) {
+                                    const data = params[0];
+                                    return `${data.name}<br/>借阅数量: ${data.value}`;
+                                }
+                            },
+                            xAxis: {
+                                type: 'category',
+                                data: this.borrowStats.days.map(item => item.date), 
+                                axisLabel: { rotate: 45, fontSize: 10 } 
+                            },
+                            yAxis: {
+                                type: 'value',
+                                name: '借阅数量',
+                                minInterval: 1
+                            },
+                            series: [{
+                                name: '借阅数量',
+                                type: 'bar',
+                                data: this.borrowStats.days.map(item => item.count), 
+                                itemStyle: {
+                                    color: '#007bff',
+                                    borderRadius: [4, 4, 0, 0]
+                                },
+                                emphasis: {
+                                    itemStyle: { color: '#0056b3' } 
+                                }
+                            }],
+                            grid: {
+                                left: '3%',
+                                right: '4%',
+                                bottom: '15%',
+                                containLabel: true
+                            }
+                        };
+                        this.borrowChart.setOption(option);
+                        
+                        // 监听窗口大小变化
+                        window.addEventListener('resize', () => {
+                            if (this.borrowChart) {
+                                this.borrowChart.resize();
+                            }
+                        });
+                    });
+                },
+
+                // 渲染归还图表
+                renderReturnChart() {
+                    this.$nextTick(() => {
+                        const chartDom = document.getElementById('returnChart');
+                        if (!chartDom) return;
+
+                        if (this.returnChart) {
+                            this.returnChart.dispose();
+                        }
+                        
+                        this.returnChart = echarts.init(chartDom, null, {
+                            renderer: 'canvas',
+                            useDirtyRect: false
+                        });
+
+                        const option = {
+                            title: {
+                                text: '最近一个月归还情况统计',
+                                left: 'center',
+                                textStyle: { fontSize: 16, fontWeight: 'normal' }
+                            },
+                            tooltip: {
+                                trigger: 'axis',
+                                formatter: function (params) {
+                                    const data = params[0];
+                                    return `${data.name}<br/>归还数量: ${data.value}`;
+                                }
+                            },
+                            xAxis: {
+                                type: 'category',
+                                data: this.returnStats.days.map(item => item.date), 
+                                axisLabel: { rotate: 45, fontSize: 10 } 
+                            },
+                            yAxis: {
+                                type: 'value',
+                                name: '归还数量',
+                                minInterval: 1
+                            },
+                            series: [{
+                                name: '归还数量',
+                                type: 'bar',
+                                data: this.returnStats.days.map(item => item.count), 
+                                itemStyle: {
+                                    color: '#28a745',
+                                    borderRadius: [4, 4, 0, 0]
+                                },
+                                emphasis: {
+                                    itemStyle: { color: '#1e7e34' } 
+                                }
+                            }],
+                            grid: {
+                                left: '3%',
+                                right: '4%',
+                                bottom: '15%',
+                                containLabel: true
+                            }
+                        };
+                        this.returnChart.setOption(option);
+                        
+                        // 监听窗口大小变化
+                        window.addEventListener('resize', () => {
+                            if (this.returnChart) {
+                                this.returnChart.resize();
+                            }
+                        });
+                    });
+                },
+
+                // 显示加载状态
+                showLoading() {
+                    this.loading = true;
+                    this.error = false;
+                    this.errorMessage = '';
+                },
+
+                // 隐藏加载状态
+                hideLoading() {
+                    this.loading = false;
+                },
+
+                // 显示错误状态
+                showError(message) {
+                    this.loading = false;
+                    this.error = true;
+                    this.errorMessage = message;
+                    this.showMessage(message, 'error');
+                },
+
+                // 使用统一的消息显示方法
+                showMessage(message, type = 'success') {
+                    CommonUtils.showMessage(message, type);
                 }
             };
-            borrowChart.setOption(option);
-            window.addEventListener('resize', function () { borrowChart.resize(); });
-        }
-
-        // 渲染归还图表
-        function renderReturnChart(days) {
-            const chartDom = document.getElementById('returnChart');
-            if (returnChart) {
-                returnChart.dispose();
-            }
-            
-            // 初始化图表，添加配置以减少警告
-            returnChart = echarts.init(chartDom, null, {
-                renderer: 'canvas',
-                useDirtyRect: false
-            });
-
-            const option = {
-                title: {
-                    text: '最近一个月归还情况统计',
-                    left: 'center',
-                    textStyle: { fontSize: 16, fontWeight: 'normal' }
-                },
-                tooltip: {
-                    trigger: 'axis',
-                    formatter: function (params) {
-                        const data = params[0];
-                        return `${data.name}<br/>归还数量: ${data.value}`;
-                    }
-                },
-                xAxis: {
-                    type: 'category',
-                    data: days.map(item => item.date), 
-                    axisLabel: { rotate: 45, fontSize: 10 } 
-                },
-                yAxis: {
-                    type: 'value',
-                    name: '归还数量',
-                    minInterval: 1
-                },
-                series: [{
-                    name: '归还数量',
-                    type: 'bar',
-                    data: days.map(item => item.count), 
-                    itemStyle: {
-                        color: '#28a745',
-                        borderRadius: [4, 4, 0, 0]
-                    },
-                    emphasis: {
-                        itemStyle: { color: '#1e7e34' } 
-                    }
-                }],
-                grid: {
-                    left: '3%',
-                    right: '4%',
-                    bottom: '15%',
-                    containLabel: true
-                }
-            };
-            returnChart.setOption(option);
-            window.addEventListener('resize', function () { returnChart.resize(); });
-        }
-
-        // 显示加载状态
-        function showLoading() {
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('error').style.display = 'none';
-        }
-
-        // 隐藏加载状态
-        function hideLoading() {
-            document.getElementById('loading').style.display = 'none';
-        }
-
-        // 显示错误状态
-        function showError(message) {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('error').style.display = 'block';
-            document.getElementById('error').innerHTML = `
-                <i class="bi bi-exclamation-triangle"></i>
-                <div class="mt-2">${message}</div>
-                <button class="btn btn-primary mt-3" onclick="loadStatistics()">重新加载</button>
-            `;
-        }
-
-        // 全局消息提示（仿 borrow.html/book.html）
-        function showMessage(message, type = 'info') {
-            const alertClass = type === 'success' ? 'alert-success'
-                : type === 'danger' ? 'alert-danger'
-                    : type === 'warning' ? 'alert-warning'
-                        : 'alert-info';
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
-            alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-            alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-      `;
-            document.body.appendChild(alertDiv);
-            setTimeout(() => {
-                if (alertDiv.parentNode) {
-                    alertDiv.parentNode.removeChild(alertDiv);
-                }
-            }, 5000);
         }
     </script>
 </body>

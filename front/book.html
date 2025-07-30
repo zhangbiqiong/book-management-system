@@ -18,9 +18,7 @@
   <!-- 公共JavaScript -->
   <script src="common.js"></script>
   <style>
-    .book-content {
-      padding: 2rem;
-    }
+
     
     /* 响应式样式 */
     @media (max-width: 768px) {
@@ -35,8 +33,7 @@
 </head>
 
 <body>
-  <div class="book-content">
-    <div x-data="bookManager()" x-init="init()">
+  <div class="main-content" x-data="bookManager()" x-init="init()">
       
       <!-- 统计卡片 -->
       <div class="row mb-4">
@@ -220,7 +217,7 @@
           </div>
         </div>
       </div>
-    </div>
+  
   </div>
 
   <!-- Flatpickr JavaScript -->
