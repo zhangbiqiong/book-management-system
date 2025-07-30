@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "bun run server.js",
-    "dev": "bun --watch server.js"
+    "dev": "bun --watch server.js",
+    "backup-db": "pg_dump  -h localhost -U postgres  -f dump_book_management.dmp book_management"
   },
   "dependencies": {
     "bun": "latest",
