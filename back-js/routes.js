@@ -274,7 +274,7 @@ async function handleHtmlCache(req, filePath) {
     return new Response(null, { status: 304 });
   }
   
-  return await createCachedResponse(filePath, 'max-age=3'); // HTML文件缓存3分钟
+  return await createCachedResponse(filePath); 
 }
 
 async function handleFaviconCache(req) {
@@ -295,7 +295,7 @@ async function handleFaviconCache(req) {
     return new Response(null, { status: 304 });
   }
   
-  return await createCachedResponse(filePath, 'max-age=86400'); // favicon缓存1天
+  return await createCachedResponse(filePath); 
 }
 
 async function handleStaticCache(req, filePath, cacheControl) {

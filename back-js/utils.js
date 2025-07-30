@@ -158,7 +158,7 @@ export async function shouldReturn304WithETag(filePath, ifNoneMatch) {
 }
 
 // 创建带缓存头的响应
-export async function createCachedResponse(filePath, cacheControl) {
+export async function createCachedResponse(filePath) {
   try {
     const file = Bun.file(filePath);
     const lastModified = file.lastModified;
@@ -169,10 +169,7 @@ export async function createCachedResponse(filePath, cacheControl) {
       'Last-Modified': formatLastModified(lastModified)
     };
 
-    // 仅当明确传入 cacheControl 时才设置该响应头，避免在静态资源上使用 max-age
-    if (cacheControl) {
-      headers['Cache-Control'] = cacheControl;
-    }
+
     
     // 添加ETag头
     if (etag) {
