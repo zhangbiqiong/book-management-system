@@ -392,7 +392,7 @@ export class DataAccess {
           b.created_at,
           b.updated_at,
           bk.stock,
-          CASE WHEN bk.deleted_at IS NOT NULL THEN '书籍已删除' ELSE bk.title END as book_title_display
+          COALESCE(bk.title, b.book_title) as book_title_display
         FROM borrows b
         LEFT JOIN books bk ON b.book_id = bk.id
       `;
@@ -413,7 +413,7 @@ export class DataAccess {
             b.created_at,
             b.updated_at,
             bk.stock,
-            CASE WHEN bk.deleted_at IS NOT NULL THEN '书籍已删除' ELSE bk.title END as book_title_display
+            COALESCE(bk.title, b.book_title) as book_title_display
           FROM borrows b
           LEFT JOIN books bk ON b.book_id = bk.id
           WHERE b.book_title ILIKE ${`%${search}%`} OR b.borrower_name ILIKE ${`%${search}%`}
@@ -439,7 +439,7 @@ export class DataAccess {
             b.created_at,
             b.updated_at,
             bk.stock,
-            CASE WHEN bk.deleted_at IS NOT NULL THEN '书籍已删除' ELSE bk.title END as book_title_display
+            COALESCE(bk.title, b.book_title) as book_title_display
           FROM borrows b
           LEFT JOIN books bk ON b.book_id = bk.id
           ORDER BY b.id DESC
