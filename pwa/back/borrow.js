@@ -1,4 +1,5 @@
 // 借阅管理模块 - PostgreSQL版本
+import { RedisClient } from "bun";
 import { getCurrentUsername, calculateBorrowStatus } from "./utils.js";
 import { 
   ResponseBuilder, 
@@ -8,6 +9,13 @@ import {
   Logger 
 } from "./common.js";
 import { DataAccess } from "./data-access.js";
+
+// 创建 Redis 客户端实例
+const redisClient = new RedisClient({
+  host: 'localhost',
+  port: 6379,
+  db: 1
+});
 
 const BORROW_TYPE = "borrow";
 const BOOK_TYPE = "book";
@@ -257,8 +265,7 @@ export const handleBorrowCount = ErrorHandler.asyncWrapper(async (req) => {
     }
     
     // 从Redis获取用户数据以获取用户ID
-    const { redis } = await import("bun");
-    const userData = await redis.get(`user:${username}`);
+    const userData = await redisClient.get(`user:${username}`);
     if (!userData) {
       return ResponseBuilder.error("用户信息不存在", 401);
     }

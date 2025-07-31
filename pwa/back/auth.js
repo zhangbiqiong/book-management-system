@@ -1,5 +1,12 @@
-import { redis } from "bun";
+import { RedisClient } from "bun";
 import { DataAccess } from "./common.js";
+
+// 创建 Redis 客户端实例
+const redisClient = new RedisClient({
+  host: 'localhost',
+  port: 6379,
+  db: 1
+});
 import { sign } from "bun-jwt";
 import { JWT_SECRET, JWT_EXPIRES_IN } from "./config.js";
 import { verifyToken, addJWTToBlacklist } from "./utils.js";
@@ -20,7 +27,7 @@ export async function handleGetCurrentUser(req) {
     
     // 检查用户当前状态（如果JWT中没有userId，则从Redis获取）
     if (!payload.userId) {
-      const userData = await redis.get(`user:${payload.username}`);
+      const userData = await redisClient.get(`user:${payload.username}`);
       if (userData) {
         const user = JSON.parse(userData);
         if (user.status === 'disabled') {
@@ -34,7 +41,7 @@ export async function handleGetCurrentUser(req) {
       }
     } else {
       // 如果JWT中有userId，仍然需要检查用户状态
-      const userData = await redis.get(`user:${payload.username}`);
+      const userData = await redisClient.get(`user:${payload.username}`);
       if (userData) {
         const user = JSON.parse(userData);
         if (user.status === 'disabled') {
@@ -77,7 +84,7 @@ export async function handleLogin(req) {
     }
     
     // 从Redis获取用户数据
-    let userData = await redis.get(`user:${username}`);
+    let userData = await redisClient.get(`user:${username}`);
     
     // 如果Redis中没有用户数据，尝试从数据库同步
     if (!userData) {
@@ -104,7 +111,7 @@ export async function handleLogin(req) {
           };
           
           // 存储到Redis
-          await redis.set(`user:${username}`, JSON.stringify(redisUserData));
+          await redisClient.set(`user:${username}`, JSON.stringify(redisUserData));
           userData = JSON.stringify(redisUserData);
           
           console.log(`[${new Date().toISOString()}] 用户 ${username} 已从数据库同步到Redis`);
@@ -140,7 +147,7 @@ export async function handleLogin(req) {
         console.log(`[${new Date().toISOString()}] 迁移用户 ${username} 的明文密码`);
         user.password = await hashPassword(password);
         user.updatedAt = new Date().toISOString();
-        await redis.set(`user:${username}`, JSON.stringify(user));
+        await redisClient.set(`user:${username}`, JSON.stringify(user));
       }
     } else {
       // 加密密码，使用bcrypt验证
@@ -187,7 +194,7 @@ export async function handleRegister(req) {
     }
     
     // 检查用户是否已存在
-    const existingUser = await redis.get(`user:${username}`);
+    const existingUser = await redisClient.get(`user:${username}`);
     if (existingUser) {
       return new Response(JSON.stringify({ success: false, message: "用户名已存在" }), {
         headers: { "Content-Type": "application/json" }
@@ -210,7 +217,7 @@ export async function handleRegister(req) {
     const userId = await DataAccess.create('user', userData);
     
     // 为了兼容现有的登录逻辑，也存储一个用户名到密码的映射
-    await redis.set(`user:${username}`, JSON.stringify({
+    await redisClient.set(`user:${username}`, JSON.stringify({
       id: userId,
       username: username, // 确保包含用户名
       email: userData.email, // 包含邮箱（如果有）
@@ -244,7 +251,7 @@ export async function handleChangePassword(req) {
     }
     
     // 从Redis获取用户数据
-    const userData = await redis.get(`user:${username}`);
+    const userData = await redisClient.get(`user:${username}`);
     if (!userData) {
       return new Response(JSON.stringify({ success: false, message: "用户不存在" }), {
         headers: { "Content-Type": "application/json" }
@@ -283,7 +290,7 @@ export async function handleChangePassword(req) {
       createdAt: user.createdAt, // 保留创建时间
       updatedAt: new Date().toISOString() // 更新修改时间
     };
-    await redis.set(`user:${username}`, JSON.stringify(updatedUser));
+    await redisClient.set(`user:${username}`, JSON.stringify(updatedUser));
     
     return new Response(JSON.stringify({ success: true, message: "密码修改成功" }), {
       headers: { "Content-Type": "application/json" }

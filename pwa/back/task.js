@@ -1,8 +1,15 @@
 // 后台任务管理API处理函数 - 重构版
 
 // ========== 定时任务实现 ========== //
-import { redis } from "bun";
+import { RedisClient } from "bun";
 import { TASK_UPDATE_INTERVAL, TASK_NAME } from "./config.js";
+
+// 创建 Redis 客户端实例
+const redisClient = new RedisClient({
+  host: 'localhost',
+  port: 6379,
+  db: 1
+});
 import { calculateBorrowStatus } from "./utils.js";
 import { 
   ResponseBuilder, 
@@ -47,17 +54,17 @@ async function executeStatusUpdate() {
   taskStatus.totalRuns++;
   taskStatus.lastRunTime = Date.now();
   try {
-    let ids = await redis.get("borrow:ids");
+    let ids = await redisClient.get("borrow:ids");
     ids = ids ? JSON.parse(ids) : [];
     let updateCount = 0;
     for (const id of ids) {
-      const data = await redis.get(`borrow:${id}`);
+      const data = await redisClient.get(`borrow:${id}`);
       if (data) {
         const borrow = JSON.parse(data);
         const status = calculateBorrowStatus(borrow);
         if (borrow.status !== status) {
           borrow.status = status;
-          await redis.set(`borrow:${id}`, JSON.stringify(borrow));
+          await redisClient.set(`borrow:${id}`, JSON.stringify(borrow));
           updateCount++;
         }
       }

@@ -1,6 +1,12 @@
 // 数据访问层 - Bun SQL + Redis缓存
-import { redis, sql } from "bun";
+import { sql, RedisClient } from "bun";
 import { Logger } from "./common.js";
+
+const redisClient = new RedisClient({
+  host: 'localhost',
+  port: 6379,
+  db: 1
+});
 
 // 缓存配置
 const CACHE_TTL = 300; // 缓存5分钟
@@ -16,8 +22,8 @@ class CacheManager {
   // 设置缓存
   static async set(key, data, ttl = CACHE_TTL) {
     try {
-      await redis.set(key, JSON.stringify(data));
-      await redis.expire(key, ttl);
+      await redisClient.set(key, JSON.stringify(data));
+      await redisClient.expire(key, ttl);
     } catch (error) {
       Logger.error('缓存设置失败:', error);
     }
@@ -26,7 +32,7 @@ class CacheManager {
   // 获取缓存
   static async get(key) {
     try {
-      const data = await redis.get(key);
+      const data = await redisClient.get(key);
       return data ? JSON.parse(data) : null;
     } catch (error) {
       Logger.error('缓存获取失败:', error);
@@ -37,7 +43,7 @@ class CacheManager {
   // 删除缓存
   static async del(key) {
     try {
-      await redis.del(key);
+      await redisClient.del(key);
     } catch (error) {
       Logger.error('缓存删除失败:', error);
     }
@@ -46,9 +52,9 @@ class CacheManager {
   // 清除相关缓存
   static async clearRelated(pattern) {
     try {
-      const keys = await redis.keys(pattern);
+      const keys = await redisClient.keys(pattern);
       if (keys.length > 0) {
-        await redis.del(...keys);
+        await redisClient.del(...keys);
       }
     } catch (error) {
       Logger.error('清除相关缓存失败:', error);
@@ -64,7 +70,7 @@ export class DataAccess {
   static async getAllUsers(search = '', page = 1, pageSize = 10) {
     const searchParam = search || 'all';
     const cacheKey = `${CACHE_PREFIX.LIST}users:${searchParam}:${page}:${pageSize}`;
-    
+
     // 尝试从缓存获取
     const cached = await CacheManager.get(cacheKey);
     if (cached) {
@@ -74,7 +80,7 @@ export class DataAccess {
     try {
       const offset = (page - 1) * pageSize;
       let query, countQuery;
-      
+
       if (search) {
         query = sql`
           SELECT * FROM users 
@@ -119,7 +125,7 @@ export class DataAccess {
 
   static async getUserById(id) {
     const cacheKey = `${CACHE_PREFIX.USER}${id}`;
-    
+
     // 尝试从缓存获取
     const cached = await CacheManager.get(cacheKey);
     if (cached) {
@@ -129,11 +135,11 @@ export class DataAccess {
     try {
       const users = await sql`SELECT * FROM users WHERE id = ${id}`;
       const user = users[0] || null;
-      
+
       if (user) {
         await CacheManager.set(cacheKey, user);
       }
-      
+
       return user;
     } catch (error) {
       Logger.error('获取用户失败:', error);
@@ -143,7 +149,7 @@ export class DataAccess {
 
   static async getUserByUsername(username) {
     const cacheKey = `${CACHE_PREFIX.USER}username:${username}`;
-    
+
     // 尝试从缓存获取
     const cached = await CacheManager.get(cacheKey);
     if (cached) {
@@ -153,11 +159,11 @@ export class DataAccess {
     try {
       const users = await sql`SELECT * FROM users WHERE username = ${username}`;
       const user = users[0] || null;
-      
+
       if (user) {
         await CacheManager.set(cacheKey, user);
       }
-      
+
       return user;
     } catch (error) {
       Logger.error('根据用户名获取用户失败:', error);
@@ -172,13 +178,13 @@ export class DataAccess {
         VALUES (${userData.username}, ${userData.email}, ${userData.password}, ${userData.role}, ${userData.status})
         RETURNING id
       `;
-      
+
       const userId = result[0].id;
-      
+
       // 清除相关缓存
       await CacheManager.clearRelated(`${CACHE_PREFIX.LIST}users:*`);
       await CacheManager.clearRelated(`${CACHE_PREFIX.USER}*`);
-      
+
       return userId;
     } catch (error) {
       Logger.error('创建用户失败:', error);
@@ -193,11 +199,11 @@ export class DataAccess {
         SET username = ${userData.username}, role = ${userData.role}, status = ${userData.status}, updated_at = CURRENT_TIMESTAMP
         WHERE id = ${id}
       `;
-      
+
       // 清除相关缓存
       await CacheManager.clearRelated(`${CACHE_PREFIX.LIST}users:*`);
       await CacheManager.clearRelated(`${CACHE_PREFIX.USER}*`);
-      
+
       return true;
     } catch (error) {
       Logger.error('更新用户失败:', error);
@@ -208,11 +214,11 @@ export class DataAccess {
   static async deleteUser(id) {
     try {
       await sql`DELETE FROM users WHERE id = ${id}`;
-      
+
       // 清除相关缓存
       await CacheManager.clearRelated(`${CACHE_PREFIX.LIST}users:*`);
       await CacheManager.clearRelated(`${CACHE_PREFIX.USER}*`);
-      
+
       return true;
     } catch (error) {
       Logger.error('删除用户失败:', error);
@@ -224,7 +230,7 @@ export class DataAccess {
   static async getAllBooks(search = '', page = 1, pageSize = 10) {
     const searchParam = search || 'all';
     const cacheKey = `${CACHE_PREFIX.LIST}books:${searchParam}:${page}:${pageSize}`;
-    
+
     // 尝试从缓存获取
     const cached = await CacheManager.get(cacheKey);
     if (cached) {
@@ -235,7 +241,7 @@ export class DataAccess {
       const offset = (page - 1) * pageSize;
       let query = sql`SELECT * FROM books WHERE deleted_at IS NULL`;
       let countQuery = sql`SELECT COUNT(*) as total FROM books WHERE deleted_at IS NULL`;
-      
+
       if (search) {
         query = sql`
           SELECT * FROM books 
@@ -280,7 +286,7 @@ export class DataAccess {
 
   static async getBookById(id) {
     const cacheKey = `${CACHE_PREFIX.BOOK}${id}`;
-    
+
     // 尝试从缓存获取
     const cached = await CacheManager.get(cacheKey);
     if (cached) {
@@ -290,11 +296,11 @@ export class DataAccess {
     try {
       const books = await sql`SELECT * FROM books WHERE id = ${id} AND deleted_at IS NULL`;
       const book = books[0] || null;
-      
+
       if (book) {
         await CacheManager.set(cacheKey, book);
       }
-      
+
       return book;
     } catch (error) {
       Logger.error('获取图书失败:', error);
@@ -310,13 +316,13 @@ export class DataAccess {
                 ${bookData.publishDate}, ${bookData.price}, ${bookData.stock}, ${bookData.description}, ${bookData.category})
         RETURNING id
       `;
-      
+
       const bookId = result[0].id;
-      
+
       // 清除相关缓存
       await CacheManager.clearRelated(`${CACHE_PREFIX.LIST}books:*`);
       await CacheManager.clearRelated(`${CACHE_PREFIX.BOOK}*`);
-      
+
       return bookId;
     } catch (error) {
       Logger.error('创建图书失败:', error);
@@ -334,11 +340,11 @@ export class DataAccess {
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ${id}
       `;
-      
+
       // 清除相关缓存
       await CacheManager.clearRelated(`${CACHE_PREFIX.LIST}books:*`);
       await CacheManager.clearRelated(`${CACHE_PREFIX.BOOK}*`);
-      
+
       return true;
     } catch (error) {
       Logger.error('更新图书失败:', error);
@@ -353,11 +359,11 @@ export class DataAccess {
         SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
         WHERE id = ${id}
       `;
-      
+
       // 清除相关缓存
       await CacheManager.clearRelated(`${CACHE_PREFIX.LIST}books:*`);
       await CacheManager.clearRelated(`${CACHE_PREFIX.BOOK}*`);
-      
+
       return true;
     } catch (error) {
       Logger.error('删除图书失败:', error);
@@ -369,7 +375,7 @@ export class DataAccess {
   static async getAllBorrows(search = '', page = 1, pageSize = 10) {
     const searchParam = search || 'all';
     const cacheKey = `${CACHE_PREFIX.LIST}borrows:${searchParam}:${page}:${pageSize}`;
-    
+
     // 尝试从缓存获取
     const cached = await CacheManager.get(cacheKey);
     if (cached) {
@@ -398,7 +404,7 @@ export class DataAccess {
         LEFT JOIN books bk ON b.book_id = bk.id
       `;
       let countQuery = sql`SELECT COUNT(*) as total FROM borrows`;
-      
+
       if (search) {
         query = sql`
           SELECT 
@@ -492,7 +498,7 @@ export class DataAccess {
 
   static async getBorrowById(id) {
     const cacheKey = `${CACHE_PREFIX.BORROW}${id}`;
-    
+
     // 尝试从缓存获取
     const cached = await CacheManager.get(cacheKey);
     if (cached) {
@@ -519,7 +525,7 @@ export class DataAccess {
         WHERE b.id = ${id}
       `;
       const borrow = borrows[0] || null;
-      
+
       if (borrow) {
         // 将数据库字段映射为前端期望的驼峰格式
         const mappedBorrow = {
@@ -536,11 +542,11 @@ export class DataAccess {
           createdAt: borrow.created_at,
           updatedAt: borrow.updated_at
         };
-        
+
         await CacheManager.set(cacheKey, mappedBorrow);
         return mappedBorrow;
       }
-      
+
       return null;
     } catch (error) {
       Logger.error('获取借阅记录失败:', error);
@@ -556,13 +562,13 @@ export class DataAccess {
                 ${borrowData.borrowDate}, ${borrowData.dueDate}, ${borrowData.returnDate}, ${borrowData.status})
         RETURNING id
       `;
-      
+
       const borrowId = result[0].id;
-      
+
       // 清除相关缓存
       await CacheManager.clearRelated(`${CACHE_PREFIX.LIST}borrows:*`);
       await CacheManager.clearRelated(`${CACHE_PREFIX.BORROW}*`);
-      
+
       return borrowId;
     } catch (error) {
       Logger.error('创建借阅记录失败:', error);
@@ -580,11 +586,11 @@ export class DataAccess {
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ${id}
       `;
-      
+
       // 清除相关缓存
       await CacheManager.clearRelated(`${CACHE_PREFIX.LIST}borrows:*`);
       await CacheManager.clearRelated(`${CACHE_PREFIX.BORROW}*`);
-      
+
       return true;
     } catch (error) {
       Logger.error('更新借阅记录失败:', error);
@@ -595,11 +601,11 @@ export class DataAccess {
   static async deleteBorrow(id) {
     try {
       await sql`DELETE FROM borrows WHERE id = ${id}`;
-      
+
       // 清除相关缓存
       await CacheManager.clearRelated(`${CACHE_PREFIX.LIST}borrows:*`);
       await CacheManager.clearRelated(`${CACHE_PREFIX.BORROW}*`);
-      
+
       return true;
     } catch (error) {
       Logger.error('删除借阅记录失败:', error);
@@ -610,7 +616,7 @@ export class DataAccess {
   // 统计相关操作
   static async getBookStatistics() {
     const cacheKey = 'cache:stats:books';
-    
+
     // 尝试从缓存获取
     const cached = await CacheManager.get(cacheKey);
     if (cached) {
@@ -629,7 +635,7 @@ export class DataAccess {
         FROM books
         WHERE deleted_at IS NULL
       `;
-      
+
       const result = {
         totalBooks: parseInt(stats[0]?.total_books || 0),
         totalStock: parseInt(stats[0]?.total_stock || 0),
@@ -637,7 +643,7 @@ export class DataAccess {
         lowStock: parseInt(stats[0]?.low_stock || 0),
         normalStock: parseInt(stats[0]?.normal_stock || 0)
       };
-      
+
       // 设置缓存，统计缓存时间短一些
       await CacheManager.set(cacheKey, result, 60);
       return result;
@@ -649,7 +655,7 @@ export class DataAccess {
 
   static async getBorrowStatistics() {
     const cacheKey = 'cache:stats:borrow';
-    
+
     // 尝试从缓存获取
     const cached = await CacheManager.get(cacheKey);
     if (cached) {
@@ -666,7 +672,7 @@ export class DataAccess {
           COUNT(CASE WHEN status = 'overdue' THEN 1 END) as overdue
         FROM borrows
       `;
-      
+
       // 获取所有借阅记录的日期范围
       const dateRange = await sql`
         SELECT 
@@ -674,7 +680,7 @@ export class DataAccess {
           MAX(borrow_date) as max_date
         FROM borrows
       `;
-      
+
       // 获取所有有数据的日期统计
       const dailyStats = await sql`
         SELECT 
@@ -684,26 +690,26 @@ export class DataAccess {
         GROUP BY to_char(borrow_date, 'YYYY-MM-DD')
         ORDER BY to_char(borrow_date, 'YYYY-MM-DD')
       `;
-      
+
       // 生成日期数据 - 使用实际数据范围，如果数据太少则扩展到30天
       const days = [];
       const minDate = dateRange[0]?.min_date;
       const maxDate = dateRange[0]?.max_date;
-      
+
       if (minDate && maxDate) {
         const startDate = new Date(minDate);
         const endDate = new Date(maxDate);
         const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-        
+
         // 如果数据范围少于30天，扩展到30天
         const totalDays = Math.max(30, daysDiff + 1);
         const startOffset = Math.max(0, totalDays - 30);
-        
+
         for (let i = startOffset; i < totalDays; i++) {
           const date = new Date(startDate);
           date.setDate(date.getDate() + i);
           const dateStr = date.toISOString().split('T')[0];
-          
+
           // 查找该日期的统计数据
           const dayStat = dailyStats.find(stat => stat.date === dateStr);
           days.push({
@@ -724,7 +730,7 @@ export class DataAccess {
           });
         }
       }
-      
+
       const result = {
         total: stats[0]?.total || 0,
         borrowed: stats[0]?.borrowed || 0,
@@ -732,7 +738,7 @@ export class DataAccess {
         overdue: stats[0]?.overdue || 0,
         days
       };
-      
+
       // 设置缓存，统计缓存时间短一些
       await CacheManager.set(cacheKey, result, 60);
       return result;
@@ -744,7 +750,7 @@ export class DataAccess {
 
   static async getReturnStatistics() {
     const cacheKey = 'cache:stats:return';
-    
+
     // 尝试从缓存获取
     const cached = await CacheManager.get(cacheKey);
     if (cached) {
@@ -765,7 +771,7 @@ export class DataAccess {
           GROUP BY return_date::date
         ) daily_stats
       `;
-      
+
       // 获取所有归还记录的日期范围
       const dateRange = await sql`
         SELECT 
@@ -774,7 +780,7 @@ export class DataAccess {
         FROM borrows
         WHERE return_date IS NOT NULL
       `;
-      
+
       // 获取所有有数据的归还日期统计
       const dailyStats = await sql`
         SELECT 
@@ -785,26 +791,26 @@ export class DataAccess {
         GROUP BY to_char(return_date, 'YYYY-MM-DD')
         ORDER BY to_char(return_date, 'YYYY-MM-DD')
       `;
-      
+
       // 生成日期数据 - 使用实际数据范围，如果数据太少则扩展到30天
       const days = [];
       const minDate = dateRange[0]?.min_date;
       const maxDate = dateRange[0]?.max_date;
-      
+
       if (minDate && maxDate) {
         const startDate = new Date(minDate);
         const endDate = new Date(maxDate);
         const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-        
+
         // 如果数据范围少于30天，扩展到30天
         const totalDays = Math.max(30, daysDiff + 1);
         const startOffset = Math.max(0, totalDays - 30);
-        
+
         for (let i = startOffset; i < totalDays; i++) {
           const date = new Date(startDate);
           date.setDate(date.getDate() + i);
           const dateStr = date.toISOString().split('T')[0];
-          
+
           // 查找该日期的统计数据
           const dayStat = dailyStats.find(stat => stat.date === dateStr);
           days.push({
@@ -825,14 +831,14 @@ export class DataAccess {
           });
         }
       }
-      
+
       const result = {
         total_returns: stats[0]?.total_returns || 0,
         avg_daily_returns: stats[0]?.avg_daily_returns || 0,
         max_daily_returns: stats[0]?.max_daily_returns || 0,
         days
       };
-      
+
       // 设置缓存，统计缓存时间短一些
       await CacheManager.set(cacheKey, result, 60);
       return result;

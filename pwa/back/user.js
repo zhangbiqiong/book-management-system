@@ -1,5 +1,5 @@
 // 用户管理模块 - PostgreSQL版本
-import { redis } from "bun";
+import { RedisClient } from "bun";
 import { checkAdminPermission } from "./auth.js";
 import { 
   ResponseBuilder, 
@@ -9,6 +9,13 @@ import {
 } from "./common.js";
 import { DataAccess } from "./data-access.js";
 import { hashPassword, isPlainPassword } from "./password.js";
+
+// 创建 Redis 客户端实例
+const redisClient = new RedisClient({
+  host: 'localhost',
+  port: 6379,
+  db: 1
+});
 
 const USER_TYPE = "user";
 const REQUIRED_FIELDS = ["username", "role", "status"];
@@ -75,7 +82,7 @@ export const handleUserCreate = ErrorHandler.asyncWrapper(async (req) => {
   });
   
       // 保存用户认证信息到Redis（兼容原有认证系统）
-    await redis.set(`user:${userData.username}`, JSON.stringify({
+    await redisClient.set(`user:${userData.username}`, JSON.stringify({
     id: userId, // 包含用户ID
     username: userData.username,
     email: `${userData.username}@example.com`, // 包含邮箱
@@ -134,7 +141,7 @@ export const handleUserUpdate = ErrorHandler.asyncWrapper(async (req, id) => {
   }
   
       // 更新Redis中的用户认证信息，确保保留所有必要字段
-    const existingUserData = await redis.get(`user:${userData.username}`);
+    const existingUserData = await redisClient.get(`user:${userData.username}`);
   let redisUserData = {};
   
   if (existingUserData) {
@@ -174,7 +181,7 @@ export const handleUserUpdate = ErrorHandler.asyncWrapper(async (req, id) => {
   }
   
       // 保存到Redis
-    await redis.set(`user:${userData.username}`, JSON.stringify(redisUserData));
+    await redisClient.set(`user:${userData.username}`, JSON.stringify(redisUserData));
   
   Logger.info(`管理员更新用户: ${userData.username} (ID: ${id})`);
   
@@ -202,7 +209,7 @@ export const handleUserDelete = ErrorHandler.asyncWrapper(async (req, id) => {
   }
   
   // 删除用户认证信息
-  await redis.del(`user:${user.username}`);
+  await redisClient.del(`user:${user.username}`);
   
   Logger.info(`管理员删除用户: ${user.username} (ID: ${id})`);
   

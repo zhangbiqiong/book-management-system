@@ -1,5 +1,12 @@
 // 后端公共工具文件 - 图书管理系统
-import { redis } from "bun";
+import { RedisClient } from "bun";
+
+// 创建 Redis 客户端实例
+const redisClient = new RedisClient({
+  host: 'localhost',
+  port: 6379,
+  db: 1
+});
 
 // 通用响应构建器
 export const ResponseBuilder = {
@@ -57,12 +64,12 @@ export const DataAccess = {
   // 获取所有项目
   async getAll(type) {
     try {
-      let ids = await redis.get(`${type}:ids`);
+      let ids = await redisClient.get(`${type}:ids`);
       ids = ids ? JSON.parse(ids) : [];
       
       const items = [];
       for (const id of ids) {
-        const data = await redis.get(`${type}:${id}`);
+        const data = await redisClient.get(`${type}:${id}`);
         if (data) {
           const item = JSON.parse(data);
           item.id = id;
@@ -80,7 +87,7 @@ export const DataAccess = {
   // 根据ID获取单个项目
   async getById(type, id) {
     try {
-      const data = await redis.get(`${type}:${id}`);
+      const data = await redisClient.get(`${type}:${id}`);
       if (!data) return null;
       
       const item = JSON.parse(data);
@@ -96,21 +103,21 @@ export const DataAccess = {
   async create(type, data) {
     try {
       // 使用 Redis INCR 原子操作获取唯一 ID
-      const nextId = await redis.incr(`${type}:id:next`);
+      const nextId = await redisClient.incr(`${type}:id:next`);
       const idString = nextId.toString();
       
       // 由于 Bun Redis 不支持 eval，使用原子操作的组合
       // 1. 先保存数据
-      await redis.set(`${type}:${idString}`, JSON.stringify(data));
+      await redisClient.set(`${type}:${idString}`, JSON.stringify(data));
       
       // 2. 获取并更新 ID 列表（这里存在竞争条件，但由于 INCR 保证了 ID 唯一性，问题不大）
-      let ids = await redis.get(`${type}:ids`);
+      let ids = await redisClient.get(`${type}:ids`);
       ids = ids ? JSON.parse(ids) : [];
       
       // 检查 ID 是否已存在（防止重复，虽然理论上不应该发生）
       if (!ids.includes(idString)) {
         ids.push(idString);
-        await redis.set(`${type}:ids`, JSON.stringify(ids));
+        await redisClient.set(`${type}:ids`, JSON.stringify(ids));
       }
       
       return idString;
@@ -123,10 +130,10 @@ export const DataAccess = {
   // 更新项目
   async update(type, id, data) {
     try {
-      const exists = await redis.get(`${type}:${id}`);
+      const exists = await redisClient.get(`${type}:${id}`);
       if (!exists) return false;
       
-      await redis.set(`${type}:${id}`, JSON.stringify(data));
+      await redisClient.set(`${type}:${id}`, JSON.stringify(data));
       return true;
     } catch (error) {
       console.error(`更新${type}:${id}失败:`, error);
@@ -138,18 +145,18 @@ export const DataAccess = {
   async delete(type, id) {
     try {
       // 检查数据是否存在
-      const exists = await redis.get(`${type}:${id}`);
+      const exists = await redisClient.get(`${type}:${id}`);
       if (!exists) return false;
       
       // 删除数据
-      await redis.del(`${type}:${id}`);
+      await redisClient.del(`${type}:${id}`);
       
       // 从 ID 列表中移除
-      let ids = await redis.get(`${type}:ids`);
+      let ids = await redisClient.get(`${type}:ids`);
       if (ids) {
         ids = JSON.parse(ids);
         const newIds = ids.filter(existingId => existingId !== id);
-        await redis.set(`${type}:ids`, JSON.stringify(newIds));
+        await redisClient.set(`${type}:ids`, JSON.stringify(newIds));
       }
       
       return true;
@@ -162,7 +169,7 @@ export const DataAccess = {
   // 检查项目是否存在
   async exists(type, id) {
     try {
-      const data = await redis.get(`${type}:${id}`);
+      const data = await redisClient.get(`${type}:${id}`);
       return !!data;
     } catch (error) {
       console.error(`检查${type}:${id}存在性失败:`, error);
