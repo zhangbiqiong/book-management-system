@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>图书列表</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <style>
+    body { 
+      background: #f8f9fa; 
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    
+    .book-item { 
+      background: #fff; 
+      border-radius: 0.75rem; 
+      padding: 1rem; 
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+      margin-bottom: 1rem; 
+    }
+    
+    .book-title { 
+      font-weight: 600; 
+      font-size: 1rem; 
+      margin-bottom: 0.5rem;
+      color: #212529;
+    }
+    
+    .book-info {
+      font-size: 0.875rem;
+      color: #6c757d;
+      margin-bottom: 0.25rem;
+    }
+    
+    .book-stock {
+      font-weight: 500;
+      font-size: 0.875rem;
+    }
+    
+    .stock-available {
+      color: #198754;
+    }
+    
+    .stock-low {
+      color: #fd7e14;
+    }
+    
+    .stock-out {
+      color: #dc3545;
+    }
+    
+    .search-box {
+      background: #fff;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      margin-bottom: 1rem;
+    }
+    
+    .error-message { 
+      background: #fee2e2; 
+      border: 1px solid #fecaca; 
+      color: #991b1b; 
+      padding: 1rem; 
+      border-radius: 0.5rem; 
+      margin: 1rem 0; 
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #6c757d;
+    }
+    
+    .empty-state i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body x-data="bookList()" x-init="init()">
+  <div class="container py-3">
+    <!-- 页面标题 -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h5 class="mb-0">图书列表</h5>
+      <small class="text-muted" x-text="`共 ${totalBooks} 本图书`"></small>
+    </div>
+
+    <!-- 搜索框 -->
+    <div class="search-box">
+      <div class="input-group">
+        <span class="input-group-text bg-transparent border-end-0">
+          <i class="bi bi-search"></i>
+        </span>
+        <input 
+          type="text" 
+          class="form-control border-start-0" 
+          placeholder="搜索图书名称或作者..."
+          x-model="searchKeyword"
+          @input.debounce.300ms="search()"
+        >
+      </div>
+    </div>
+
+    <!-- 错误信息显示 -->
+    <template x-if="errorMessage">
+      <div class="error-message">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        <span x-text="errorMessage"></span>
+        <button class="btn btn-sm btn-outline-danger ms-2" @click="retry()">重试</button>
+      </div>
+    </template>
+
+    <!-- 加载状态 -->
+    <template x-if="loading">
+      <div class="text-center my-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 text-muted">正在加载图书列表...</p>
+      </div>
+    </template>
+
+    <!-- 无图书显示 -->
+    <template x-if="!loading && !errorMessage && books.length === 0">
+      <div class="empty-state">
+        <i class="bi bi-book"></i>
+        <p class="mb-0">暂无图书</p>
+        <small x-text="searchKeyword ? '没有找到匹配的图书' : '图书库为空'"></small>
+      </div>
+    </template>
+
+    <!-- 图书列表 -->
+    <template x-for="book in books" :key="book.id">
+      <div class="book-item">
+        <div class="book-title" x-text="book.title"></div>
+        <div class="book-info">
+          <i class="bi bi-person me-1"></i>
+          <span x-text="book.author || '未知作者'"></span>
+        </div>
+        <div class="book-info">
+          <i class="bi bi-tag me-1"></i>
+          <span x-text="book.category || '未分类'"></span>
+        </div>
+        <div class="book-info">
+          <i class="bi bi-calendar me-1"></i>
+          <span x-text="book.publish_date ? new Date(book.publish_date).getFullYear() : '未知年份'"></span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-2">
+          <div class="book-stock" :class="stockClass(book)">
+            <i class="bi bi-box me-1"></i>
+            <span x-text="stockText(book)"></span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <small class="text-muted" x-text="`ISBN: ${book.isbn || '未知'}`"></small>
+            <button 
+              class="btn btn-primary btn-sm" 
+              :disabled="book.stock <= 0"
+              @click="borrowBook(book)"
+              x-text="book.stock <= 0 ? '无库存' : '借阅'"
+            ></button>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- 加载更多 -->
+    <template x-if="hasMore && !loading && books.length > 0">
+      <div class="text-center mt-3">
+        <button class="btn btn-outline-primary btn-sm" @click="loadMore()" :disabled="loadingMore">
+          <span x-text="loadingMore ? '加载中...' : '加载更多'"></span>
+        </button>
+      </div>
+    </template>
+  </div>
+
+  <script>
+    function bookList() {
+      return {
+        // 响应式数据
+        books: [],
+        loading: true,
+        loadingMore: false,
+        errorMessage: '',
+        searchKeyword: '',
+        currentPage: 1,
+        pageSize: 20,
+        totalBooks: 0,
+        hasMore: true,
+        
+        // 初始化方法
+        async init() {
+          console.log('[图书页面] 初始化');
+          this.loading = true;
+          this.errorMessage = '';
+          
+          try {
+            await this.loadBooks();
+          } catch (error) {
+            console.error('[图书页面] 初始化失败:', error);
+            this.errorMessage = '页面初始化失败，请刷新重试';
+          } finally {
+            this.loading = false;
+          }
+        },
+        
+        // 加载图书列表
+        async loadBooks(reset = true) {
+          if (reset) {
+            this.currentPage = 1;
+            this.books = [];
+            this.hasMore = true;
+          }
+          
+          console.log('[图书页面] 加载图书列表，页码:', this.currentPage);
+          
+          try {
+            const params = new URLSearchParams({
+              page: this.currentPage,
+              pageSize: this.pageSize
+            });
+            
+            if (this.searchKeyword.trim()) {
+              params.append('search', this.searchKeyword.trim());
+            }
+            
+            const url = `/api/books?${params.toString()}`;
+            console.log('[图书页面] 请求URL:', url);
+            
+            const response = await fetch(url, { 
+              credentials: 'include',
+              headers: { 'Accept': 'application/json' }
+            });
+            
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log('[图书页面] 图书列表响应:', data);
+            
+            if (!data.success) {
+              throw new Error(data.message || '获取图书列表失败');
+            }
+            
+            const newBooks = data.data || [];
+            this.totalBooks = data.pagination ? data.pagination.total : (data.total || 0);
+            
+            if (reset) {
+              this.books = newBooks;
+            } else {
+              this.books.push(...newBooks);
+            }
+            
+            this.hasMore = newBooks.length === this.pageSize;
+            console.log('[图书页面] 成功加载图书数量:', newBooks.length);
+            
+          } catch (error) {
+            console.error('[图书页面] 加载图书列表失败:', error);
+            this.errorMessage = `加载图书列表失败: ${error.message}`;
+          }
+        },
+        
+        // 搜索图书
+        async search() {
+          console.log('[图书页面] 搜索图书:', this.searchKeyword);
+          this.loading = true;
+          this.errorMessage = '';
+          
+          try {
+            await this.loadBooks(true);
+          } catch (error) {
+            console.error('[图书页面] 搜索失败:', error);
+            this.errorMessage = `搜索失败: ${error.message}`;
+          } finally {
+            this.loading = false;
+          }
+        },
+        
+        // 加载更多
+        async loadMore() {
+          if (this.loadingMore || !this.hasMore) return;
+          
+          console.log('[图书页面] 加载更多图书');
+          this.loadingMore = true;
+          
+          try {
+            this.currentPage++;
+            await this.loadBooks(false);
+          } catch (error) {
+            console.error('[图书页面] 加载更多失败:', error);
+            this.currentPage--; // 回退页码
+            this.errorMessage = `加载更多失败: ${error.message}`;
+          } finally {
+            this.loadingMore = false;
+          }
+        },
+        
+        // 重试方法
+        async retry() {
+          console.log('[图书页面] 用户点击重试');
+          await this.init();
+        },
+        
+        // 获取库存样式类
+        stockClass(book) {
+          const stock = book.stock || 0;
+          if (stock === 0) return 'stock-out';
+          if (stock <= 5) return 'stock-low';
+          return 'stock-available';
+        },
+        
+        // 获取库存文本
+        stockText(book) {
+          const stock = book.stock || 0;
+          if (stock === 0) return '无库存';
+          if (stock <= 5) return `库存紧张 (${stock})`;
+          return `有库存 (${stock})`;
+        },
+        
+        // 借阅图书
+        async borrowBook(book) {
+          if (book.stock <= 0) {
+            alert('该图书无库存，无法借阅');
+            return;
+          }
+          
+          console.log('[图书页面] 借阅图书:', book.title);
+          
+          try {
+            const response = await fetch('/api/borrows', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              credentials: 'include',
+              body: JSON.stringify({
+                bookId: book.id,
+                borrowDate: new Date().toISOString().split('T')[0],
+                expectedReturnDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 30天后
+              })
+            });
+            
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+              alert(`借阅成功！图书《${book.title}》已添加到您的借阅记录中`);
+              // 刷新图书列表以更新库存
+              await this.loadBooks(true);
+            } else {
+              alert(`借阅失败: ${result.message || '未知错误'}`);
+            }
+          } catch (error) {
+            console.error('[图书页面] 借阅失败:', error);
+            alert(`借阅失败: ${error.message}`);
+          }
+        }
+      }
+    }
+  </script>
+</body>
+</html>

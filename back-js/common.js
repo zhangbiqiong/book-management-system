@@ -226,7 +226,7 @@ export const ValidationUtils = {
 
   // 验证日期格式
   validateDate(dateString) {
-    if (!dateString) return true; // 允许空值
+    if (!dateString) return false; // 不允许空值，因为数据库字段是NOT NULL
     const date = new Date(dateString);
     return !isNaN(date.getTime());
   }

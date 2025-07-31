@@ -29,6 +29,14 @@ export async function handleRoutes(req, url) {
     return null; // 让server.js处理WebSocket升级
   }
 
+  // 处理 H5 页面路由
+  if (url.pathname === "/h5") {
+    return new Response(null, {
+      status: 302,
+      headers: { 'Location': '/h5/h5-index.html' }
+    });
+  }
+
   // 处理 HTML 文件路由
   if (url.pathname === "/" || url.pathname === "/index.html") {
     const cookie = req.headers.get("cookie") || "";
@@ -87,9 +95,12 @@ export async function handleRoutes(req, url) {
       url.pathname.startsWith("/css/") || 
       url.pathname.startsWith("/js/") || 
       url.pathname.startsWith("/images/") || 
-      url.pathname.startsWith("/fonts/")) {
+      url.pathname.startsWith("/fonts/") ||
+      url.pathname.startsWith("/h5/")) {
     // 如果请求的是 assert 目录下的资源，则映射到前端目录下
     const filePath = url.pathname.startsWith("/assert/")
+      ? `front${url.pathname}`
+      : url.pathname.startsWith("/h5/")
       ? `front${url.pathname}`
       : url.pathname.substring(1); // 移除开头的 "/"
     return await handleStaticCache(req, filePath);

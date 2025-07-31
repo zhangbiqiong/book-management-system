@@ -43,7 +43,7 @@
 </head>
 <body>
   <div class="login-card" x-data="loginForm()">
-    <img src="/assert/logo.svg" alt="Logo" class="logo">
+    <img src="/assert/h5-login.png" alt="Logo" class="logo">
     <h5 class="text-center mb-4">图书借阅系统</h5>
     <form @submit.prevent="submit()">
       <div class="mb-3">
@@ -78,8 +78,8 @@
             });
             const result = await res.json();
             if (result.success) {
-              // 跳转到借阅历史页面
-              window.location.href = '/h5/h5-borrow-history.html';
+              // 跳转到H5主框架页面
+              window.location.href = '/h5/h5-index.html';
             } else {
               alert(result.message || '登录失败');
             }

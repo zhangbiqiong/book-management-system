@@ -18,18 +18,32 @@ export async function handleGetCurrentUser(req) {
       });
     }
     
-    // 检查用户当前状态
-    const userData = await redis.get(`user:${payload.username}`);
-    if (userData) {
-      const user = JSON.parse(userData);
-      if (user.status === 'disabled') {
-        return new Response(JSON.stringify({ success: false, message: "账户已被禁用，请联系管理员" }), {
-          status: 403,
-          headers: { "Content-Type": "application/json" }
-        });
+    // 检查用户当前状态（如果JWT中没有userId，则从Redis获取）
+    if (!payload.userId) {
+      const userData = await redis.get(`user:${payload.username}`);
+      if (userData) {
+        const user = JSON.parse(userData);
+        if (user.status === 'disabled') {
+          return new Response(JSON.stringify({ success: false, message: "账户已被禁用，请联系管理员" }), {
+            status: 403,
+            headers: { "Content-Type": "application/json" }
+          });
+        }
+        // 保存用户ID以便返回
+        payload.userId = user.id;
       }
-      // 保存用户ID以便返回
-      payload.userId = user.id;
+    } else {
+      // 如果JWT中有userId，仍然需要检查用户状态
+      const userData = await redis.get(`user:${payload.username}`);
+      if (userData) {
+        const user = JSON.parse(userData);
+        if (user.status === 'disabled') {
+          return new Response(JSON.stringify({ success: false, message: "账户已被禁用，请联系管理员" }), {
+            status: 403,
+            headers: { "Content-Type": "application/json" }
+          });
+        }
+      }
     }
     
     return new Response(JSON.stringify({
@@ -139,9 +153,10 @@ export async function handleLogin(req) {
       });
     }
     
-    // 登录成功，生成 JWT，增加 role 字段
+    // 登录成功，生成 JWT，包含 userId 和 role 字段
     const payload = {
       username,
+      userId: user.id,
       role: user.role || 'user',
       exp: Math.floor(Date.now() / 1000) + JWT_EXPIRES_IN
     };
@@ -197,10 +212,13 @@ export async function handleRegister(req) {
     // 为了兼容现有的登录逻辑，也存储一个用户名到密码的映射
     await redis.set(`user:${username}`, JSON.stringify({
       id: userId,
+      username: username, // 确保包含用户名
+      email: userData.email, // 包含邮箱（如果有）
       password: hashedPassword, // 存储加密后的密码
       role: 'user',
       status: 'enabled',
-      createdAt: userData.createdAt
+      createdAt: userData.createdAt,
+      updatedAt: userData.updatedAt
     }));
     
     return new Response(JSON.stringify({ success: true, message: "注册成功" }), {
@@ -254,10 +272,18 @@ export async function handleChangePassword(req) {
     // 加密新密码
     const hashedNewPassword = await hashPassword(newPassword);
     
-    // 更新密码并保存到Redis
-    user.password = hashedNewPassword;
-    user.updatedAt = new Date().toISOString();
-    await redis.set(`user:${username}`, JSON.stringify(user));
+    // 更新密码并保存到Redis，确保保留所有必要字段
+    const updatedUser = {
+      id: user.id, // 保留用户ID
+      username: user.username, // 保留用户名
+      email: user.email, // 保留邮箱
+      password: hashedNewPassword, // 更新密码
+      role: user.role, // 保留角色
+      status: user.status, // 保留状态
+      createdAt: user.createdAt, // 保留创建时间
+      updatedAt: new Date().toISOString() // 更新修改时间
+    };
+    await redis.set(`user:${username}`, JSON.stringify(updatedUser));
     
     return new Response(JSON.stringify({ success: true, message: "密码修改成功" }), {
       headers: { "Content-Type": "application/json" }

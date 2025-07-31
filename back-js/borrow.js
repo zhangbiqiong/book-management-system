@@ -155,7 +155,7 @@ export const handleBorrowUpdate = ErrorHandler.asyncWrapper(async (req, id) => {
         author: book.author,
         publisher: book.publisher,
         isbn: book.isbn,
-        publishDate: book.publish_date ? book.publish_date.toISOString().split('T')[0] : null, // 转换字段名并提取日期部分
+        publishDate: book.publish_date ? book.publish_date.toISOString().split('T')[0] : '1900-01-01', // 提供默认日期避免null值
         price: book.price,
         stock: newStock,
         description: book.description,
@@ -177,7 +177,7 @@ export const handleBorrowUpdate = ErrorHandler.asyncWrapper(async (req, id) => {
         author: book.author,
         publisher: book.publisher,
         isbn: book.isbn,
-        publishDate: book.publish_date ? book.publish_date.toISOString().split('T')[0] : null, // 转换字段名并提取日期部分
+        publishDate: book.publish_date ? book.publish_date.toISOString().split('T')[0] : '1900-01-01', // 提供默认日期避免null值
         price: book.price,
         stock: newStock,
         description: book.description,
@@ -228,6 +228,7 @@ export const handleBorrowDelete = ErrorHandler.asyncWrapper(async (id) => {
       const newStock = book.stock + 1;
       await DataAccess.update(BOOK_TYPE, borrow.bookId, {
         ...book,
+        publishDate: book.publish_date ? book.publish_date.toISOString().split('T')[0] : '1900-01-01', // 确保publishDate字段正确
         stock: newStock,
         updatedAt: new Date().toISOString()
       });

@@ -182,6 +182,7 @@ export const handleUpdateBookStock = ErrorHandler.asyncWrapper(async (req, id) =
   // 更新库存
   const success = await DataAccess.update(BOOK_TYPE, id, {
     ...book,
+    publishDate: book.publish_date ? book.publish_date.toISOString().split('T')[0] : '1900-01-01', // 确保publishDate字段正确
     stock: newStock,
     updatedAt: new Date().toISOString()
   });
