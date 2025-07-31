@@ -177,7 +177,14 @@
                 
                 async logout() {
                     if (confirm('确定要退出登录吗？')) {
-                        await UserManager.logout();
+                        try {
+                            await UserManager.logout();
+                            // UserManager.logout() 已经处理了跳转，这里不需要额外操作
+                        } catch (error) {
+                            console.error('登出失败:', error);
+                            // 即使出错，也要跳转到登录页面
+                            window.location.href = 'login.html';
+                        }
                     }
                 },
                 

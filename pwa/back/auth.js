@@ -321,42 +321,42 @@ export async function handleLogout(req) {
     const cookie = req.headers.get("cookie") || "";
     const token = cookie.split(';').map(s => s.trim()).find(s => s.startsWith('token='));
     
-    if (!token) {
-      return new Response(JSON.stringify({ success: false, message: "未登录" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" }
-      });
+    // 即使没有token，也允许登出操作
+    if (token) {
+      const jwt = token.replace('token=', '');
+      
+      try {
+        // 尝试将JWT加入黑名单（如果token有效）
+        await addJWTToBlacklist(jwt);
+      } catch (error) {
+        // Token可能已过期或无效，忽略错误继续执行
+        console.log(`[${new Date().toISOString()}] Token无效或已过期，跳过黑名单操作`);
+      }
     }
     
-    const jwt = token.replace('token=', '');
+    // 无论token是否存在或有效，都清除cookie并返回成功
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: "注销成功" 
+    }), {
+      headers: { 
+        "Content-Type": "application/json",
+        "Set-Cookie": "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"
+      }
+    });
     
-    // 将JWT加入黑名单
-    const addedToBlacklist = await addJWTToBlacklist(jwt);
-    
-    if (addedToBlacklist) {
-      return new Response(JSON.stringify({ 
-        success: true, 
-        message: "注销成功" 
-      }), {
-        headers: { 
-          "Content-Type": "application/json",
-          "Set-Cookie": "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"
-        }
-      });
-    } else {
-      return new Response(JSON.stringify({ 
-        success: false, 
-        message: "注销失败，Token可能已过期" 
-      }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" }
-      });
-    }
   } catch (error) {
     console.error(`[${new Date().toISOString()}] 注销错误:`, error);
-    return new Response(JSON.stringify({ success: false, message: "服务器错误" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" }
+    
+    // 即使发生错误，也要尝试清除cookie
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: "注销成功" 
+    }), {
+      headers: { 
+        "Content-Type": "application/json",
+        "Set-Cookie": "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"
+      }
     });
   }
 }

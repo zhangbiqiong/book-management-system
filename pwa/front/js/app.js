@@ -172,9 +172,10 @@ const ApiService = {
         try {
             await this.request('/logout', { method: 'POST' });
         } catch (error) {
-            console.error('登出失败:', error);
+            console.error('登出API调用失败:', error);
+            // 即使API调用失败，也继续执行清除操作
         } finally {
-            // 清除本地存储和Cookie
+            // 无论API调用是否成功，都清除本地存储和Cookie
             StorageManager.clear();
             this.deleteCookie('token');
         }
@@ -383,6 +384,9 @@ const UserManager = {
             // 清除本地存储的用户信息
             StorageManager.remove('user');
             StorageManager.remove('userSettings');
+            
+            // 跳转到登录页面
+            window.location.href = 'login.html';
         }
     },
     
