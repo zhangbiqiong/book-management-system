@@ -1,0 +1,482 @@
+/* H5页面公共样式文件 - 图书管理系统 */
+
+// ========== 变量定义 ==========
+@primary-color: #0d6efd;
+@primary-hover: #0b5ed7;
+@secondary-color: #6c757d;
+@success-color: #198754;
+@warning-color: #fd7e14;
+@danger-color: #dc3545;
+
+@white: #ffffff;
+@light-gray: #f8f9fa;
+@border-gray: #e9ecef;
+@text-gray: #6c757d;
+@text-dark: #212529;
+@shadow-light: rgba(0, 0, 0, 0.05);
+@shadow-medium: rgba(0, 0, 0, 0.1);
+
+@border-radius-sm: 0.5rem;
+@border-radius-md: 0.75rem;
+@border-radius-lg: 1rem;
+@border-radius-xl: 1.5rem;
+
+@transition-fast: all 0.2s ease;
+@transition-normal: all 0.3s ease;
+
+@padding-sm: 0.5rem;
+@padding-md: 0.75rem;
+@padding-lg: 1rem;
+@padding-xl: 1.5rem;
+
+// ========== 混合（Mixins）==========
+.card-style(@radius: @border-radius-md, @shadow: @shadow-light) {
+  background: @white;
+  border-radius: @radius;
+  box-shadow: 0 4px 12px @shadow;
+  padding: @padding-lg;
+}
+
+.hover-lift(@lift: -2px) {
+  transition: @transition-normal;
+  &:hover {
+    transform: translateY(@lift);
+    box-shadow: 0 6px 20px fade(@shadow-medium, 80%);
+  }
+}
+
+.focus-style(@color: @primary-color) {
+  &:focus {
+    border-color: @color;
+    box-shadow: 0 0 0 0.2rem fade(@color, 25%);
+    outline: none;
+  }
+}
+
+.btn-variant(@bg-color, @hover-color) {
+  background: @bg-color;
+  border: none;
+  color: @white;
+  transition: @transition-normal;
+  
+  &:hover {
+    background: @hover-color;
+    color: @white;
+  }
+  
+  &:active {
+    background: darken(@hover-color, 10%) !important;
+  }
+}
+
+// ========== 基础样式 ==========
+body {
+  background: @light-gray;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  line-height: 1.5;
+  color: @text-dark;
+}
+
+// ========== 容器样式 ==========
+.main-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.content-area {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.content-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: @light-gray;
+}
+
+// ========== 卡片样式 ==========
+.card-h5 {
+  .card-style();
+  margin-bottom: @padding-lg;
+}
+
+.book-item {
+  .card-style();
+  margin-bottom: @padding-lg;
+  
+  .book-title {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: @padding-sm;
+    color: @text-dark;
+  }
+  
+  .book-info {
+    font-size: 0.875rem;
+    color: @text-gray;
+    margin-bottom: 0.25rem;
+  }
+  
+  .book-stock {
+    font-weight: 500;
+    font-size: 0.875rem;
+    
+    &.stock-available {
+      color: @success-color;
+    }
+    
+    &.stock-low {
+      color: @warning-color;
+    }
+    
+    &.stock-out {
+      color: @danger-color;
+    }
+  }
+}
+
+// ========== 搜索框样式 ==========
+.search-box {
+  .card-style();
+  margin-bottom: @padding-lg;
+}
+
+.search-input {
+  border: 1px solid @border-gray;
+  border-radius: @border-radius-md;
+  padding: @padding-md;
+  width: 100%;
+  font-size: 0.95rem;
+  transition: @transition-normal;
+  
+  .focus-style();
+  
+  &:focus {
+    border-color: @primary-color;
+  }
+}
+
+// ========== 子导航样式 ==========
+.sub-nav {
+  .card-style();
+  margin-bottom: @padding-lg;
+}
+
+.filter-tabs {
+  display: flex;
+  gap: @padding-sm;
+  overflow-x: auto;
+  padding-bottom: @padding-sm;
+}
+
+.filter-tab {
+  padding: @padding-sm @padding-lg;
+  border-radius: @border-radius-xl;
+  background: @light-gray;
+  color: @text-gray;
+  text-decoration: none;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  border: 1px solid transparent;
+  transition: @transition-fast;
+  
+  &.active {
+    background: @primary-color;
+    color: @white;
+    border-color: @primary-color;
+  }
+  
+  &:hover {
+    background: @border-gray;
+    color: @text-dark;
+  }
+}
+
+// ========== 按钮样式 ==========
+.btn-h5 {
+  border-radius: @border-radius-md;
+  padding: @padding-md @padding-lg;
+  font-weight: 500;
+  transition: @transition-normal;
+  border: none;
+  cursor: pointer;
+  
+  &.btn-primary-h5 {
+    .btn-variant(@primary-color, @primary-hover);
+  }
+  
+  &.btn-success-h5 {
+    .btn-variant(@success-color, darken(@success-color, 10%));
+  }
+  
+  &.btn-warning-h5 {
+    .btn-variant(@warning-color, darken(@warning-color, 10%));
+  }
+  
+  &.btn-danger-h5 {
+    .btn-variant(@danger-color, darken(@danger-color, 10%));
+  }
+  
+  &.btn-outline-h5 {
+    background: transparent;
+    border: 1px solid @primary-color;
+    color: @primary-color;
+    
+    &:hover {
+      background: @primary-color;
+      color: @white;
+    }
+  }
+}
+
+// ========== 底部导航样式 ==========
+.bottom-nav {
+  background: @white;
+  border-top: 1px solid @border-gray;
+  padding: @padding-md 0;
+  box-shadow: 0 -4px 20px @shadow-medium;
+  position: relative;
+  z-index: 1000;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: @padding-sm;
+  text-decoration: none;
+  color: @text-gray;
+  transition: @transition-normal;
+  border-radius: @border-radius-md;
+  margin: 0 0.25rem;
+  position: relative;
+  
+  &.active {
+    color: @primary-color;
+    background: fade(@primary-color, 10%);
+  }
+  
+  &:hover {
+    color: @primary-color;
+    background: fade(@primary-color, 5%);
+  }
+}
+
+.nav-icon {
+  font-size: 1.5rem;
+  margin-bottom: 0.25rem;
+  transition: transform @transition-fast;
+}
+
+.nav-item.active .nav-icon {
+  transform: scale(1.1);
+}
+
+.nav-text {
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.nav-badge {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  background: @danger-color;
+  color: @white;
+  border-radius: 50%;
+  width: 1.25rem;
+  height: 1.25rem;
+  font-size: 0.625rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+// ========== 表单样式 ==========
+.form-control-h5 {
+  border: 1px solid @border-gray;
+  border-radius: @border-radius-md;
+  padding: @padding-md;
+  font-size: 0.95rem;
+  transition: @transition-normal;
+  
+  .focus-style();
+  
+  &:focus {
+    border-color: @primary-color;
+  }
+}
+
+.form-label-h5 {
+  font-weight: 500;
+  color: @text-dark;
+  margin-bottom: @padding-sm;
+}
+
+// ========== 登录页面样式 ==========
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  padding: 2rem @padding-xl;
+  border-radius: @border-radius-lg;
+  background: @white;
+  box-shadow: 0 8px 24px @shadow-light;
+}
+
+.logo {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto @padding-lg auto;
+}
+
+// ========== 设置页面样式 ==========
+.setting-item {
+  .card-style();
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: @transition-normal;
+  
+  &:hover {
+    background: fade(@primary-color, 2%);
+  }
+  
+  .setting-icon {
+    font-size: 1.25rem;
+    color: @text-gray;
+    margin-right: @padding-md;
+  }
+  
+  .setting-text {
+    flex: 1;
+    font-weight: 500;
+  }
+  
+  .setting-arrow {
+    color: @text-gray;
+    font-size: 0.875rem;
+  }
+}
+
+// ========== 借阅页面样式 ==========
+.borrow-item {
+  .card-style();
+  margin-bottom: @padding-lg;
+  
+  .borrow-title {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: @padding-sm;
+    color: @text-dark;
+  }
+  
+  .borrow-info {
+    font-size: 0.875rem;
+    color: @text-gray;
+    margin-bottom: 0.25rem;
+  }
+  
+  .borrow-status {
+    font-weight: 500;
+    font-size: 0.875rem;
+    
+    &.status-borrowed {
+      color: @warning-color;
+    }
+    
+    &.status-returned {
+      color: @success-color;
+    }
+    
+    &.status-overdue {
+      color: @danger-color;
+    }
+  }
+}
+
+// ========== 工具类 ==========
+.text-center {
+  text-align: center;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: @padding-sm; }
+.mb-2 { margin-bottom: @padding-md; }
+.mb-3 { margin-bottom: @padding-lg; }
+.mb-4 { margin-bottom: @padding-xl; }
+
+.mt-0 { margin-top: 0; }
+.mt-1 { margin-top: @padding-sm; }
+.mt-2 { margin-top: @padding-md; }
+.mt-3 { margin-top: @padding-lg; }
+.mt-4 { margin-top: @padding-xl; }
+
+.p-0 { padding: 0; }
+.p-1 { padding: @padding-sm; }
+.p-2 { padding: @padding-md; }
+.p-3 { padding: @padding-lg; }
+.p-4 { padding: @padding-xl; }
+
+.w-100 {
+  width: 100%;
+}
+
+.h-100 {
+  height: 100%;
+}
+
+.d-flex {
+  display: flex;
+}
+
+.flex-column {
+  flex-direction: column;
+}
+
+.align-items-center {
+  align-items: center;
+}
+
+.justify-content-center {
+  justify-content: center;
+}
+
+.justify-content-between {
+  justify-content: space-between;
+}
+
+// ========== 响应式样式 ==========
+@media (max-width: 576px) {
+  .card-h5,
+  .book-item,
+  .search-box,
+  .sub-nav {
+    margin-left: @padding-sm;
+    margin-right: @padding-sm;
+  }
+  
+  .login-card {
+    margin: @padding-sm;
+    padding: @padding-lg;
+  }
+  
+  .bottom-nav {
+    padding: @padding-sm 0;
+  }
+} 

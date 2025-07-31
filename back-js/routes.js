@@ -90,6 +90,12 @@ export async function handleRoutes(req, url) {
     return await handleStaticCache(req, filePath);
   }
 
+  // 处理H5公共资源文件
+  if (url.pathname === "/h5/common.less") {
+    const filePath = `front${url.pathname}`; // 映射到front/h5目录下
+    return await handleStaticCache(req, filePath, "text/css");
+  }
+
   // 处理其他静态文件
   if (url.pathname.startsWith("/assert/") || 
       url.pathname.startsWith("/css/") || 
