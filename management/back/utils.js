@@ -160,6 +160,7 @@ export async function shouldReturn304WithETag(filePath, ifNoneMatch) {
 // 创建带缓存头的响应
 export async function createCachedResponse(filePath) {
   try {
+    
     const file = Bun.file(filePath);
     const lastModified = file.lastModified;
     const etag = await calculateETag(filePath);

@@ -341,7 +341,7 @@ window.H5API = {
             H5Utils.hapticFeedback('error');
             H5Toast.error('登录已过期，请重新登录');
             setTimeout(() => {
-              window.location.href = '/h5/h5-login.html';
+              window.location.href = '/pwa/h5-login.html';
             }, 1500);
             return Promise.reject(error);
           }

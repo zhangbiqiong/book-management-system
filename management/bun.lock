@@ -2,7 +2,7 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
-      "name": "login-page",
+      "name": "book-management-system",
       "dependencies": {
         "bun": "latest",
         "bun-jwt": "^1.0.1",

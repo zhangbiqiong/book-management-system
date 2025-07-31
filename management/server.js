@@ -1,19 +1,19 @@
 import { serve } from "bun";
-import { SERVER_PORT } from "./back-js/config.js";
-import { handleRoutes } from "./back-js/routes.js";
+import { SERVER_PORT } from "./back/config.js";
+import { handleRoutes } from "./back/routes.js";
 import { 
   handleWebSocketMessage, 
   handleWebSocketClose, 
   handleWebSocketError 
-} from "./back-js/websocket.js";
+} from "./back/websocket.js";
 import { 
   startStatusUpdateTask, 
   stopStatusUpdateTask, 
   getTaskStatus, 
   manualExecute 
-} from "./back-js/task.js";
-import { initDatabase, closeDatabase } from "./back-js/database.js";
-import { DataAccess } from "./back-js/data-access.js";
+} from "./back/task.js";
+import { initDatabase, closeDatabase } from "./back/database.js";
+import { DataAccess } from "./back/data-access.js";
 
 // HTTPS 配置
 const httpsConfig = {

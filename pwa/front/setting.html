@@ -8,10 +8,10 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/axios@1.6.2/dist/axios.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/less@4.2.0/dist/less.min.js"></script>
-  <link rel="stylesheet/less" type="text/css" href="./h5-common.less" />
-  <script src="./h5-common.js"></script>
+  <link rel="stylesheet/less" type="text/css" href="./common.less" />
+  <script src="./common.js"></script>
   
-  <!-- Alpine.js必须在h5-common.js之后加载 -->
+  <!-- Alpine.js必须在common.js之后加载 -->
   <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
   <style>
     .setting-item {
@@ -323,7 +323,7 @@
             
             if (error.message.includes('401') || error.message.includes('未登录')) {
               // 跳转到登录页面
-              window.location.href = '/h5/h5-login.html';
+              window.location.href = '/pwa/login.html';
               return;
             }
             
@@ -430,7 +430,7 @@
           } catch (error) {
             console.error('[设置页面] 退出登录请求失败:', error);
           } finally {
-            window.location.href = '/h5/h5-login.html';
+            window.location.href = '/pwa/login.html';
           }
         }
       }
