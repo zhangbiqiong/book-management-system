@@ -1924,7 +1924,7 @@ curl -X POST http://localhost:3000/api/task/execute \
 
 ### 1. WebSocket 连接
 
-**连接地址**: `ws://localhost:3000/ws`
+**连接地址**: `wss://localhost:3000/ws`
 
 **功能描述**: 建立WebSocket连接，实现实时通信
 
@@ -1932,7 +1932,7 @@ curl -X POST http://localhost:3000/api/task/execute \
 
 **连接示例**:
 ```javascript
-const ws = new WebSocket('ws://localhost:3000/ws');
+const ws = new WebSocket('wss://localhost:3000/ws');
 
 ws.onopen = function() {
     // 发送认证消息
@@ -2245,7 +2245,7 @@ function bookManagement() {
         },
 
         setupWebSocket() {
-            const ws = new WebSocket('ws://localhost:3000/ws');
+            const ws = new WebSocket('wss://localhost:3000/ws');
             
             ws.onopen = () => {
                 ws.send(JSON.stringify({
@@ -2280,7 +2280,7 @@ function websocketManager() {
         },
 
         connectWebSocket() {
-            this.ws = new WebSocket('ws://localhost:3000/ws');
+            this.ws = new WebSocket('wss://localhost:3000/ws');
             
             this.ws.onopen = () => {
                 this.isConnected = true;
