@@ -167,10 +167,21 @@
                     try {
                         const iframe = this.$refs.iframe;
                         if (iframe.contentWindow) {
+                            // 确保用户数据是可序列化的
+                            const safeUserData = this.user ? {
+                                id: this.user.id,
+                                username: this.user.username,
+                                role: this.user.role,
+                                email: this.user.email,
+                                status: this.user.status,
+                                createdAt: this.user.createdAt,
+                                updatedAt: this.user.updatedAt
+                            } : null;
+                            
                             // 向iframe传递用户信息
                             iframe.contentWindow.postMessage({
                                 type: 'USER_INFO',
-                                user: this.user
+                                user: safeUserData
                             }, '*');
                         }
                     } catch (error) {

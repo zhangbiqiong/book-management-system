@@ -116,18 +116,18 @@
             <div x-show="pagination && pagination.totalPages > 1" class="d-flex justify-content-center mt-3">
                 <nav>
                     <ul class="pagination">
-                        <li class="page-item" :class="{ 'disabled': pagination.page <= 1 }">
-                            <button class="page-link" @click="changePage(pagination.page - 1)" :disabled="pagination.page <= 1">
+                        <li class="page-item" :class="{ 'disabled': pagination && pagination.page <= 1 }">
+                            <button class="page-link" @click="changePage(pagination ? pagination.page - 1 : 1)" :disabled="pagination && pagination.page <= 1">
                                 <i class="bi bi-chevron-left"></i>
                             </button>
                         </li>
                         <template x-for="page in getPageNumbers()" :key="page">
-                            <li class="page-item" :class="{ 'active': page === pagination.page }">
+                            <li class="page-item" :class="{ 'active': pagination && page === pagination.page }">
                                 <button class="page-link" @click="changePage(page)" x-text="page"></button>
                             </li>
                         </template>
-                        <li class="page-item" :class="{ 'disabled': pagination.page >= pagination.totalPages }">
-                            <button class="page-link" @click="changePage(pagination.page + 1)" :disabled="pagination.page >= pagination.totalPages">
+                        <li class="page-item" :class="{ 'disabled': pagination && pagination.page >= pagination.totalPages }">
+                            <button class="page-link" @click="changePage(pagination ? pagination.page + 1 : 1)" :disabled="pagination && pagination.page >= pagination.totalPages">
                                 <i class="bi bi-chevron-right"></i>
                             </button>
                         </li>
@@ -168,15 +168,15 @@
                                 <i class="bi bi-book text-primary" style="font-size: 5rem;"></i>
                             </div>
                             <div class="col-md-8">
-                                <h4 x-text="selectedBook.title"></h4>
-                                <p><strong>作者：</strong><span x-text="selectedBook.author"></span></p>
-                                <p><strong>出版社：</strong><span x-text="selectedBook.publisher"></span></p>
-                                <p><strong>ISBN：</strong><span x-text="selectedBook.isbn"></span></p>
-                                <p><strong>分类：</strong><span x-text="selectedBook.category || '未分类'"></span></p>
-                                <p><strong>出版日期：</strong><span x-text="AppUtils.formatDate(selectedBook.publishDate)"></span></p>
-                                <p><strong>价格：</strong><span x-text="'¥' + selectedBook.price"></span></p>
-                                <p><strong>库存：</strong><span x-text="selectedBook.stock"></span></p>
-                                <p x-show="selectedBook.description"><strong>简介：</strong><span x-text="selectedBook.description"></span></p>
+                                <h4 x-text="selectedBook ? selectedBook.title : ''"></h4>
+                                <p><strong>作者：</strong><span x-text="selectedBook ? selectedBook.author : ''"></span></p>
+                                <p><strong>出版社：</strong><span x-text="selectedBook ? selectedBook.publisher : ''"></span></p>
+                                <p><strong>ISBN：</strong><span x-text="selectedBook ? selectedBook.isbn : ''"></span></p>
+                                <p><strong>分类：</strong><span x-text="selectedBook ? (selectedBook.category || '未分类') : ''"></span></p>
+                                <p><strong>出版日期：</strong><span x-text="selectedBook ? AppUtils.formatDate(selectedBook.publishDate) : ''"></span></p>
+                                <p><strong>价格：</strong><span x-text="selectedBook ? ('¥' + selectedBook.price) : ''"></span></p>
+                                <p><strong>库存：</strong><span x-text="selectedBook ? selectedBook.stock : ''"></span></p>
+                                <p x-show="selectedBook && selectedBook.description"><strong>简介：</strong><span x-text="selectedBook ? selectedBook.description : ''"></span></p>
                             </div>
                         </div>
                     </div>
@@ -211,12 +211,16 @@
                         return;
                     }
                     
+                    // 初始化分页对象
+                    this.pagination = { page: 1, totalPages: 1, totalItems: 0 };
+                    
                     // 加载初始数据
                     this.loadBooks();
                 },
                 
                 async searchBooks() {
                     this.currentPage = 1;
+                    this.pagination = { page: 1, totalPages: 1, totalItems: 0 };
                     await this.loadBooks();
                 },
                 
@@ -226,47 +230,48 @@
                     
                     try {
                         const params = {
-                            page: this.currentPage,
-                            pageSize: this.pageSize,
-                            sortBy: this.sortBy,
-                            sortOrder: this.sortOrder
+                            page: this.currentPage || 1,
+                            pageSize: this.pageSize || 10,
+                            sortBy: this.sortBy || 'title',
+                            sortOrder: this.sortOrder || 'asc'
                         };
                         
-                        if (this.searchQuery.trim()) {
+                        if (this.searchQuery && this.searchQuery.trim()) {
                             params.search = this.searchQuery.trim();
                         }
                         
                         const response = await ApiService.getBooks(params);
                         
-                        if (response.success) {
+                        if (response && response.success) {
                             this.books = response.data || [];
-                            this.pagination = response.pagination;
+                            this.pagination = response.pagination || { page: 1, totalPages: 1, totalItems: 0 };
                         } else {
-                            throw new Error(response.message || '获取图书列表失败');
+                            throw new Error((response && response.message) || '获取图书列表失败');
                         }
                         
                     } catch (error) {
                         console.error('获取图书列表失败:', error);
-                        AppUtils.showMessage(error.message, 'error');
+                        const errorMessage = error && error.message ? error.message : '获取图书列表失败';
+                        AppUtils.showMessage(errorMessage, 'error');
                         this.books = [];
-                        this.pagination = null;
+                        this.pagination = { page: 1, totalPages: 1, totalItems: 0 };
                     } finally {
                         this.loading = false;
                     }
                 },
                 
                 async changePage(page) {
-                    if (page >= 1 && page <= this.pagination.totalPages) {
+                    if (this.pagination && page >= 1 && page <= this.pagination.totalPages) {
                         this.currentPage = page;
                         await this.loadBooks();
                     }
                 },
                 
                 getPageNumbers() {
-                    if (!this.pagination) return [];
+                    if (!this.pagination || !this.pagination.totalPages) return [];
                     
                     const totalPages = this.pagination.totalPages;
-                    const currentPage = this.pagination.page;
+                    const currentPage = this.pagination.page || 1;
                     const pages = [];
                     
                     // 显示最多5页
@@ -289,6 +294,8 @@
                 },
                 
                 showBookDetail(book) {
+                    if (!book) return;
+                    
                     // 使用Alpine.js的事件系统传递数据
                     document.dispatchEvent(new CustomEvent('showBookDetail', { detail: book }));
                     
@@ -298,17 +305,17 @@
                 },
                 
                 get filteredBooks() {
-                    let filtered = this.books;
+                    let filtered = this.books || [];
                     
                     if (this.filterCategory) {
-                        filtered = filtered.filter(book => book.category === this.filterCategory);
+                        filtered = filtered.filter(book => book && book.category === this.filterCategory);
                     }
                     
                     if (this.filterStatus) {
                         if (this.filterStatus === '可借') {
-                            filtered = filtered.filter(book => book.stock > 0);
+                            filtered = filtered.filter(book => book && book.stock > 0);
                         } else if (this.filterStatus === '已借出') {
-                            filtered = filtered.filter(book => book.stock === 0);
+                            filtered = filtered.filter(book => book && book.stock === 0);
                         }
                     }
                     

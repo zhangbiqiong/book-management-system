@@ -136,7 +136,7 @@
     </div>
 
     <!-- 借阅详情模态框 -->
-    <div class="modal fade" id="borrowDetailModal" tabindex="-1" x-data="{ selectedRecord: null }" @showRecordDetail.window="selectedRecord = $event.detail">
+    <div class="modal fade" id="borrowDetailModal" tabindex="-1" x-data="detailModal()">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -152,9 +152,9 @@
                             <div class="col-md-8">
                                 <h4 x-text="selectedRecord.bookTitle"></h4>
                                 <p><strong>借阅者：</strong><span x-text="selectedRecord.borrowerName"></span></p>
-                                <p><strong>借阅时间：</strong><span x-text="AppUtils.formatDate(selectedRecord.borrowDate)"></span></p>
-                                <p><strong>应还时间：</strong><span x-text="AppUtils.formatDate(selectedRecord.dueDate)"></span></p>
-                                <p x-show="selectedRecord.returnDate"><strong>归还时间：</strong><span x-text="AppUtils.formatDate(selectedRecord.returnDate)"></span></p>
+                                <p><strong>借阅时间：</strong><span x-text="formatDate(selectedRecord.borrowDate)"></span></p>
+                                <p><strong>应还时间：</strong><span x-text="formatDate(selectedRecord.dueDate)"></span></p>
+                                <p x-show="selectedRecord.returnDate"><strong>归还时间：</strong><span x-text="formatDate(selectedRecord.returnDate)"></span></p>
                                 <p><strong>状态：</strong><span x-text="getStatusText(selectedRecord.status)"></span></p>
                                 <p x-show="selectedRecord.overdueDays > 0"><strong>逾期天数：</strong><span x-text="selectedRecord.overdueDays + '天'"></span></p>
                             </div>
@@ -170,12 +170,44 @@
     <script src="js/app.js"></script>
     
     <script>
+        function detailModal() {
+            return {
+                selectedRecord: null,
+                
+                init() {
+                    // 监听显示详情事件
+                    document.addEventListener('showRecordDetail', (event) => {
+                        this.selectedRecord = event.detail;
+                    });
+                },
+                
+                formatDate(dateString) {
+                    if (!dateString) return '未设置';
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('zh-CN');
+                },
+                
+                getStatusText(status) {
+                    const statusMap = {
+                        'borrowed': '借阅中',
+                        'returned': '已归还',
+                        'overdue': '逾期'
+                    };
+                    return statusMap[status] || status;
+                }
+            }
+        }
+        
         function borrowApp() {
             return {
                 filterStatus: '',
                 sortBy: 'borrowDate',
                 borrowRecords: [],
-                pagination: null,
+                pagination: {
+                    page: 1,
+                    totalPages: 1,
+                    totalItems: 0
+                },
                 loading: false,
                 currentPage: 1,
                 pageSize: 10,
@@ -207,7 +239,11 @@
                         
                         if (response.success) {
                             this.borrowRecords = response.data || [];
-                            this.pagination = response.pagination;
+                            this.pagination = response.pagination || {
+                                page: 1,
+                                totalPages: 1,
+                                totalItems: 0
+                            };
                         } else {
                             throw new Error(response.message || '获取借阅记录失败');
                         }
@@ -216,7 +252,11 @@
                         console.error('获取借阅记录失败:', error);
                         AppUtils.showMessage(error.message, 'error');
                         this.borrowRecords = [];
-                        this.pagination = null;
+                        this.pagination = {
+                            page: 1,
+                            totalPages: 1,
+                            totalItems: 0
+                        };
                     } finally {
                         this.loading = false;
                     }
@@ -235,8 +275,6 @@
                 },
                 
                 getPageNumbers() {
-                    if (!this.pagination) return [];
-                    
                     const totalPages = this.pagination.totalPages;
                     const currentPage = this.pagination.page;
                     const pages = [];

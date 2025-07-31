@@ -390,35 +390,10 @@ const UserManager = {
     }
 };
 
-// 页面间通信
-const MessageBus = {
-    // 发送消息到父页面
-    sendToParent(type, data = {}) {
-        if (window.parent && window.parent !== window) {
-            window.parent.postMessage({ type, ...data }, '*');
-        }
-    },
-    
-    // 监听来自父页面的消息
-    listenFromParent(callback) {
-        window.addEventListener('message', (event) => {
-            if (event.data && typeof event.data === 'object') {
-                callback(event.data);
-            }
-        });
-    },
-    
-    // 发送消息到iframe
-    sendToIframe(iframe, type, data = {}) {
-        if (iframe && iframe.contentWindow) {
-            iframe.contentWindow.postMessage({ type, ...data }, '*');
-        }
-    }
-};
+
 
 // 导出到全局
 window.AppUtils = AppUtils;
 window.ApiService = ApiService;
 window.StorageManager = StorageManager;
-window.UserManager = UserManager;
-window.MessageBus = MessageBus; 
+window.UserManager = UserManager; 

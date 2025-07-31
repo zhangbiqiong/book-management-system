@@ -74,8 +74,8 @@ export const handleUserCreate = ErrorHandler.asyncWrapper(async (req) => {
     status: userData.status
   });
   
-  // 保存用户认证信息到Redis（兼容原有认证系统）
-  await redis.set(`user:${userData.username}`, JSON.stringify({
+      // 保存用户认证信息到Redis（兼容原有认证系统）
+    await redis.set(`user:${userData.username}`, JSON.stringify({
     id: userId, // 包含用户ID
     username: userData.username,
     email: `${userData.username}@example.com`, // 包含邮箱
@@ -133,8 +133,8 @@ export const handleUserUpdate = ErrorHandler.asyncWrapper(async (req, id) => {
     return ResponseBuilder.error("更新失败");
   }
   
-  // 更新Redis中的用户认证信息，确保保留所有必要字段
-  const existingUserData = await redis.get(`user:${userData.username}`);
+      // 更新Redis中的用户认证信息，确保保留所有必要字段
+    const existingUserData = await redis.get(`user:${userData.username}`);
   let redisUserData = {};
   
   if (existingUserData) {
@@ -173,8 +173,8 @@ export const handleUserUpdate = ErrorHandler.asyncWrapper(async (req, id) => {
     redisUserData.password = hashedPassword;
   }
   
-  // 保存到Redis
-  await redis.set(`user:${userData.username}`, JSON.stringify(redisUserData));
+      // 保存到Redis
+    await redis.set(`user:${userData.username}`, JSON.stringify(redisUserData));
   
   Logger.info(`管理员更新用户: ${userData.username} (ID: ${id})`);
   

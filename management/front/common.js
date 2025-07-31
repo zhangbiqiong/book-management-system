@@ -393,7 +393,7 @@ document.addEventListener('alpine:init', () => {
           return;
         }
         
-        this.ws = new WebSocket(`ws://${window.location.host}/ws`);
+        this.ws = new WebSocket(`wss://${window.location.host}/ws`);
         
         this.ws.onopen = () => {
           console.log('WebSocket连接已建立');
