@@ -11,11 +11,7 @@ import {
 import { DataAccess } from "./data-access.js";
 
 // 创建 Redis 客户端实例
-const redisClient = new RedisClient({
-  host: 'localhost',
-  port: 6379,
-  db: 1
-});
+const redisClient = new RedisClient("redis://localhost:6379/1");
 
 const BORROW_TYPE = "borrow";
 const BOOK_TYPE = "book";

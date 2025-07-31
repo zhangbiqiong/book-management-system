@@ -2,11 +2,7 @@
 import { RedisClient } from "bun";
 
 // 创建 Redis 客户端实例
-const redisClient = new RedisClient({
-  host: 'localhost',
-  port: 6379,
-  db: 1
-});
+const redisClient = new RedisClient("redis://localhost:6379/1");
 
 // 通用响应构建器
 export const ResponseBuilder = {

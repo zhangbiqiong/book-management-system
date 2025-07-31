@@ -3,11 +3,7 @@ import { verify } from "bun-jwt";
 import { JWT_SECRET, JWT_BLACKLIST_PREFIX } from "./config.js";
 
 // 创建 Redis 客户端实例
-const redisClient = new RedisClient({
-  host: 'localhost',
-  port: 6379,
-  db: 1
-});
+const redisClient = new RedisClient("redis://localhost:6379/1");
 
 // 辅助函数：验证 JWT token
 export async function verifyToken(cookie) {

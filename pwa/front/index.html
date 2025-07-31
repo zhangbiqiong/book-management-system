@@ -24,9 +24,15 @@
         <!-- 顶部标题栏 -->
         <div class="header">
             <h1><i class="bi bi-book"></i> 图书管理系统</h1>
-            <div class="user-info" x-show="user">
-                <span class="username" x-text="user.username"></span>
-                <span class="role" x-text="getRoleText(user.role)"></span>
+            <div class="user-info" x-show="user && !loading">
+                <span class="username" x-text="user?.username || ''"></span>
+                <span class="role" x-text="getRoleText(user?.role)"></span>
+            </div>
+            <div class="loading-indicator" x-show="loading">
+                <div class="spinner-border spinner-border-sm" role="status">
+                    <span class="visually-hidden">加载中...</span>
+                </div>
+                <span class="ms-2">检查登录状态...</span>
             </div>
         </div>
         
@@ -115,7 +121,7 @@
                         // 验证服务器端的用户信息
                         const response = await ApiService.getCurrentUser();
                         
-                        if (response.success) {
+                        if (response.success && response.user) {
                             this.user = response.user;
                             // 更新本地存储的用户信息
                             UserManager.setCurrentUser({
@@ -126,6 +132,7 @@
                         } else {
                             // 服务器端验证失败，清除本地信息并跳转到登录页
                             UserManager.logout();
+                            window.location.href = 'login.html';
                             return;
                         }
                         
@@ -133,6 +140,7 @@
                         console.error('认证检查失败:', error);
                         // 认证失败，跳转到登录页
                         UserManager.logout();
+                        window.location.href = 'login.html';
                         return;
                     } finally {
                         this.loading = false;
@@ -166,9 +174,9 @@
                     // 可以在这里与iframe内容进行通信
                     try {
                         const iframe = this.$refs.iframe;
-                        if (iframe.contentWindow) {
+                        if (iframe.contentWindow && this.user) {
                             // 确保用户数据是可序列化的
-                            const safeUserData = this.user ? {
+                            const safeUserData = {
                                 id: this.user.id,
                                 username: this.user.username,
                                 role: this.user.role,
@@ -176,7 +184,7 @@
                                 status: this.user.status,
                                 createdAt: this.user.createdAt,
                                 updatedAt: this.user.updatedAt
-                            } : null;
+                            };
                             
                             // 向iframe传递用户信息
                             iframe.contentWindow.postMessage({
@@ -191,6 +199,7 @@
                 
                 // 获取角色文本
                 getRoleText(role) {
+                    if (!role) return '';
                     const roleMap = {
                         'admin': '管理员',
                         'user': '普通用户'

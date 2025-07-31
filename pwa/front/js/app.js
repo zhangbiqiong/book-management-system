@@ -177,7 +177,6 @@ const ApiService = {
             // 清除本地存储和Cookie
             StorageManager.clear();
             this.deleteCookie('token');
-            window.location.href = 'login.html';
         }
     },
     
@@ -376,7 +375,15 @@ const UserManager = {
     
     // 退出登录
     async logout() {
-        await ApiService.logout();
+        try {
+            await ApiService.logout();
+        } catch (error) {
+            console.error('退出登录API调用失败:', error);
+        } finally {
+            // 清除本地存储的用户信息
+            StorageManager.remove('user');
+            StorageManager.remove('userSettings');
+        }
     },
     
     // 获取用户设置

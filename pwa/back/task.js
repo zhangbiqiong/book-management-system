@@ -5,11 +5,8 @@ import { RedisClient } from "bun";
 import { TASK_UPDATE_INTERVAL, TASK_NAME } from "./config.js";
 
 // 创建 Redis 客户端实例
-const redisClient = new RedisClient({
-  host: 'localhost',
-  port: 6379,
-  db: 1
-});
+const redisClient = new RedisClient("redis://localhost:6379/1");
+
 import { calculateBorrowStatus } from "./utils.js";
 import { 
   ResponseBuilder, 

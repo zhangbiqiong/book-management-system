@@ -2,11 +2,7 @@
 import { sql, RedisClient } from "bun";
 import { Logger } from "./common.js";
 
-const redisClient = new RedisClient({
-  host: 'localhost',
-  port: 6379,
-  db: 1
-});
+const redisClient = new RedisClient("redis://localhost:6379/1");
 
 // 缓存配置
 const CACHE_TTL = 300; // 缓存5分钟

@@ -38,9 +38,9 @@
             </div>
         </div>
         
-        <div x-show="!loading && borrowRecords.length > 0">
+        <div x-show="!loading && (borrowRecords || []).length > 0">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <span class="text-muted">共 <span x-text="filteredRecords.length"></span> 条借阅记录</span>
+                <span class="text-muted">共 <span x-text="(filteredRecords || []).length"></span> 条借阅记录</span>
                 <div class="btn-group btn-group-sm">
                     <button class="btn btn-outline-secondary" :class="{ 'active': sortBy === 'borrowDate' }" @click="sortBy = 'borrowDate'">
                         借阅时间
@@ -65,30 +65,30 @@
                                     </div>
                                 </div>
                                 <div class="col-9">
-                                    <h5 class="card-title" x-text="record.bookTitle"></h5>
+                                    <h5 class="card-title" x-text="record?.bookTitle || ''"></h5>
                                     <p class="card-text text-muted mb-1">
-                                        <i class="bi bi-person"></i> 借阅者：<span x-text="record.borrowerName"></span>
+                                        <i class="bi bi-person"></i> 借阅者：<span x-text="record?.borrowerName || ''"></span>
                                     </p>
                                     <p class="card-text text-muted mb-1">
-                                        <i class="bi bi-calendar"></i> 借阅时间：<span x-text="formatDate(record.borrowDate)"></span>
+                                        <i class="bi bi-calendar"></i> 借阅时间：<span x-text="formatDate(record?.borrowDate)"></span>
                                     </p>
                                     <p class="card-text text-muted mb-1">
-                                        <i class="bi bi-calendar-check"></i> 应还时间：<span x-text="formatDate(record.dueDate)"></span>
+                                        <i class="bi bi-calendar-check"></i> 应还时间：<span x-text="formatDate(record?.dueDate)"></span>
                                     </p>
-                                    <p x-show="record.returnDate" class="card-text text-muted mb-1">
-                                        <i class="bi bi-calendar-x"></i> 归还时间：<span x-text="formatDate(record.returnDate)"></span>
+                                    <p x-show="record?.returnDate" class="card-text text-muted mb-1">
+                                        <i class="bi bi-calendar-x"></i> 归还时间：<span x-text="formatDate(record?.returnDate)"></span>
                                     </p>
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span class="badge" :class="{
-                                            'bg-primary': record.status === 'borrowed',
-                                            'bg-success': record.status === 'returned',
-                                            'bg-danger': record.status === 'overdue'
-                                        }" x-text="getStatusText(record.status)"></span>
+                                            'bg-primary': record?.status === 'borrowed',
+                                            'bg-success': record?.status === 'returned',
+                                            'bg-danger': record?.status === 'overdue'
+                                        }" x-text="getStatusText(record?.status)"></span>
                                         <div>
                                             <button class="btn btn-sm btn-outline-info me-1" @click="showRecordDetail(record)">
                                                 <i class="bi bi-eye"></i> 详情
                                             </button>
-                                            <button x-show="record.status === 'borrowed'" class="btn btn-sm btn-outline-warning" @click="renewBook(record)">
+                                            <button x-show="record?.status === 'borrowed'" class="btn btn-sm btn-outline-warning" @click="renewBook(record)">
                                                 <i class="bi bi-arrow-clockwise"></i> 续借
                                             </button>
                                         </div>
@@ -104,18 +104,18 @@
             <div x-show="pagination && pagination.totalPages > 1" class="d-flex justify-content-center mt-3">
                 <nav>
                     <ul class="pagination">
-                        <li class="page-item" :class="{ 'disabled': pagination.page <= 1 }">
-                            <button class="page-link" @click="changePage(pagination.page - 1)" :disabled="pagination.page <= 1">
+                        <li class="page-item" :class="{ 'disabled': (pagination?.page || 1) <= 1 }">
+                            <button class="page-link" @click="changePage((pagination?.page || 1) - 1)" :disabled="(pagination?.page || 1) <= 1">
                                 <i class="bi bi-chevron-left"></i>
                             </button>
                         </li>
                         <template x-for="page in getPageNumbers()" :key="page">
-                            <li class="page-item" :class="{ 'active': page === pagination.page }">
+                            <li class="page-item" :class="{ 'active': page === (pagination?.page || 1) }">
                                 <button class="page-link" @click="changePage(page)" x-text="page"></button>
                             </li>
                         </template>
-                        <li class="page-item" :class="{ 'disabled': pagination.page >= pagination.totalPages }">
-                            <button class="page-link" @click="changePage(pagination.page + 1)" :disabled="pagination.page >= pagination.totalPages">
+                        <li class="page-item" :class="{ 'disabled': (pagination?.page || 1) >= (pagination?.totalPages || 1) }">
+                            <button class="page-link" @click="changePage((pagination?.page || 1) + 1)" :disabled="(pagination?.page || 1) >= (pagination?.totalPages || 1)">
                                 <i class="bi bi-chevron-right"></i>
                             </button>
                         </li>
@@ -128,7 +128,7 @@
             <div class="spinner-border" role="status"></div>
         </div>
         
-        <div x-show="!loading && borrowRecords.length === 0" class="empty-state">
+        <div x-show="!loading && (borrowRecords || []).length === 0" class="empty-state">
             <div class="empty-icon"><i class="bi bi-journal-check"></i></div>
             <h3>暂无借阅记录</h3>
             <p>您还没有借阅过任何图书</p>
@@ -150,13 +150,13 @@
                                 <i class="bi bi-book text-primary" style="font-size: 5rem;"></i>
                             </div>
                             <div class="col-md-8">
-                                <h4 x-text="selectedRecord.bookTitle"></h4>
-                                <p><strong>借阅者：</strong><span x-text="selectedRecord.borrowerName"></span></p>
-                                <p><strong>借阅时间：</strong><span x-text="formatDate(selectedRecord.borrowDate)"></span></p>
-                                <p><strong>应还时间：</strong><span x-text="formatDate(selectedRecord.dueDate)"></span></p>
-                                <p x-show="selectedRecord.returnDate"><strong>归还时间：</strong><span x-text="formatDate(selectedRecord.returnDate)"></span></p>
-                                <p><strong>状态：</strong><span x-text="getStatusText(selectedRecord.status)"></span></p>
-                                <p x-show="selectedRecord.overdueDays > 0"><strong>逾期天数：</strong><span x-text="selectedRecord.overdueDays + '天'"></span></p>
+                                <h4 x-text="selectedRecord?.bookTitle || ''"></h4>
+                                <p><strong>借阅者：</strong><span x-text="selectedRecord?.borrowerName || ''"></span></p>
+                                <p><strong>借阅时间：</strong><span x-text="formatDate(selectedRecord?.borrowDate)"></span></p>
+                                <p><strong>应还时间：</strong><span x-text="formatDate(selectedRecord?.dueDate)"></span></p>
+                                <p x-show="selectedRecord?.returnDate"><strong>归还时间：</strong><span x-text="formatDate(selectedRecord?.returnDate)"></span></p>
+                                <p><strong>状态：</strong><span x-text="getStatusText(selectedRecord?.status)"></span></p>
+                                <p x-show="selectedRecord?.overdueDays > 0"><strong>逾期天数：</strong><span x-text="(selectedRecord?.overdueDays || 0) + '天'"></span></p>
                             </div>
                         </div>
                     </div>
@@ -188,6 +188,7 @@
                 },
                 
                 getStatusText(status) {
+                    if (!status) return '未知';
                     const statusMap = {
                         'borrowed': '借阅中',
                         'returned': '已归还',
@@ -268,15 +269,15 @@
                 },
                 
                 async changePage(page) {
-                    if (page >= 1 && page <= this.pagination.totalPages) {
+                    if (page >= 1 && page <= (this.pagination?.totalPages || 1)) {
                         this.currentPage = page;
                         await this.loadBorrowRecords();
                     }
                 },
                 
                 getPageNumbers() {
-                    const totalPages = this.pagination.totalPages;
-                    const currentPage = this.pagination.page;
+                    const totalPages = this.pagination?.totalPages || 1;
+                    const currentPage = this.pagination?.page || 1;
                     const pages = [];
                     
                     // 显示最多5页
@@ -299,6 +300,12 @@
                 },
                 
                 showRecordDetail(record) {
+                    // 检查记录是否存在
+                    if (!record) {
+                        AppUtils.showMessage('记录不存在', 'error');
+                        return;
+                    }
+                    
                     // 使用Alpine.js的事件系统传递数据
                     document.dispatchEvent(new CustomEvent('showRecordDetail', { detail: record }));
                     
@@ -308,13 +315,13 @@
                 },
                 
                 async renewBook(record) {
-                    if (confirm(`确定要续借《${record.bookTitle}》吗？`)) {
+                    if (confirm(`确定要续借《${record?.bookTitle || '未知图书'}》吗？`)) {
                         try {
                             // 计算新的到期日期（延长30天）
-                            const newDueDate = new Date(record.dueDate);
+                            const newDueDate = new Date(record?.dueDate || new Date());
                             newDueDate.setDate(newDueDate.getDate() + 30);
                             
-                            const response = await ApiService.updateBorrow(record.id, {
+                            const response = await ApiService.updateBorrow(record?.id, {
                                 dueDate: newDueDate.toISOString().split('T')[0]
                             });
                             
@@ -338,6 +345,7 @@
                 },
                 
                 getStatusText(status) {
+                    if (!status) return '未知';
                     const statusMap = {
                         'borrowed': '借阅中',
                         'returned': '已归还',
@@ -347,10 +355,10 @@
                 },
                 
                 get filteredRecords() {
-                    let filtered = this.borrowRecords;
+                    let filtered = this.borrowRecords || [];
                     
                     if (this.filterStatus) {
-                        filtered = filtered.filter(record => record.status === this.filterStatus);
+                        filtered = filtered.filter(record => record?.status === this.filterStatus);
                     }
                     
                     // 排序

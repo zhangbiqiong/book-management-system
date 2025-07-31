@@ -2,11 +2,8 @@ import { RedisClient } from "bun";
 import { DataAccess } from "./common.js";
 
 // 创建 Redis 客户端实例
-const redisClient = new RedisClient({
-  host: 'localhost',
-  port: 6379,
-  db: 1
-});
+const redisClient = new RedisClient("redis://localhost:6379/1");
+
 import { sign } from "bun-jwt";
 import { JWT_SECRET, JWT_EXPIRES_IN } from "./config.js";
 import { verifyToken, addJWTToBlacklist } from "./utils.js";
@@ -53,13 +50,28 @@ export async function handleGetCurrentUser(req) {
       }
     }
     
+    // 从Redis获取完整的用户信息
+    const userData = await redisClient.get(`user:${payload.username}`);
+    let userInfo = {
+      id: payload.userId,
+      username: payload.username,
+      role: payload.role || 'user'
+    };
+    
+    if (userData) {
+      const user = JSON.parse(userData);
+      userInfo = {
+        ...userInfo,
+        email: user.email,
+        status: user.status,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
+      };
+    }
+    
     return new Response(JSON.stringify({
       success: true,
-      user: {
-        id: payload.userId,
-        username: payload.username,
-        role: payload.role || 'user'
-      }
+      user: userInfo
     }), {
       headers: { "Content-Type": "application/json" }
     });
