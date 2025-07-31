@@ -1,959 +1,230 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="format-detection" content="telephone=no">
-  
-  <title>我的借阅 - 图书借阅系统</title>
-  
-  <!-- 指定技术栈CDN资源 -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/axios@1.6.2/dist/axios.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/less@4.2.0/dist/less.min.js"></script>
-  
-  <!-- 公共样式和脚本 -->
-  <link rel="stylesheet/less" type="text/css" href="./common.less" />
-  <script src="./common.js"></script>
-  
-  <!-- Alpine.js必须在common.js之后加载 -->
-  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
-  
-  <style>
-    /* 专门为借阅页面的样式增强 */
-    :root {
-      --borrow-card-bg: rgba(255, 255, 255, 0.95);
-      --status-borrowed: #007AFF;
-      --status-overdue: #FF3B30;
-      --status-returned: #34C759;
-      --status-renewed: #FF9500;
-      --stats-bg: rgba(0, 122, 255, 0.1);
-    }
-    
-    /* 页面主容器 */
-    .borrow-page-container {
-      min-height: 100vh;
-      min-height: 100dvh;
-      background: var(--background-grouped, #F2F2F7);
-      padding-top: env(safe-area-inset-top, 12px);
-      padding-bottom: 20px;
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
-    }
-    
-    /* 页面头部 */
-    .page-header {
-      position: sticky;
-      top: env(safe-area-inset-top, 0);
-      background: rgba(242, 242, 247, 0.95);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      z-index: 100;
-      padding: 16px 20px 12px 20px;
-      border-bottom: 0.5px solid rgba(60, 60, 67, 0.1);
-    }
-    
-    .page-title {
-      font-size: 28px;
-      font-weight: 700;
-      color: #1C1C1E;
-      margin: 0 0 16px 0;
-      letter-spacing: -0.5px;
-    }
-    
-    /* 统计卡片 */
-    .stats-container {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      margin-bottom: 20px;
-      padding: 0 20px;
-    }
-    
-    .stats-card {
-      background: var(--borrow-card-bg);
-      border-radius: 16px;
-      padding: 20px 16px;
-      text-align: center;
-      border: 0.5px solid rgba(60, 60, 67, 0.1);
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
-    
-    .stats-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-    }
-    
-    .stats-number {
-      font-size: 24px;
-      font-weight: 700;
-      color: var(--status-borrowed);
-      margin-bottom: 4px;
-      letter-spacing: -0.5px;
-    }
-    
-    .stats-number.overdue {
-      color: var(--status-overdue);
-    }
-    
-    .stats-number.returned {
-      color: var(--status-returned);
-    }
-    
-    .stats-label {
-      font-size: 13px;
-      color: #8E8E93;
-      font-weight: 500;
-      letter-spacing: -0.1px;
-    }
-    
-    /* 过滤标签 */
-    .filter-container {
-      display: flex;
-      gap: 8px;
-      overflow-x: auto;
-      padding: 0 20px 16px 20px;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-    }
-    
-    .filter-container::-webkit-scrollbar {
-      display: none;
-    }
-    
-    .filter-tag {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 16px;
-      border-radius: 20px;
-      background: rgba(255, 255, 255, 0.8);
-      color: #8E8E93;
-      text-decoration: none;
-      white-space: nowrap;
-      font-size: 15px;
-      font-weight: 500;
-      border: 1px solid rgba(0, 0, 0, 0.05);
-      transition: all 0.3s ease-out;
-      cursor: pointer;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-    
-    .filter-tag:hover {
-      background: rgba(255, 255, 255, 1);
-      color: #1C1C1E;
-      text-decoration: none;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-    
-    .filter-tag.active {
-      background: var(--stats-bg);
-      color: var(--status-borrowed);
-      border-color: var(--status-borrowed);
-    }
-    
-    .filter-tag.active:hover {
-      background: rgba(0, 122, 255, 0.15);
-      color: var(--status-borrowed);
-    }
-    
-    .filter-icon {
-      font-size: 14px;
-    }
-    
-    /* 内容区域 */
-    .content-container {
-      padding: 0 20px;
-    }
-    
-    /* 借阅记录列表 */
-    .borrow-list {
-      display: grid;
-      gap: 16px;
-      margin-bottom: 40px;
-    }
-    
-    /* 借阅记录卡片 */
-    .borrow-card {
-      background: var(--borrow-card-bg);
-      border-radius: 16px;
-      padding: 20px;
-      border: 0.5px solid rgba(60, 60, 67, 0.1);
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      position: relative;
-      overflow: hidden;
-    }
-    
-    .borrow-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-      border-color: rgba(0, 122, 255, 0.2);
-    }
-    
-    /* 借阅记录头部 */
-    .borrow-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 12px;
-    }
-    
-    .book-title {
-      font-size: 18px;
-      font-weight: 600;
-      color: #1C1C1E;
-      margin: 0 0 4px 0;
-      line-height: 1.3;
-      letter-spacing: -0.2px;
-      flex: 1;
-      margin-right: 12px;
-    }
-    
-    .borrow-status {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.2px;
-      text-transform: uppercase;
-      flex-shrink: 0;
-    }
-    
-    .borrow-status.borrowed {
-      background: rgba(0, 122, 255, 0.1);
-      color: var(--status-borrowed);
-    }
-    
-    .borrow-status.overdue {
-      background: rgba(255, 59, 48, 0.1);
-      color: var(--status-overdue);
-    }
-    
-    .borrow-status.returned {
-      background: rgba(52, 199, 89, 0.1);
-      color: var(--status-returned);
-    }
-    
-    .borrow-status.renewed {
-      background: rgba(255, 149, 0, 0.1);
-      color: var(--status-renewed);
-    }
-    
-    .status-icon {
-      font-size: 10px;
-    }
-    
-    /* 借阅信息 */
-    .borrow-meta {
-      margin-bottom: 16px;
-    }
-    
-    .book-author {
-      font-size: 15px;
-      color: #8E8E93;
-      margin-bottom: 8px;
-      font-weight: 500;
-    }
-    
-    .borrow-details {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 16px;
-      font-size: 13px;
-    }
-    
-    .detail-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      color: #8E8E93;
-    }
-    
-    .detail-icon {
-      font-size: 12px;
-      width: 14px;
-      text-align: center;
-    }
-    
-    .detail-value {
-      font-weight: 500;
-      color: #1C1C1E;
-    }
-    
-    .detail-value.overdue {
-      color: var(--status-overdue);
-      font-weight: 600;
-    }
-    
-    /* 操作按钮 */
-    .borrow-actions {
-      display: flex;
-      gap: 8px;
-      margin-top: auto;
-    }
-    
-    .action-btn {
-      flex: 1;
-      padding: 12px 16px;
-      border: none;
-      border-radius: 12px;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease-out;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      min-height: 44px;
-    }
-    
-    .action-btn.primary {
-      background: var(--status-borrowed);
-      color: white;
-      box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
-    }
-    
-    .action-btn.primary:hover {
-      background: #0056CC;
-      transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(0, 122, 255, 0.4);
-    }
-    
-    .action-btn.success {
-      background: var(--status-returned);
-      color: white;
-      box-shadow: 0 4px 12px rgba(52, 199, 89, 0.3);
-    }
-    
-    .action-btn.success:hover {
-      background: #28A745;
-      transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(52, 199, 89, 0.4);
-    }
-    
-    .action-btn.secondary {
-      background: rgba(142, 142, 147, 0.1);
-      color: #8E8E93;
-      border: 1px solid rgba(142, 142, 147, 0.2);
-    }
-    
-    .action-btn.secondary:hover {
-      background: rgba(142, 142, 147, 0.15);
-      color: #666;
-    }
-    
-    .action-btn:active {
-      transform: translateY(0) scale(0.98);
-    }
-    
-    .action-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-    }
-    
-    /* 空状态 */
-    .empty-state {
-      text-align: center;
-      padding: 60px 20px;
-      color: #8E8E93;
-    }
-    
-    .empty-icon {
-      font-size: 64px;
-      margin-bottom: 20px;
-      opacity: 0.6;
-      color: #8E8E93;
-    }
-    
-    .empty-title {
-      font-size: 20px;
-      font-weight: 600;
-      color: #1C1C1E;
-      margin-bottom: 8px;
-    }
-    
-    .empty-message {
-      font-size: 16px;
-      line-height: 1.4;
-      margin-bottom: 24px;
-    }
-    
-    .empty-action {
-      background: var(--status-borrowed);
-      color: white;
-      border: none;
-      border-radius: 12px;
-      padding: 12px 24px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-    
-    .empty-action:hover {
-      background: #0056CC;
-      transform: translateY(-1px);
-    }
-    
-    /* 响应式设计 */
-    @media (max-width: 375px) {
-      .page-header {
-        padding: 12px 16px 8px 16px;
-      }
-      
-      .page-title {
-        font-size: 24px;
-      }
-      
-      .stats-container {
-        padding: 0 16px;
-        gap: 8px;
-      }
-      
-      .stats-card {
-        padding: 16px 12px;
-      }
-      
-      .stats-number {
-        font-size: 20px;
-      }
-      
-      .content-container {
-        padding: 0 16px;
-      }
-      
-      .filter-container {
-        padding: 0 16px 16px 16px;
-      }
-      
-      .borrow-card {
-        padding: 16px;
-      }
-      
-      .book-title {
-        font-size: 16px;
-      }
-      
-      .borrow-details {
-        grid-template-columns: 1fr;
-        gap: 8px;
-      }
-    }
-    
-    /* 横屏适配 */
-    @media (orientation: landscape) and (max-height: 500px) {
-      .page-header {
-        position: relative;
-        padding: 8px 20px;
-      }
-      
-      .page-title {
-        font-size: 22px;
-        margin-bottom: 8px;
-      }
-      
-      .stats-container {
-        margin-bottom: 12px;
-      }
-      
-      .borrow-card {
-        padding: 12px;
-      }
-    }
-    
-    /* 深色模式支持 */
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --borrow-card-bg: rgba(28, 28, 30, 0.95);
-      }
-      
-      .borrow-page-container {
-        background: #000000;
-      }
-      
-      .page-header {
-        background: rgba(0, 0, 0, 0.95);
-        border-bottom-color: rgba(84, 84, 88, 0.2);
-      }
-      
-      .page-title {
-        color: #FFFFFF;
-      }
-      
-      .filter-tag {
-        background: rgba(58, 58, 60, 0.8);
-        color: rgba(235, 235, 245, 0.8);
-        border-color: rgba(84, 84, 88, 0.2);
-      }
-      
-      .filter-tag:hover {
-        background: rgba(58, 58, 60, 1);
-        color: #FFFFFF;
-      }
-      
-      .book-title {
-        color: #FFFFFF;
-      }
-      
-      .detail-value {
-        color: #FFFFFF;
-      }
-      
-      .empty-title {
-        color: #FFFFFF;
-      }
-    }
-    
-    /* 减少动画（用户偏好） */
-    @media (prefers-reduced-motion: reduce) {
-      * {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-      }
-      
-      .borrow-card:hover {
-        transform: none;
-      }
-      
-      .action-btn:hover {
-        transform: none;
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>借阅记录</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet/less" type="text/css" href="css/main.less">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+    <!-- Less.js -->
+    <script src="https://cdn.jsdelivr.net/npm/less@4.1.3/dist/less.min.js"></script>
 </head>
-<body x-data="borrowPage()" x-init="init()">
-  <div class="borrow-page-container">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h1 class="page-title">我的借阅</h1>
-      
-      <!-- 过滤标签 -->
-      <div class="filter-container">
-        <a href="#" 
-           class="filter-tag"
-           :class="{ 'active': activeFilter === 'all' }"
-           @click.prevent="setFilter('all')">
-          <i class="bi bi-list filter-icon"></i>
-          全部
-        </a>
-        <a href="#" 
-           class="filter-tag"
-           :class="{ 'active': activeFilter === 'borrowed' }"
-           @click.prevent="setFilter('borrowed')">
-          <i class="bi bi-clock filter-icon"></i>
-          借阅中
-        </a>
-        <a href="#" 
-           class="filter-tag"
-           :class="{ 'active': activeFilter === 'overdue' }"
-           @click.prevent="setFilter('overdue')">
-          <i class="bi bi-exclamation-triangle filter-icon"></i>
-          逾期
-        </a>
-        <a href="#" 
-           class="filter-tag"
-           :class="{ 'active': activeFilter === 'returned' }"
-           @click.prevent="setFilter('returned')">
-          <i class="bi bi-check-circle filter-icon"></i>
-          已归还
-        </a>
-      </div>
-    </div>
-
-    <!-- 统计卡片 -->
-    <div class="stats-container">
-      <div class="stats-card">
-        <div class="stats-number" x-text="stats.borrowing"></div>
-        <div class="stats-label">借阅中</div>
-      </div>
-      <div class="stats-card">
-        <div class="stats-number overdue" x-text="stats.overdue"></div>
-        <div class="stats-label">逾期</div>
-      </div>
-      <div class="stats-card">
-        <div class="stats-number returned" x-text="stats.returned"></div>
-        <div class="stats-label">已归还</div>
-      </div>
-    </div>
-    
-    <!-- 内容区域 -->
-    <div class="content-container">
-      <!-- 借阅记录列表 -->
-      <div class="borrow-list" x-show="filteredRecords.length > 0">
-        <template x-for="record in filteredRecords" :key="record.id">
-          <div class="borrow-card">
-            <div class="borrow-header">
-              <h3 class="book-title" x-text="record.bookTitle"></h3>
-              <div 
-                class="borrow-status"
-                :class="getStatusClass(record)"
-              >
-                <i class="bi status-icon" :class="getStatusIcon(record)"></i>
-                <span x-text="getStatusText(record)"></span>
-              </div>
-            </div>
-            
-            <div class="borrow-meta">
-              <div class="book-author" x-text="record.borrowerName || '借阅人信息'"></div>
-            </div>
-            
-            <div class="borrow-details">
-              <div class="detail-item">
-                <i class="bi bi-calendar-plus detail-icon"></i>
-                <span>借阅日期：</span>
-                <span class="detail-value" x-text="H5Utils.formatDate(record.borrowDate)"></span>
-              </div>
-              <div class="detail-item">
-                <i class="bi bi-calendar-check detail-icon"></i>
-                <span>到期日期：</span>
-                <span class="detail-value" :class="{ 'overdue': isOverdue(record) }" x-text="H5Utils.formatDate(record.dueDate)"></span>
-              </div>
-              <template x-if="record.returnDate">
-                <div class="detail-item">
-                  <i class="bi bi-calendar-x detail-icon"></i>
-                  <span>归还日期：</span>
-                  <span class="detail-value" x-text="H5Utils.formatDate(record.returnDate)"></span>
-                </div>
-              </template>
-              <div class="detail-item">
-                <i class="bi bi-hourglass detail-icon"></i>
-                <span>剩余天数：</span>
-                <span class="detail-value" :class="{ 'overdue': getRemainingDays(record) < 0 }" x-text="getRemainingDaysText(record)"></span>
-              </div>
-            </div>
-            
-            <div class="borrow-actions">
-              <template x-if="!record.returnDate">
-                <button 
-                  class="action-btn success"
-                  @click="returnBook(record)"
-                  :disabled="submittingId === record.id"
-                >
-                  <template x-if="submittingId === record.id">
-                    <i class="bi bi-arrow-clockwise spinning"></i>
-                  </template>
-                  <template x-if="submittingId !== record.id">
-                    <i class="bi bi-check-circle"></i>
-                  </template>
-                  <span x-text="submittingId === record.id ? '归还中...' : '归还图书'"></span>
-                </button>
-              </template>
-              
-              <template x-if="!record.returnDate && canRenew(record)">
-                <button 
-                  class="action-btn primary"
-                  @click="renewBook(record)"
-                  :disabled="renewingId === record.id"
-                >
-                  <template x-if="renewingId === record.id">
-                    <i class="bi bi-arrow-clockwise spinning"></i>
-                  </template>
-                  <template x-if="renewingId !== record.id">
-                    <i class="bi bi-arrow-repeat"></i>
-                  </template>
-                  <span x-text="renewingId === record.id ? '续借中...' : '续借'"></span>
-                </button>
-              </template>
-              
-              <button 
-                class="action-btn secondary"
-                @click="showBookDetail(record)"
-              >
-                <i class="bi bi-info-circle"></i>
-                <span>详情</span>
-              </button>
-            </div>
-          </div>
-        </template>
-      </div>
-      
-      <!-- 空状态 -->
-      <div class="empty-state" x-show="!loading && filteredRecords.length === 0">
-        <div class="empty-icon">
-          <i class="bi bi-journal-check"></i>
+<body>
+    <div class="function-page" x-data="borrowApp()">
+        <div class="page-header">
+            <h2><i class="bi bi-journal-check"></i> 借阅记录</h2>
+            <p>查看您的借阅历史和当前借阅状态</p>
         </div>
-        <h3 class="empty-title">暂无借阅记录</h3>
-        <p class="empty-message">
-          <template x-if="activeFilter === 'all'">
-            您还没有借阅任何图书，快去挑选喜欢的图书吧！
-          </template>
-          <template x-if="activeFilter === 'borrowed'">
-            当前没有正在借阅的图书
-          </template>
-          <template x-if="activeFilter === 'overdue'">
-            恭喜！您没有逾期的图书
-          </template>
-          <template x-if="activeFilter === 'returned'">
-            还没有归还过图书
-          </template>
-        </p>
-        <button class="empty-action" @click="refreshRecords()">
-          <i class="bi bi-arrow-clockwise"></i>
-          刷新记录
-        </button>
-      </div>
+        
+        <div class="mb-3">
+            <div class="row g-2">
+                <div class="col-6">
+                    <select class="form-select" x-model="filterStatus">
+                        <option value="">全部状态</option>
+                        <option value="借阅中">借阅中</option>
+                        <option value="已归还">已归还</option>
+                        <option value="逾期">逾期</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <button class="btn btn-outline-primary w-100" @click="refreshRecords">
+                        <i class="bi bi-arrow-clockwise"></i> 刷新
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div x-show="!loading && borrowRecords.length > 0">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="text-muted">共 <span x-text="filteredRecords.length"></span> 条借阅记录</span>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" :class="{ 'active': sortBy === 'borrowDate' }" @click="sortBy = 'borrowDate'">
+                        借阅时间
+                    </button>
+                    <button class="btn btn-outline-secondary" :class="{ 'active': sortBy === 'returnDate' }" @click="sortBy = 'returnDate'">
+                        归还时间
+                    </button>
+                </div>
+            </div>
+            
+            <div class="borrow-list">
+                <template x-for="record in filteredRecords" :key="record.id">
+                    <div class="card borrow-card">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-3">
+                                    <div class="book-cover">
+                                        <i class="bi bi-book text-primary" style="font-size: 3rem;"></i>
+                                    </div>
+                                </div>
+                                <div class="col-9">
+                                    <h5 class="card-title" x-text="record.bookTitle"></h5>
+                                    <p class="card-text text-muted mb-1">
+                                        <i class="bi bi-person"></i> <span x-text="record.author"></span>
+                                    </p>
+                                    <p class="card-text text-muted mb-1">
+                                        <i class="bi bi-calendar"></i> 借阅时间：<span x-text="formatDate(record.borrowDate)"></span>
+                                    </p>
+                                    <p class="card-text text-muted mb-1">
+                                        <i class="bi bi-calendar-check"></i> 应还时间：<span x-text="formatDate(record.dueDate)"></span>
+                                    </p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="badge" :class="{
+                                            'bg-primary': record.status === '借阅中',
+                                            'bg-success': record.status === '已归还',
+                                            'bg-danger': record.status === '逾期'
+                                        }" x-text="record.status"></span>
+                                        <div>
+                                            <button class="btn btn-sm btn-outline-info me-1" @click="showRecordDetail(record)">
+                                                <i class="bi bi-eye"></i> 详情
+                                            </button>
+                                            <button x-show="record.status === '借阅中'" class="btn btn-sm btn-outline-warning" @click="renewBook(record)">
+                                                <i class="bi bi-arrow-clockwise"></i> 续借
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+        
+        <div x-show="loading" class="loading">
+            <div class="spinner-border" role="status"></div>
+        </div>
+        
+        <div x-show="!loading && borrowRecords.length === 0" class="empty-state">
+            <div class="empty-icon"><i class="bi bi-journal-check"></i></div>
+            <h3>暂无借阅记录</h3>
+            <p>您还没有借阅过任何图书</p>
+        </div>
     </div>
-  </div>
 
-  <script>
-    function borrowPage() {
-      return {
-        ...H5Components.pullToRefresh(),
-        
-        // 数据状态
-        records: [],
-        stats: {
-          borrowing: 0,
-          overdue: 0,
-          returned: 0
-        },
-        
-        // UI状态
-        loading: false,
-        activeFilter: 'all',
-        submittingId: null,
-        renewingId: null,
-        
-        // 计算属性
-        get filteredRecords() {
-          switch (this.activeFilter) {
-            case 'borrowed':
-              return this.records.filter(r => !r.returnDate && !this.isOverdue(r));
-            case 'overdue':
-              return this.records.filter(r => !r.returnDate && this.isOverdue(r));
-            case 'returned':
-              return this.records.filter(r => r.returnDate);
-            default:
-              return this.records;
-          }
-        },
-        
-        // 初始化
-        async init() {
-          console.log('[借阅页面] 初始化');
-          
-          try {
-            // 设置下拉刷新
-            this.setupPullToRefresh();
-            
-            // 加载借阅记录
-            await this.loadRecords();
-            
-            console.log('[借阅页面] 初始化完成');
-            
-          } catch (error) {
-            console.error('[借阅页面] 初始化失败:', error);
-            H5Toast.error('页面加载失败，请刷新重试');
-          }
-        },
-        
-        // 加载借阅记录
-        async loadRecords() {
-          if (this.loading) return;
-          
-          this.loading = true;
-          
-          try {
-            const response = await H5API.borrows.list();
-            
-            if (response.success) {
-              this.records = response.borrows || [];
-              this.calculateStats();
-              
-              console.log(`[借阅页面] 加载了 ${this.records.length} 条借阅记录`);
-              
-            } else {
-              throw new Error(response.message || '加载失败');
+    <script src="https://cdn.jsdelivr.net/npm/less@4.1.3/dist/less.min.js"></script>
+    
+    <script>
+        function borrowApp() {
+            return {
+                filterStatus: '',
+                sortBy: 'borrowDate',
+                borrowRecords: [],
+                loading: false,
+                
+                init() {
+                    this.loadBorrowRecords();
+                },
+                
+                async loadBorrowRecords() {
+                    this.loading = true;
+                    
+                    try {
+                        await this.simulateLoadRecords();
+                    } catch (error) {
+                        console.error('加载借阅记录失败:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                simulateLoadRecords() {
+                    return new Promise((resolve) => {
+                        setTimeout(() => {
+                            const mockRecords = [
+                                {
+                                    id: 1,
+                                    bookTitle: 'JavaScript高级程序设计',
+                                    author: 'Nicholas C. Zakas',
+                                    borrowDate: '2024-01-15',
+                                    dueDate: '2024-02-15',
+                                    returnDate: null,
+                                    status: '借阅中',
+                                    isbn: '9787115545381'
+                                },
+                                {
+                                    id: 2,
+                                    bookTitle: '百年孤独',
+                                    author: '加西亚·马尔克斯',
+                                    borrowDate: '2024-01-10',
+                                    dueDate: '2024-02-10',
+                                    returnDate: '2024-02-05',
+                                    status: '已归还',
+                                    isbn: '9787544253994'
+                                },
+                                {
+                                    id: 3,
+                                    bookTitle: '人类简史',
+                                    author: '尤瓦尔·赫拉利',
+                                    borrowDate: '2024-01-05',
+                                    dueDate: '2024-02-05',
+                                    returnDate: null,
+                                    status: '逾期',
+                                    isbn: '9787508640757'
+                                }
+                            ];
+                            
+                            this.borrowRecords = mockRecords;
+                            resolve();
+                        }, 1000);
+                    });
+                },
+                
+                refreshRecords() {
+                    this.loadBorrowRecords();
+                },
+                
+                showRecordDetail(record) {
+                    const detail = `借阅详情：
+书名：${record.bookTitle}
+作者：${record.author}
+ISBN：${record.isbn}
+借阅时间：${this.formatDate(record.borrowDate)}
+应还时间：${this.formatDate(record.dueDate)}
+状态：${record.status}`;
+                    
+                    if (record.returnDate) {
+                        detail += `\n归还时间：${this.formatDate(record.returnDate)}`;
+                    }
+                    
+                    alert(detail);
+                },
+                
+                renewBook(record) {
+                    if (confirm(`确定要续借《${record.bookTitle}》吗？`)) {
+                        // 模拟续借操作
+                        const newDueDate = new Date(record.dueDate);
+                        newDueDate.setDate(newDueDate.getDate() + 30);
+                        record.dueDate = newDueDate.toISOString().split('T')[0];
+                        
+                        alert('续借成功！新的归还时间为：' + this.formatDate(record.dueDate));
+                    }
+                },
+                
+                formatDate(dateString) {
+                    if (!dateString) return '未设置';
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('zh-CN');
+                },
+                
+                get filteredRecords() {
+                    let filtered = this.borrowRecords;
+                    
+                    if (this.filterStatus) {
+                        filtered = filtered.filter(record => record.status === this.filterStatus);
+                    }
+                    
+                    // 排序
+                    filtered = _.orderBy(filtered, [this.sortBy], ['desc']);
+                    
+                    return filtered;
+                }
             }
-            
-          } catch (error) {
-            console.error('[借阅页面] 借阅记录加载失败:', error);
-            H5Toast.error('借阅记录加载失败，请检查网络连接');
-          } finally {
-            this.loading = false;
-          }
-        },
-        
-        // 计算统计信息
-        calculateStats() {
-          let borrowing = 0;
-          let overdue = 0;
-          let returned = 0;
-          
-          this.records.forEach(record => {
-            if (record.returnDate) {
-              returned++;
-            } else if (this.isOverdue(record)) {
-              overdue++;
-            } else {
-              borrowing++;
-            }
-          });
-          
-          this.stats = { borrowing, overdue, returned };
-        },
-        
-        // 设置过滤器
-        setFilter(filter) {
-          if (this.activeFilter === filter) return;
-          
-          this.activeFilter = filter;
-          H5Utils.hapticFeedback('light');
-        },
-        
-        // 归还图书
-        async returnBook(record) {
-          if (this.submittingId === record.id) return;
-          
-          console.log('[借阅页面] 归还图书:', record.bookTitle);
-          
-          this.submittingId = record.id;
-          H5Utils.hapticFeedback('light');
-          
-          try {
-            const response = await H5API.borrows.return(record.id);
-            
-            if (response.success) {
-              // 更新记录状态
-              record.returnDate = new Date().toISOString().split('T')[0];
-              this.calculateStats();
-              
-              H5Toast.success(`成功归还《${record.bookTitle}》`);
-              H5Utils.hapticFeedback('success');
-              
-            } else {
-              throw new Error(response.message || '归还失败');
-            }
-            
-          } catch (error) {
-            console.error('[借阅页面] 归还失败:', error);
-            H5Toast.error(error.message || '归还失败，请稍后重试');
-            H5Utils.hapticFeedback('error');
-          } finally {
-            this.submittingId = null;
-          }
-        },
-        
-        // 续借图书
-        async renewBook(record) {
-          if (this.renewingId === record.id) return;
-          
-          console.log('[借阅页面] 续借图书:', record.bookTitle);
-          
-          this.renewingId = record.id;
-          H5Utils.hapticFeedback('light');
-          
-          try {
-            const response = await H5API.borrows.renew(record.id);
-            
-            if (response.success) {
-              // 更新到期日期
-              record.dueDate = response.newDueDate;
-              this.calculateStats();
-              
-              H5Toast.success(`成功续借《${record.bookTitle}》`);
-              H5Utils.hapticFeedback('success');
-              
-            } else {
-              throw new Error(response.message || '续借失败');
-            }
-            
-          } catch (error) {
-            console.error('[借阅页面] 续借失败:', error);
-            H5Toast.error(error.message || '续借失败，请稍后重试');
-            H5Utils.hapticFeedback('error');
-          } finally {
-            this.renewingId = null;
-          }
-        },
-        
-        // 显示图书详情
-        showBookDetail(record) {
-          H5Utils.hapticFeedback('light');
-          H5Toast.info(`《${record.bookTitle}》详情功能开发中...`);
-        },
-        
-        // 刷新数据（覆盖 pullToRefresh mixin 的方法）
-        async onRefresh() {
-          console.log('[借阅页面] 下拉刷新');
-          
-          try {
-            await this.loadRecords();
-            H5Toast.success('刷新成功');
-          } catch (error) {
-            console.error('[借阅页面] 刷新失败:', error);
-            H5Toast.error('刷新失败，请稍后重试');
-          }
-        },
-        
-        // 刷新记录
-        async refreshRecords() {
-          H5Utils.hapticFeedback('light');
-          await this.onRefresh();
-        },
-        
-        // 辅助方法
-        isOverdue(record) {
-          if (record.returnDate) return false;
-          const today = new Date();
-          const due = new Date(record.dueDate);
-          return today > due;
-        },
-        
-        canRenew(record) {
-          // 一般图书可以续借一次，这里简化逻辑
-          return !record.returnDate && !this.isOverdue(record);
-        },
-        
-        getRemainingDays(record) {
-          if (record.returnDate) return 0;
-          const today = new Date();
-          const due = new Date(record.dueDate);
-          const diff = due - today;
-          return Math.ceil(diff / (1000 * 60 * 60 * 24));
-        },
-        
-        getRemainingDaysText(record) {
-          if (record.returnDate) return '已归还';
-          const days = this.getRemainingDays(record);
-          if (days < 0) return `逾期 ${Math.abs(days)} 天`;
-          if (days === 0) return '今天到期';
-          return `还有 ${days} 天`;
-        },
-        
-        getStatusClass(record) {
-          if (record.returnDate) return 'returned';
-          if (this.isOverdue(record)) return 'overdue';
-          return 'borrowed';
-        },
-        
-        getStatusIcon(record) {
-          if (record.returnDate) return 'bi-check-circle-fill';
-          if (this.isOverdue(record)) return 'bi-exclamation-triangle-fill';
-          return 'bi-clock-fill';
-        },
-        
-        getStatusText(record) {
-          if (record.returnDate) return '已归还';
-          if (this.isOverdue(record)) return '逾期';
-          return '借阅中';
         }
-      }
-    }
-  </script>
+    </script>
 </body>
-</html>
+</html> 

@@ -88,15 +88,22 @@ export async function handleRoutes(req, url) {
     return await handleStaticCache(req, filePath);
   }
 
+  // 处理CSS和Less文件
+  if (url.pathname.startsWith("/css/")) {
+    const filePath = `front${url.pathname}`; // 映射到front/css目录下
+    return await handleStaticCache(req, filePath);
+  }
+
+  // 处理JS文件
+  if (url.pathname.startsWith("/js/")) {
+    const filePath = `front${url.pathname}`; // 映射到front/js目录下
+    return await handleStaticCache(req, filePath);
+  }
+
   // 处理其他静态文件
-  if (url.pathname.startsWith("/assert/")
-  ) {
+  if (url.pathname.startsWith("/assert/")) {
     // 如果请求的是 assert 目录下的资源，则映射到前端目录下
-    const filePath = url.pathname.startsWith("/assert/")
-      ? `front${url.pathname}`
-      : url.pathname.startsWith("/pwa/")
-        ? `front-pwa${url.pathname.substring(4)}`
-        : url.pathname.substring(1); // 移除开头的 "/"
+    const filePath = `front${url.pathname}`;
     return await handleStaticCache(req, filePath);
   }
 
@@ -371,4 +378,6 @@ async function handleGetNotifications(req) {
       headers: { "Content-Type": "application/json" }
     });
   }
-} 
+}
+
+ 

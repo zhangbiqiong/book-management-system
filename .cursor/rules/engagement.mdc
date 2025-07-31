@@ -3,8 +3,21 @@ alwaysApply: true
 ---
 
 整个项目分成如下两部分
-management -- 管理员后台
-pwa -- 普通用户手机
+## management 
+管理员后台  管理员 使用 PC 访问 https://localhost:3000
+使用
+cd /home/zhangbq/book-management-system/management && bun run dev-management
+来启动
 
-管理员 使用 PC 访问 https://localhost:3000
-普通用户 使用 手机  访问 https://localhost:6000
+
+
+
+
+## pwa 
+普通用户 使用 手机  访问 https://localhost:3001
+使用
+cd /home/zhangbq/book-management-system/pwa && bun run dev-pwa
+来启动
+
+
+

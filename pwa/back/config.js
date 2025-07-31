@@ -8,7 +8,7 @@ export const JWT_EXPIRES_IN = 60 * 60 * 24; // 1天，单位秒
 export const JWT_BLACKLIST_PREFIX = "jwt_blacklist:";
 
 // 服务器配置
-export const SERVER_PORT = 6000;
+export const SERVER_PORT = 3001;
 
 // 后台任务配置
 export const TASK_UPDATE_INTERVAL = 60 * 1000; // 60秒 = 1分钟
