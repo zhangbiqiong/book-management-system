@@ -35,10 +35,12 @@
                 <div class="col-6">
                     <select class="form-select" x-model="filterCategory">
                         <option value="">全部分类</option>
-                        <option value="文学">文学</option>
+                        <option value="古典文学">古典文学</option>
+                        <option value="现代文学">现代文学</option>
                         <option value="科技">科技</option>
                         <option value="历史">历史</option>
                         <option value="艺术">艺术</option>
+                        <option value="教育">教育</option>
                     </select>
                 </div>
                 <div class="col-6">
@@ -46,7 +48,6 @@
                         <option value="">全部状态</option>
                         <option value="可借">可借</option>
                         <option value="已借出">已借出</option>
-                        <option value="预约中">预约中</option>
                     </select>
                 </div>
             </div>
@@ -55,6 +56,17 @@
         <div x-show="!loading && books.length > 0">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <span class="text-muted">找到 <span x-text="filteredBooks.length"></span> 本图书</span>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" :class="{ 'active': sortBy === 'title' }" @click="sortBy = 'title'">
+                        书名
+                    </button>
+                    <button class="btn btn-outline-secondary" :class="{ 'active': sortBy === 'author' }" @click="sortBy = 'author'">
+                        作者
+                    </button>
+                    <button class="btn btn-outline-secondary" :class="{ 'active': sortBy === 'publishDate' }" @click="sortBy = 'publishDate'">
+                        出版日期
+                    </button>
+                </div>
             </div>
             
             <div class="book-list">
@@ -73,26 +85,54 @@
                                         <i class="bi bi-person"></i> <span x-text="book.author"></span>
                                     </p>
                                     <p class="card-text text-muted mb-1">
-                                        <i class="bi bi-tag"></i> <span x-text="book.category"></span>
+                                        <i class="bi bi-tag"></i> <span x-text="book.category || '未分类'"></span>
                                     </p>
-                                    <p class="card-text text-muted mb-2">
+                                    <p class="card-text text-muted mb-1">
                                         <i class="bi bi-upc"></i> <span x-text="book.isbn"></span>
+                                    </p>
+                                    <p class="card-text text-muted mb-1">
+                                        <i class="bi bi-building"></i> <span x-text="book.publisher"></span>
                                     </p>
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span class="badge" :class="{
-                                            'bg-success': book.status === '可借',
-                                            'bg-warning': book.status === '已借出',
-                                            'bg-info': book.status === '预约中'
-                                        }" x-text="book.status"></span>
-                                        <button class="btn btn-sm btn-outline-primary" @click="showBookDetail(book)">
-                                            <i class="bi bi-eye"></i> 详情
-                                        </button>
+                                            'bg-success': book.stock > 0,
+                                            'bg-warning': book.stock === 0
+                                        }" x-text="book.stock > 0 ? '可借' : '已借出'"></span>
+                                        <div>
+                                            <span class="text-muted me-2">库存: <span x-text="book.stock"></span></span>
+                                            <button class="btn btn-sm btn-outline-primary" @click="showBookDetail(book)">
+                                                <i class="bi bi-eye"></i> 详情
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </template>
+            </div>
+            
+            <!-- 分页 -->
+            <div x-show="pagination && pagination.totalPages > 1" class="d-flex justify-content-center mt-3">
+                <nav>
+                    <ul class="pagination">
+                        <li class="page-item" :class="{ 'disabled': pagination.page <= 1 }">
+                            <button class="page-link" @click="changePage(pagination.page - 1)" :disabled="pagination.page <= 1">
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+                        </li>
+                        <template x-for="page in getPageNumbers()" :key="page">
+                            <li class="page-item" :class="{ 'active': page === pagination.page }">
+                                <button class="page-link" @click="changePage(page)" x-text="page"></button>
+                            </li>
+                        </template>
+                        <li class="page-item" :class="{ 'disabled': pagination.page >= pagination.totalPages }">
+                            <button class="page-link" @click="changePage(pagination.page + 1)" :disabled="pagination.page >= pagination.totalPages">
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </li>
+                    </ul>
+                </nav>
             </div>
         </div>
         
@@ -113,7 +153,41 @@
         </div>
     </div>
 
+    <!-- 图书详情模态框 -->
+    <div class="modal fade" id="bookDetailModal" tabindex="-1" x-data="{ selectedBook: null }" @showBookDetail.window="selectedBook = $event.detail">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">图书详情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div x-show="selectedBook">
+                        <div class="row">
+                            <div class="col-md-4 text-center">
+                                <i class="bi bi-book text-primary" style="font-size: 5rem;"></i>
+                            </div>
+                            <div class="col-md-8">
+                                <h4 x-text="selectedBook.title"></h4>
+                                <p><strong>作者：</strong><span x-text="selectedBook.author"></span></p>
+                                <p><strong>出版社：</strong><span x-text="selectedBook.publisher"></span></p>
+                                <p><strong>ISBN：</strong><span x-text="selectedBook.isbn"></span></p>
+                                <p><strong>分类：</strong><span x-text="selectedBook.category || '未分类'"></span></p>
+                                <p><strong>出版日期：</strong><span x-text="AppUtils.formatDate(selectedBook.publishDate)"></span></p>
+                                <p><strong>价格：</strong><span x-text="'¥' + selectedBook.price"></span></p>
+                                <p><strong>库存：</strong><span x-text="selectedBook.stock"></span></p>
+                                <p x-show="selectedBook.description"><strong>简介：</strong><span x-text="selectedBook.description"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/less@4.1.3/dist/less.min.js"></script>
+    <!-- 通用工具 -->
+    <script src="js/app.js"></script>
     
     <script>
         function bookApp() {
@@ -121,79 +195,106 @@
                 searchQuery: '',
                 filterCategory: '',
                 filterStatus: '',
+                sortBy: 'title',
+                sortOrder: 'asc',
                 books: [],
+                pagination: null,
                 loading: false,
                 hasSearched: false,
+                currentPage: 1,
+                pageSize: 10,
                 
                 init() {
-                    this.loadMockBooks();
+                    // 检查登录状态
+                    if (!UserManager.isLoggedIn()) {
+                        window.location.href = 'login.html';
+                        return;
+                    }
+                    
+                    // 加载初始数据
+                    this.loadBooks();
                 },
                 
                 async searchBooks() {
-                    if (!this.searchQuery.trim()) return;
-                    
+                    this.currentPage = 1;
+                    await this.loadBooks();
+                },
+                
+                async loadBooks() {
                     this.loading = true;
                     this.hasSearched = true;
                     
                     try {
-                        await this.simulateSearch();
+                        const params = {
+                            page: this.currentPage,
+                            pageSize: this.pageSize,
+                            sortBy: this.sortBy,
+                            sortOrder: this.sortOrder
+                        };
+                        
+                        if (this.searchQuery.trim()) {
+                            params.search = this.searchQuery.trim();
+                        }
+                        
+                        const response = await ApiService.getBooks(params);
+                        
+                        if (response.success) {
+                            this.books = response.data || [];
+                            this.pagination = response.pagination;
+                        } else {
+                            throw new Error(response.message || '获取图书列表失败');
+                        }
+                        
                     } catch (error) {
-                        console.error('搜索失败:', error);
+                        console.error('获取图书列表失败:', error);
+                        AppUtils.showMessage(error.message, 'error');
+                        this.books = [];
+                        this.pagination = null;
                     } finally {
                         this.loading = false;
                     }
                 },
                 
-                simulateSearch() {
-                    return new Promise((resolve) => {
-                        setTimeout(() => {
-                            const mockBooks = [
-                                {
-                                    id: 1,
-                                    title: 'JavaScript高级程序设计',
-                                    author: 'Nicholas C. Zakas',
-                                    category: '科技',
-                                    isbn: '9787115545381',
-                                    status: '可借',
-                                    description: 'JavaScript经典教程'
-                                },
-                                {
-                                    id: 2,
-                                    title: '百年孤独',
-                                    author: '加西亚·马尔克斯',
-                                    category: '文学',
-                                    isbn: '9787544253994',
-                                    status: '已借出',
-                                    description: '魔幻现实主义文学代表作'
-                                },
-                                {
-                                    id: 3,
-                                    title: '人类简史',
-                                    author: '尤瓦尔·赫拉利',
-                                    category: '历史',
-                                    isbn: '9787508640757',
-                                    status: '可借',
-                                    description: '重新解读人类发展历程'
-                                }
-                            ];
-                            
-                            this.books = mockBooks.filter(book => 
-                                book.title.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-                                book.author.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-                                book.isbn.includes(this.searchQuery)
-                            );
-                            
-                            resolve();
-                        }, 1000);
-                    });
+                async changePage(page) {
+                    if (page >= 1 && page <= this.pagination.totalPages) {
+                        this.currentPage = page;
+                        await this.loadBooks();
+                    }
                 },
                 
-                loadMockBooks() {
-                    this.books = [];
+                getPageNumbers() {
+                    if (!this.pagination) return [];
+                    
+                    const totalPages = this.pagination.totalPages;
+                    const currentPage = this.pagination.page;
+                    const pages = [];
+                    
+                    // 显示最多5页
+                    let start = Math.max(1, currentPage - 2);
+                    let end = Math.min(totalPages, currentPage + 2);
+                    
+                    if (end - start < 4) {
+                        if (start === 1) {
+                            end = Math.min(totalPages, start + 4);
+                        } else {
+                            start = Math.max(1, end - 4);
+                        }
+                    }
+                    
+                    for (let i = start; i <= end; i++) {
+                        pages.push(i);
+                    }
+                    
+                    return pages;
                 },
                 
                 showBookDetail(book) {
-                    alert(`图书详情：\n书名：${book.title}\n作者：${book.author}\n分类：${book.category}\nISBN：${book.isbn}\n状态：${book.status}`);
+                    // 使用Alpine.js的事件系统传递数据
+                    document.dispatchEvent(new CustomEvent('showBookDetail', { detail: book }));
+                    
+                    // 使用Bootstrap模态框显示详情
+                    const modal = new bootstrap.Modal(document.getElementById('bookDetailModal'));
+                    modal.show();
                 },
                 
                 get filteredBooks() {
@@ -204,7 +305,11 @@
                     }
                     
                     if (this.filterStatus) {
-                        filtered = filtered.filter(book => book.status === this.filterStatus);
+                        if (this.filterStatus === '可借') {
+                            filtered = filtered.filter(book => book.stock > 0);
+                        } else if (this.filterStatus === '已借出') {
+                            filtered = filtered.filter(book => book.stock === 0);
+                        }
                     }
                     
                     return filtered;

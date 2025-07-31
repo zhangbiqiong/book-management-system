@@ -82,6 +82,40 @@ export async function handleRoutes(req, url) {
     return await handleFaviconCache(req);
   }
 
+  // 处理Chrome DevTools请求
+  if (url.pathname === "/.well-known/appspecific/com.chrome.devtools.json") {
+    return new Response(JSON.stringify({
+      workspace: {
+        root: process.cwd(),
+        uuid: 'book-management-system-pwa'
+      }
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
+  }
+
+  // 处理Chrome DevTools源码路径请求
+  if (url.pathname.startsWith("/src:")) {
+    return new Response(JSON.stringify({
+      error: "Source code access not available",
+      message: "This is a production server, source code access is disabled"
+    }), {
+      status: 403,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
+  }
+
   // 处理公共资源文件
   if (url.pathname === "/common.css" || url.pathname === "/common.js" || url.pathname === "/common.less") {
     const filePath = `front${url.pathname}`; // 映射到front目录下

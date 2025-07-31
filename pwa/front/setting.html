@@ -30,40 +30,28 @@
                     </div>
                     
                     <div class="form-group">
-                        <label for="realName" class="form-label">真实姓名 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="realName" x-model="form.realName" placeholder="请输入您的真实姓名" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="workplace" class="form-label">工作单位 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="workplace" x-model="form.workplace" placeholder="请输入您的工作单位" required>
-                    </div>
-                    
-                    <div class="form-group">
                         <label for="email" class="form-label">邮箱地址</label>
-                        <input type="email" class="form-control" id="email" x-model="form.email" placeholder="请输入您的邮箱地址">
+                        <input type="email" class="form-control" id="email" x-model="form.email" placeholder="请输入您的邮箱地址" readonly>
+                        <div class="form-text">邮箱地址不可修改</div>
                     </div>
                     
                     <div class="form-group">
-                        <label for="phone" class="form-label">手机号码</label>
-                        <input type="tel" class="form-control" id="phone" x-model="form.phone" placeholder="请输入您的手机号码">
+                        <label for="role" class="form-label">用户角色</label>
+                        <input type="text" class="form-control" id="role" x-model="form.role" readonly>
+                        <div class="form-text">用户角色不可修改</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="status" class="form-label">账户状态</label>
+                        <input type="text" class="form-control" id="status" x-model="form.status" readonly>
+                        <div class="form-text">账户状态不可修改</div>
                     </div>
                 </div>
             </div>
             
             <div class="d-grid gap-2">
-                <button type="submit" class="btn btn-primary" :disabled="loading">
-                    <span x-show="!loading">
-                        <i class="bi bi-check-circle"></i> 保存设置
-                    </span>
-                    <span x-show="loading">
-                        <div class="spinner-border spinner-border-sm me-2"></div>
-                        保存中...
-                    </span>
-                </button>
-                
-                <button type="button" class="btn btn-outline-secondary" @click="resetForm">
-                    <i class="bi bi-arrow-clockwise"></i> 重置
+                <button type="button" class="btn btn-outline-secondary" @click="refreshUserInfo">
+                    <i class="bi bi-arrow-clockwise"></i> 刷新信息
                 </button>
             </div>
         </form>
@@ -74,7 +62,7 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <button type="button" class="btn btn-outline-warning" @click="changePassword">
+                    <button type="button" class="btn btn-outline-warning" @click="showChangePasswordModal">
                         <i class="bi bi-key"></i> 修改密码
                     </button>
                     
@@ -86,123 +74,200 @@
         </div>
     </div>
 
+    <!-- 修改密码模态框 -->
+    <div class="modal fade" id="changePasswordModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">修改密码</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" x-data="passwordForm()">
+                    <form @submit.prevent="handleChangePassword">
+                        <div class="mb-3">
+                            <label for="oldPassword" class="form-label">当前密码</label>
+                            <input type="password" class="form-control" id="oldPassword" x-model="form.oldPassword" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newPassword" class="form-label">新密码</label>
+                            <input type="password" class="form-control" id="newPassword" x-model="form.newPassword" required>
+                            <div class="form-text">密码长度至少6位</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label">确认新密码</label>
+                            <input type="password" class="form-control" id="confirmPassword" x-model="form.confirmPassword" required>
+                        </div>
+                        
+                        <div x-show="error" class="alert alert-danger" role="alert">
+                            <span x-text="error"></span>
+                        </div>
+                        
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                            <button type="submit" class="btn btn-primary" :disabled="loading">
+                                <span x-show="!loading">确认修改</span>
+                                <span x-show="loading">
+                                    <div class="spinner-border spinner-border-sm me-2"></div>
+                                    修改中...
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/less@4.1.3/dist/less.min.js"></script>
+    <!-- 通用工具 -->
+    <script src="js/app.js"></script>
     
     <script>
         function settingApp() {
             return {
                 form: {
                     username: '',
-                    realName: '',
-                    workplace: '',
                     email: '',
-                    phone: ''
+                    role: '',
+                    status: ''
                 },
                 loading: false,
-                originalForm: null,
                 
                 init() {
+                    // 检查登录状态
+                    if (!UserManager.isLoggedIn()) {
+                        window.location.href = 'login.html';
+                        return;
+                    }
+                    
                     this.loadUserInfo();
-                    this.loadUserSettings();
                 },
                 
-                loadUserInfo() {
-                    const userStr = localStorage.getItem('user');
-                    if (userStr) {
-                        const user = JSON.parse(userStr);
-                        this.form.username = user.username || '';
-                    }
-                },
-                
-                async loadUserSettings() {
+                async loadUserInfo() {
                     this.loading = true;
                     
                     try {
-                        await this.simulateLoadSettings();
-                        this.originalForm = JSON.parse(JSON.stringify(this.form));
-                    } catch (error) {
-                        console.error('加载设置失败:', error);
-                    } finally {
-                        this.loading = false;
-                    }
-                },
-                
-                simulateLoadSettings() {
-                    return new Promise((resolve) => {
-                        setTimeout(() => {
-                            const mockSettings = {
-                                realName: '张三',
-                                workplace: '某某科技有限公司',
-                                email: 'zhangsan@example.com',
-                                phone: '13800138000'
-                            };
-                            
-                            Object.assign(this.form, mockSettings);
-                            resolve();
-                        }, 500);
-                    });
-                },
-                
-                async saveSettings() {
-                    this.loading = true;
-                    
-                    try {
-                        await this.simulateSaveSettings();
-                        alert('设置保存成功！');
-                        this.originalForm = JSON.parse(JSON.stringify(this.form));
-                    } catch (error) {
-                        alert('保存失败：' + error.message);
-                    } finally {
-                        this.loading = false;
-                    }
-                },
-                
-                simulateSaveSettings() {
-                    return new Promise((resolve, reject) => {
-                        setTimeout(() => {
-                            if (!this.form.realName || !this.form.workplace) {
-                                reject(new Error('请填写必填项'));
-                                return;
-                            }
-                            
-                            localStorage.setItem('userSettings', JSON.stringify(this.form));
-                            resolve();
-                        }, 1000);
-                    });
-                },
-                
-                resetForm() {
-                    if (confirm('确定要重置所有设置吗？')) {
-                        if (this.originalForm) {
-                            this.form = JSON.parse(JSON.stringify(this.originalForm));
-                        }
-                    }
-                },
-                
-                changePassword() {
-                    const newPassword = prompt('请输入新密码：');
-                    if (newPassword) {
-                        const confirmPassword = prompt('请确认新密码：');
-                        if (newPassword === confirmPassword) {
-                            alert('密码修改成功！');
-                        } else {
-                            alert('两次输入的密码不一致！');
-                        }
-                    }
-                },
-                
-                logout() {
-                    if (confirm('确定要退出登录吗？')) {
-                        localStorage.removeItem('user');
-                        localStorage.removeItem('userSettings');
+                        const response = await ApiService.getCurrentUser();
                         
-                        if (window.parent) {
-                            window.parent.postMessage({
-                                type: 'LOGOUT'
-                            }, '*');
+                        if (response.success) {
+                            this.form = {
+                                username: response.user.username || '',
+                                email: response.user.email || '',
+                                role: this.getRoleText(response.user.role) || '',
+                                status: this.getStatusText(response.user.status) || ''
+                            };
                         } else {
-                            window.location.href = 'login.html';
+                            throw new Error(response.message || '获取用户信息失败');
                         }
+                        
+                    } catch (error) {
+                        console.error('获取用户信息失败:', error);
+                        AppUtils.showMessage(error.message, 'error');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                async refreshUserInfo() {
+                    await this.loadUserInfo();
+                    AppUtils.showMessage('用户信息已刷新', 'success');
+                },
+                
+                showChangePasswordModal() {
+                    const modal = new bootstrap.Modal(document.getElementById('changePasswordModal'));
+                    modal.show();
+                },
+                
+                async logout() {
+                    if (confirm('确定要退出登录吗？')) {
+                        await UserManager.logout();
+                    }
+                },
+                
+                getRoleText(role) {
+                    const roleMap = {
+                        'admin': '管理员',
+                        'user': '普通用户'
+                    };
+                    return roleMap[role] || role;
+                },
+                
+                getStatusText(status) {
+                    const statusMap = {
+                        'enabled': '正常',
+                        'disabled': '已禁用'
+                    };
+                    return statusMap[status] || status;
+                }
+            }
+        }
+        
+        function passwordForm() {
+            return {
+                form: {
+                    oldPassword: '',
+                    newPassword: '',
+                    confirmPassword: ''
+                },
+                loading: false,
+                error: '',
+                
+                async handleChangePassword() {
+                    this.loading = true;
+                    this.error = '';
+                    
+                    try {
+                        // 验证表单
+                        if (!this.form.oldPassword || !this.form.newPassword || !this.form.confirmPassword) {
+                            throw new Error('请填写所有密码字段');
+                        }
+                        
+                        if (this.form.newPassword.length < 6) {
+                            throw new Error('新密码长度至少6位');
+                        }
+                        
+                        if (this.form.newPassword !== this.form.confirmPassword) {
+                            throw new Error('两次输入的新密码不一致');
+                        }
+                        
+                        // 获取当前用户名
+                        const currentUser = UserManager.getCurrentUser();
+                        if (!currentUser || !currentUser.username) {
+                            throw new Error('无法获取当前用户信息');
+                        }
+                        
+                        // 调用修改密码API
+                        const response = await ApiService.request('/change-password', {
+                            method: 'POST',
+                            data: {
+                                username: currentUser.username,
+                                oldPassword: this.form.oldPassword,
+                                newPassword: this.form.newPassword
+                            }
+                        });
+                        
+                        if (response.success) {
+                            AppUtils.showMessage('密码修改成功', 'success');
+                            
+                            // 关闭模态框
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
+                            modal.hide();
+                            
+                            // 清空表单
+                            this.form = {
+                                oldPassword: '',
+                                newPassword: '',
+                                confirmPassword: ''
+                            };
+                        } else {
+                            throw new Error(response.message || '密码修改失败');
+                        }
+                        
+                    } catch (error) {
+                        console.error('修改密码失败:', error);
+                        this.error = error.message;
+                    } finally {
+                        this.loading = false;
                     }
                 }
             }

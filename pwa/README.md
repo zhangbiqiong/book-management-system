@@ -1,38 +1,43 @@
 # 图书管理系统 - 移动端
 
-这是一个专为手机浏览器设计的图书管理系统前端界面。
+这是一个专为手机浏览器设计的图书管理系统前端界面，现已集成真实的API调用。
 
 ## 功能特性
 
 ### 🔐 用户认证
 - 登录页面 (`login.html`)
 - 用户名/密码验证
+- JWT Token认证
 - 登录状态保持
 - 自动跳转到主页
 
 ### 📱 主界面 (`index.html`)
 - 响应式设计，适配手机屏幕
-- 顶部标题栏
+- 顶部标题栏（显示用户信息）
 - 中间内容区域（iframe）
 - 底部导航菜单
+- 实时认证状态检查
 
 ### 📚 图书查询 (`book.html`)
 - 图书搜索功能
 - 按分类和状态筛选
 - 图书详情查看
 - 搜索结果展示
+- 分页功能
+- 排序功能
 
 ### 📖 借阅记录 (`borrow.html`)
 - 查看个人借阅历史
 - 按状态筛选记录
 - 图书续借功能
 - 借阅详情查看
+- 分页功能
+- 排序功能
 
 ### ⚙️ 个人设置 (`setting.html`)
 - 个人信息管理
-- 真实姓名设置
-- 工作单位设置
-- 联系方式管理
+- 用户角色显示
+- 账户状态显示
 - 密码修改
 - 退出登录
 
@@ -45,6 +50,24 @@
 - **Axios** - HTTP请求
 - **Lodash** - 工具函数库
 
+## API集成
+
+### 真实API调用
+系统现已完全集成真实的API调用，包括：
+
+- **认证API**: 登录、登出、获取当前用户信息
+- **图书API**: 获取图书列表、搜索、详情查看
+- **借阅API**: 获取借阅记录、续借、状态更新
+- **用户API**: 获取用户信息、修改密码
+
+### API特性
+- JWT Token认证
+- Cookie管理
+- 自动错误处理
+- 401状态码自动跳转登录
+- 请求/响应拦截
+- 统一的错误提示
+
 ## 文件结构
 
 ```
@@ -52,7 +75,7 @@ pwa/front/
 ├── css/
 │   └── main.less          # 主样式文件
 ├── js/
-│   └── app.js            # 通用JavaScript工具
+│   └── app.js            # 通用JavaScript工具和API服务
 ├── login.html            # 登录页面
 ├── index.html            # 主页面
 ├── book.html             # 图书查询页面
@@ -98,8 +121,50 @@ pwa/front/
 ### 📊 数据管理
 - 本地存储用户信息
 - 页面间数据传递
-- 模拟API调用
+- 真实API调用
 - 状态管理
+
+## API调用示例
+
+### 登录
+```javascript
+const response = await ApiService.login({
+    username: 'admin',
+    password: 'admin'
+});
+```
+
+### 获取图书列表
+```javascript
+const response = await ApiService.getBooks({
+    search: '红楼梦',
+    page: 1,
+    pageSize: 10,
+    sortBy: 'title',
+    sortOrder: 'asc'
+});
+```
+
+### 获取借阅记录
+```javascript
+const response = await ApiService.getBorrows({
+    status: 'borrowed',
+    page: 1,
+    pageSize: 10
+});
+```
+
+### 修改密码
+```javascript
+const response = await ApiService.request('/change-password', {
+    method: 'POST',
+    data: {
+        username: 'admin',
+        oldPassword: 'oldpass',
+        newPassword: 'newpass'
+    }
+});
+```
 
 ## 开发说明
 
@@ -121,6 +186,15 @@ pwa/front/
 - 使用localStorage存储用户数据
 - 通过postMessage进行页面间通信
 - iframe加载子页面内容
+- 真实API调用
+
+### API服务
+`app.js` 中的 `ApiService` 提供：
+- 统一的请求封装
+- JWT Token管理
+- Cookie处理
+- 错误处理
+- 认证状态检查
 
 ## 测试账号
 
@@ -129,15 +203,47 @@ pwa/front/
 
 ## 注意事项
 
-1. 当前版本使用模拟数据，实际使用时需要连接真实的后端API
-2. 确保在手机浏览器中访问以获得最佳体验
-3. 建议使用HTTPS协议以确保安全性
-4. 支持现代浏览器，建议使用Chrome、Safari等主流浏览器
+1. **后端服务**: 确保后端服务运行在 `http://localhost:3000`
+2. **CORS设置**: 后端需要允许前端域名的跨域请求
+3. **HTTPS**: 建议使用HTTPS协议以确保安全性
+4. **浏览器**: 支持现代浏览器，建议使用Chrome、Safari等主流浏览器
+5. **移动端**: 建议在手机浏览器中访问以获得最佳体验
+
+## 错误处理
+
+系统提供完善的错误处理机制：
+
+- **网络错误**: 自动重试和用户提示
+- **认证错误**: 自动跳转到登录页面
+- **权限错误**: 显示权限不足提示
+- **数据错误**: 友好的错误信息显示
+
+### Alpine.js 错误修复
+
+系统已修复以下Alpine.js相关的错误：
+
+- **初始化错误**: 修复了组件未完全初始化时访问`__x.$data`的问题
+- **模态框数据传递**: 使用Alpine.js事件系统安全地传递模态框数据
+- **组件生命周期**: 确保组件完全初始化后再执行相关操作
+
+#### 修复的问题
+1. `login.html:164` - 组件初始化错误
+2. 模态框数据传递错误
+3. Alpine.js组件访问时序问题
+
+#### 解决方案
+- 使用`Alpine.nextTick()`确保组件完全初始化
+- 使用`@event.window`事件系统传递数据
+- 添加安全检查防止访问未初始化的组件
 
 ## 后续开发
 
-- [ ] 连接真实后端API
+- [x] 连接真实后端API
+- [x] 添加JWT认证
+- [x] 实现错误处理
+- [x] 添加加载状态
 - [ ] 添加图书预约功能
 - [ ] 实现消息通知系统
 - [ ] 优化离线体验
-- [ ] 添加更多个性化设置 
+- [ ] 添加更多个性化设置
+- [ ] 实现WebSocket实时通信 

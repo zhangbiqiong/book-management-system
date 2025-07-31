@@ -24,6 +24,10 @@
         <!-- 顶部标题栏 -->
         <div class="header">
             <h1><i class="bi bi-book"></i> 图书管理系统</h1>
+            <div class="user-info" x-show="user">
+                <span class="username" x-text="user.username"></span>
+                <span class="role" x-text="getRoleText(user.role)"></span>
+            </div>
         </div>
         
         <!-- 内容区域 -->
@@ -81,6 +85,8 @@
 
     <!-- Less.js -->
     <script src="https://cdn.jsdelivr.net/npm/less@4.1.3/dist/less.min.js"></script>
+    <!-- 通用工具 -->
+    <script src="js/app.js"></script>
     
     <script>
         function mainApp() {
@@ -88,35 +94,49 @@
                 currentTab: 'book',
                 currentPage: 'book.html',
                 user: null,
+                loading: false,
                 
                 init() {
                     this.checkAuth();
-                    this.loadUserInfo();
                 },
                 
                 // 检查用户认证状态
-                checkAuth() {
-                    const userStr = localStorage.getItem('user');
-                    if (!userStr) {
-                        window.location.href = 'login.html';
-                        return;
-                    }
+                async checkAuth() {
+                    this.loading = true;
                     
                     try {
-                        this.user = JSON.parse(userStr);
-                        if (!this.user.isLoggedIn) {
+                        // 检查本地存储的用户信息
+                        const localUser = UserManager.getCurrentUser();
+                        if (!localUser || !localUser.isLoggedIn) {
                             window.location.href = 'login.html';
+                            return;
                         }
+                        
+                        // 验证服务器端的用户信息
+                        const response = await ApiService.getCurrentUser();
+                        
+                        if (response.success) {
+                            this.user = response.user;
+                            // 更新本地存储的用户信息
+                            UserManager.setCurrentUser({
+                                ...response.user,
+                                isLoggedIn: true,
+                                loginTime: new Date().toISOString()
+                            });
+                        } else {
+                            // 服务器端验证失败，清除本地信息并跳转到登录页
+                            UserManager.logout();
+                            return;
+                        }
+                        
                     } catch (error) {
-                        console.error('解析用户信息失败:', error);
-                        window.location.href = 'login.html';
+                        console.error('认证检查失败:', error);
+                        // 认证失败，跳转到登录页
+                        UserManager.logout();
+                        return;
+                    } finally {
+                        this.loading = false;
                     }
-                },
-                
-                // 加载用户信息
-                loadUserInfo() {
-                    // 这里可以从服务器获取最新的用户信息
-                    console.log('当前用户:', this.user);
                 },
                 
                 // 切换标签页
@@ -158,10 +178,13 @@
                     }
                 },
                 
-                // 退出登录
-                logout() {
-                    localStorage.removeItem('user');
-                    window.location.href = 'login.html';
+                // 获取角色文本
+                getRoleText(role) {
+                    const roleMap = {
+                        'admin': '管理员',
+                        'user': '普通用户'
+                    };
+                    return roleMap[role] || role;
                 }
             }
         }
@@ -169,8 +192,7 @@
         // 监听来自iframe的消息
         window.addEventListener('message', function(event) {
             if (event.data && event.data.type === 'LOGOUT') {
-                localStorage.removeItem('user');
-                window.location.href = 'login.html';
+                UserManager.logout();
             }
         });
     </script>

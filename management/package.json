@@ -4,10 +4,7 @@
   "description": "图书管理系统，支持用户管理、图书管理、登录注册等功能",
   "main": "server.js",
   "scripts": {
-    "start": "bun run server.js",
-    "dev-management": "bun --watch server-management.js",
-    "backup-db": "pg_dump  -h localhost -U postgres  -f dump_book_management.dmp book_management",
-    "restore-db": "psql -h localhost -U postgres -d book_management -f dump_book_management.dmp"
+    "dev-management": "bun --watch server-management.js"
   },
   "dependencies": {
     "bun": "latest",

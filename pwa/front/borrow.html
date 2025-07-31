@@ -25,9 +25,9 @@
                 <div class="col-6">
                     <select class="form-select" x-model="filterStatus">
                         <option value="">全部状态</option>
-                        <option value="借阅中">借阅中</option>
-                        <option value="已归还">已归还</option>
-                        <option value="逾期">逾期</option>
+                        <option value="borrowed">借阅中</option>
+                        <option value="returned">已归还</option>
+                        <option value="overdue">逾期</option>
                     </select>
                 </div>
                 <div class="col-6">
@@ -44,6 +44,9 @@
                 <div class="btn-group btn-group-sm">
                     <button class="btn btn-outline-secondary" :class="{ 'active': sortBy === 'borrowDate' }" @click="sortBy = 'borrowDate'">
                         借阅时间
+                    </button>
+                    <button class="btn btn-outline-secondary" :class="{ 'active': sortBy === 'dueDate' }" @click="sortBy = 'dueDate'">
+                        到期时间
                     </button>
                     <button class="btn btn-outline-secondary" :class="{ 'active': sortBy === 'returnDate' }" @click="sortBy = 'returnDate'">
                         归还时间
@@ -64,7 +67,7 @@
                                 <div class="col-9">
                                     <h5 class="card-title" x-text="record.bookTitle"></h5>
                                     <p class="card-text text-muted mb-1">
-                                        <i class="bi bi-person"></i> <span x-text="record.author"></span>
+                                        <i class="bi bi-person"></i> 借阅者：<span x-text="record.borrowerName"></span>
                                     </p>
                                     <p class="card-text text-muted mb-1">
                                         <i class="bi bi-calendar"></i> 借阅时间：<span x-text="formatDate(record.borrowDate)"></span>
@@ -72,17 +75,20 @@
                                     <p class="card-text text-muted mb-1">
                                         <i class="bi bi-calendar-check"></i> 应还时间：<span x-text="formatDate(record.dueDate)"></span>
                                     </p>
+                                    <p x-show="record.returnDate" class="card-text text-muted mb-1">
+                                        <i class="bi bi-calendar-x"></i> 归还时间：<span x-text="formatDate(record.returnDate)"></span>
+                                    </p>
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span class="badge" :class="{
-                                            'bg-primary': record.status === '借阅中',
-                                            'bg-success': record.status === '已归还',
-                                            'bg-danger': record.status === '逾期'
-                                        }" x-text="record.status"></span>
+                                            'bg-primary': record.status === 'borrowed',
+                                            'bg-success': record.status === 'returned',
+                                            'bg-danger': record.status === 'overdue'
+                                        }" x-text="getStatusText(record.status)"></span>
                                         <div>
                                             <button class="btn btn-sm btn-outline-info me-1" @click="showRecordDetail(record)">
                                                 <i class="bi bi-eye"></i> 详情
                                             </button>
-                                            <button x-show="record.status === '借阅中'" class="btn btn-sm btn-outline-warning" @click="renewBook(record)">
+                                            <button x-show="record.status === 'borrowed'" class="btn btn-sm btn-outline-warning" @click="renewBook(record)">
                                                 <i class="bi bi-arrow-clockwise"></i> 续借
                                             </button>
                                         </div>
@@ -92,6 +98,29 @@
                         </div>
                     </div>
                 </template>
+            </div>
+            
+            <!-- 分页 -->
+            <div x-show="pagination && pagination.totalPages > 1" class="d-flex justify-content-center mt-3">
+                <nav>
+                    <ul class="pagination">
+                        <li class="page-item" :class="{ 'disabled': pagination.page <= 1 }">
+                            <button class="page-link" @click="changePage(pagination.page - 1)" :disabled="pagination.page <= 1">
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+                        </li>
+                        <template x-for="page in getPageNumbers()" :key="page">
+                            <li class="page-item" :class="{ 'active': page === pagination.page }">
+                                <button class="page-link" @click="changePage(page)" x-text="page"></button>
+                            </li>
+                        </template>
+                        <li class="page-item" :class="{ 'disabled': pagination.page >= pagination.totalPages }">
+                            <button class="page-link" @click="changePage(pagination.page + 1)" :disabled="pagination.page >= pagination.totalPages">
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </li>
+                    </ul>
+                </nav>
             </div>
         </div>
         
@@ -106,7 +135,39 @@
         </div>
     </div>
 
+    <!-- 借阅详情模态框 -->
+    <div class="modal fade" id="borrowDetailModal" tabindex="-1" x-data="{ selectedRecord: null }" @showRecordDetail.window="selectedRecord = $event.detail">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">借阅详情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div x-show="selectedRecord">
+                        <div class="row">
+                            <div class="col-md-4 text-center">
+                                <i class="bi bi-book text-primary" style="font-size: 5rem;"></i>
+                            </div>
+                            <div class="col-md-8">
+                                <h4 x-text="selectedRecord.bookTitle"></h4>
+                                <p><strong>借阅者：</strong><span x-text="selectedRecord.borrowerName"></span></p>
+                                <p><strong>借阅时间：</strong><span x-text="AppUtils.formatDate(selectedRecord.borrowDate)"></span></p>
+                                <p><strong>应还时间：</strong><span x-text="AppUtils.formatDate(selectedRecord.dueDate)"></span></p>
+                                <p x-show="selectedRecord.returnDate"><strong>归还时间：</strong><span x-text="AppUtils.formatDate(selectedRecord.returnDate)"></span></p>
+                                <p><strong>状态：</strong><span x-text="getStatusText(selectedRecord.status)"></span></p>
+                                <p x-show="selectedRecord.overdueDays > 0"><strong>逾期天数：</strong><span x-text="selectedRecord.overdueDays + '天'"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/less@4.1.3/dist/less.min.js"></script>
+    <!-- 通用工具 -->
+    <script src="js/app.js"></script>
     
     <script>
         function borrowApp() {
@@ -114,9 +175,18 @@
                 filterStatus: '',
                 sortBy: 'borrowDate',
                 borrowRecords: [],
+                pagination: null,
                 loading: false,
+                currentPage: 1,
+                pageSize: 10,
                 
                 init() {
+                    // 检查登录状态
+                    if (!UserManager.isLoggedIn()) {
+                        window.location.href = 'login.html';
+                        return;
+                    }
+                    
                     this.loadBorrowRecords();
                 },
                 
@@ -124,84 +194,102 @@
                     this.loading = true;
                     
                     try {
-                        await this.simulateLoadRecords();
+                        const params = {
+                            page: this.currentPage,
+                            pageSize: this.pageSize
+                        };
+                        
+                        if (this.filterStatus) {
+                            params.status = this.filterStatus;
+                        }
+                        
+                        const response = await ApiService.getBorrows(params);
+                        
+                        if (response.success) {
+                            this.borrowRecords = response.data || [];
+                            this.pagination = response.pagination;
+                        } else {
+                            throw new Error(response.message || '获取借阅记录失败');
+                        }
+                        
                     } catch (error) {
-                        console.error('加载借阅记录失败:', error);
+                        console.error('获取借阅记录失败:', error);
+                        AppUtils.showMessage(error.message, 'error');
+                        this.borrowRecords = [];
+                        this.pagination = null;
                     } finally {
                         this.loading = false;
                     }
                 },
                 
-                simulateLoadRecords() {
-                    return new Promise((resolve) => {
-                        setTimeout(() => {
-                            const mockRecords = [
-                                {
-                                    id: 1,
-                                    bookTitle: 'JavaScript高级程序设计',
-                                    author: 'Nicholas C. Zakas',
-                                    borrowDate: '2024-01-15',
-                                    dueDate: '2024-02-15',
-                                    returnDate: null,
-                                    status: '借阅中',
-                                    isbn: '9787115545381'
-                                },
-                                {
-                                    id: 2,
-                                    bookTitle: '百年孤独',
-                                    author: '加西亚·马尔克斯',
-                                    borrowDate: '2024-01-10',
-                                    dueDate: '2024-02-10',
-                                    returnDate: '2024-02-05',
-                                    status: '已归还',
-                                    isbn: '9787544253994'
-                                },
-                                {
-                                    id: 3,
-                                    bookTitle: '人类简史',
-                                    author: '尤瓦尔·赫拉利',
-                                    borrowDate: '2024-01-05',
-                                    dueDate: '2024-02-05',
-                                    returnDate: null,
-                                    status: '逾期',
-                                    isbn: '9787508640757'
-                                }
-                            ];
-                            
-                            this.borrowRecords = mockRecords;
-                            resolve();
-                        }, 1000);
-                    });
+                async refreshRecords() {
+                    this.currentPage = 1;
+                    await this.loadBorrowRecords();
                 },
                 
-                refreshRecords() {
-                    this.loadBorrowRecords();
+                async changePage(page) {
+                    if (page >= 1 && page <= this.pagination.totalPages) {
+                        this.currentPage = page;
+                        await this.loadBorrowRecords();
+                    }
+                },
+                
+                getPageNumbers() {
+                    if (!this.pagination) return [];
+                    
+                    const totalPages = this.pagination.totalPages;
+                    const currentPage = this.pagination.page;
+                    const pages = [];
+                    
+                    // 显示最多5页
+                    let start = Math.max(1, currentPage - 2);
+                    let end = Math.min(totalPages, currentPage + 2);
+                    
+                    if (end - start < 4) {
+                        if (start === 1) {
+                            end = Math.min(totalPages, start + 4);
+                        } else {
+                            start = Math.max(1, end - 4);
+                        }
+                    }
+                    
+                    for (let i = start; i <= end; i++) {
+                        pages.push(i);
+                    }
+                    
+                    return pages;
                 },
                 
                 showRecordDetail(record) {
-                    const detail = `借阅详情：
-书名：${record.bookTitle}
-作者：${record.author}
-ISBN：${record.isbn}
-借阅时间：${this.formatDate(record.borrowDate)}
-应还时间：${this.formatDate(record.dueDate)}
-状态：${record.status}`;
+                    // 使用Alpine.js的事件系统传递数据
+                    document.dispatchEvent(new CustomEvent('showRecordDetail', { detail: record }));
                     
-                    if (record.returnDate) {
-                        detail += `\n归还时间：${this.formatDate(record.returnDate)}`;
-                    }
-                    
-                    alert(detail);
+                    // 使用Bootstrap模态框显示详情
+                    const modal = new bootstrap.Modal(document.getElementById('borrowDetailModal'));
+                    modal.show();
                 },
                 
-                renewBook(record) {
+                async renewBook(record) {
                     if (confirm(`确定要续借《${record.bookTitle}》吗？`)) {
-                        // 模拟续借操作
-                        const newDueDate = new Date(record.dueDate);
-                        newDueDate.setDate(newDueDate.getDate() + 30);
-                        record.dueDate = newDueDate.toISOString().split('T')[0];
-                        
-                        alert('续借成功！新的归还时间为：' + this.formatDate(record.dueDate));
+                        try {
+                            // 计算新的到期日期（延长30天）
+                            const newDueDate = new Date(record.dueDate);
+                            newDueDate.setDate(newDueDate.getDate() + 30);
+                            
+                            const response = await ApiService.updateBorrow(record.id, {
+                                dueDate: newDueDate.toISOString().split('T')[0]
+                            });
+                            
+                            if (response.success) {
+                                AppUtils.showMessage('续借成功！', 'success');
+                                await this.loadBorrowRecords(); // 刷新列表
+                            } else {
+                                throw new Error(response.message || '续借失败');
+                            }
+                        } catch (error) {
+                            console.error('续借失败:', error);
+                            AppUtils.showMessage(error.message, 'error');
+                        }
                     }
                 },
                 
@@ -209,6 +297,15 @@ ISBN：${record.isbn}
                     if (!dateString) return '未设置';
                     const date = new Date(dateString);
                     return date.toLocaleDateString('zh-CN');
+                },
+                
+                getStatusText(status) {
+                    const statusMap = {
+                        'borrowed': '借阅中',
+                        'returned': '已归还',
+                        'overdue': '逾期'
+                    };
+                    return statusMap[status] || status;
                 },
                 
                 get filteredRecords() {

@@ -85,53 +85,227 @@ const AppUtils = {
 
 // API 请求封装
 const ApiService = {
-    baseURL: '/api',
+    baseURL: 'https://localhost:3001/api',
+    
+    // 获取Cookie中的token
+    getToken() {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'token') {
+                return value;
+            }
+        }
+        return null;
+    },
+    
+    // 设置Cookie
+    setCookie(name, value, days = 7) {
+        const expires = new Date();
+        expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+        document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
+    },
+    
+    // 删除Cookie
+    deleteCookie(name) {
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+    },
     
     async request(endpoint, options = {}) {
         const url = `${this.baseURL}${endpoint}`;
+        const token = this.getToken();
+        
         const config = {
             headers: {
                 'Content-Type': 'application/json',
                 ...options.headers
             },
+            credentials: 'include', // 包含Cookie
             ...options
         };
+        
+        // 如果有token，添加到Cookie中
+        if (token && !document.cookie.includes('token=')) {
+            this.setCookie('token', token);
+        }
         
         try {
             const response = await axios(url, config);
             return response.data;
         } catch (error) {
             console.error('API请求失败:', error);
-            throw error;
+            
+            // 处理认证错误
+            if (error.response && error.response.status === 401) {
+                // Token过期或无效，清除本地存储并跳转到登录页
+                StorageManager.clear();
+                window.location.href = 'login.html';
+                throw new Error('登录已过期，请重新登录');
+            }
+            
+            // 处理其他错误
+            const errorMessage = error.response?.data?.message || error.message || '请求失败';
+            throw new Error(errorMessage);
         }
     },
     
-    // 获取图书列表
-    async getBooks(params = {}) {
-        return this.request('/books', { params });
-    },
-    
-    // 搜索图书
-    async searchBooks(query) {
-        return this.request('/books/search', { params: { q: query } });
-    },
-    
-    // 获取借阅记录
-    async getBorrowRecords() {
-        return this.request('/borrow/records');
-    },
-    
-    // 保存用户设置
-    async saveUserSettings(settings) {
-        return this.request('/user/settings', {
+    // 用户认证相关API
+    async login(credentials) {
+        const response = await this.request('/login', {
             method: 'POST',
-            data: settings
+            data: credentials
+        });
+        
+        if (response.success) {
+            // 保存用户信息到本地存储
+            StorageManager.set('user', {
+                ...response.user,
+                isLoggedIn: true,
+                loginTime: new Date().toISOString()
+            });
+        }
+        
+        return response;
+    },
+    
+    async logout() {
+        try {
+            await this.request('/logout', { method: 'POST' });
+        } catch (error) {
+            console.error('登出失败:', error);
+        } finally {
+            // 清除本地存储和Cookie
+            StorageManager.clear();
+            this.deleteCookie('token');
+            window.location.href = 'login.html';
+        }
+    },
+    
+    async getCurrentUser() {
+        return this.request('/current-user');
+    },
+    
+    // 图书相关API
+    async getBooks(params = {}) {
+        const queryParams = new URLSearchParams();
+        
+        if (params.search) queryParams.append('search', params.search);
+        if (params.page) queryParams.append('page', params.page);
+        if (params.pageSize) queryParams.append('pageSize', params.pageSize);
+        if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+        if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+        
+        const queryString = queryParams.toString();
+        const endpoint = `/books${queryString ? '?' + queryString : ''}`;
+        
+        return this.request(endpoint);
+    },
+    
+    async getBookById(id) {
+        return this.request(`/books/${id}`);
+    },
+    
+    // 借阅相关API
+    async getBorrows(params = {}) {
+        const queryParams = new URLSearchParams();
+        
+        if (params.search) queryParams.append('search', params.search);
+        if (params.page) queryParams.append('page', params.page);
+        if (params.pageSize) queryParams.append('pageSize', params.pageSize);
+        if (params.status) queryParams.append('status', params.status);
+        if (params.userId) queryParams.append('userId', params.userId);
+        if (params.bookId) queryParams.append('bookId', params.bookId);
+        
+        const queryString = queryParams.toString();
+        const endpoint = `/borrows${queryString ? '?' + queryString : ''}`;
+        
+        return this.request(endpoint);
+    },
+    
+    async createBorrow(borrowData) {
+        return this.request('/borrows', {
+            method: 'POST',
+            data: borrowData
         });
     },
     
-    // 获取用户设置
-    async getUserSettings() {
-        return this.request('/user/settings');
+    async updateBorrow(id, borrowData) {
+        return this.request(`/borrows/${id}`, {
+            method: 'PUT',
+            data: borrowData
+        });
+    },
+    
+    async deleteBorrow(id) {
+        return this.request(`/borrows/${id}`, {
+            method: 'DELETE'
+        });
+    },
+    
+    // 用户管理API
+    async getUsers(params = {}) {
+        const queryParams = new URLSearchParams();
+        
+        if (params.search) queryParams.append('search', params.search);
+        if (params.page) queryParams.append('page', params.page);
+        if (params.pageSize) queryParams.append('pageSize', params.pageSize);
+        if (params.role) queryParams.append('role', params.role);
+        if (params.status) queryParams.append('status', params.status);
+        
+        const queryString = queryParams.toString();
+        const endpoint = `/users${queryString ? '?' + queryString : ''}`;
+        
+        return this.request(endpoint);
+    },
+    
+    async createUser(userData) {
+        return this.request('/users', {
+            method: 'POST',
+            data: userData
+        });
+    },
+    
+    async updateUser(id, userData) {
+        return this.request(`/users/${id}`, {
+            method: 'PUT',
+            data: userData
+        });
+    },
+    
+    async deleteUser(id) {
+        return this.request(`/users/${id}`, {
+            method: 'DELETE'
+        });
+    },
+    
+    // 统计API
+    async getBorrowStatistics(params = {}) {
+        const queryParams = new URLSearchParams();
+        
+        if (params.period) queryParams.append('period', params.period);
+        if (params.refresh) queryParams.append('refresh', params.refresh);
+        
+        const queryString = queryParams.toString();
+        const endpoint = `/statistics/borrow${queryString ? '?' + queryString : ''}`;
+        
+        return this.request(endpoint);
+    },
+    
+    // 任务管理API
+    async getTaskStatus() {
+        return this.request('/task/status');
+    },
+    
+    async startTask() {
+        return this.request('/task/start', { method: 'POST' });
+    },
+    
+    async stopTask() {
+        return this.request('/task/stop', { method: 'POST' });
+    },
+    
+    async executeTask() {
+        return this.request('/task/execute', { method: 'POST' });
     }
 };
 
@@ -201,10 +375,8 @@ const UserManager = {
     },
     
     // 退出登录
-    logout() {
-        StorageManager.remove('user');
-        StorageManager.remove('userSettings');
-        window.location.href = 'login.html';
+    async logout() {
+        await ApiService.logout();
     },
     
     // 获取用户设置
