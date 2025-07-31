@@ -3,5 +3,7 @@ alwaysApply: true
 ---
 
 除了server.js 其他后台js都放在目录back-js里面
+front 目录中放前端
+front/h5 中放手机浏览器页面
 
 
