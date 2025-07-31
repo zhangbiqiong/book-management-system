@@ -19,16 +19,25 @@ export const handleBorrowList = ErrorHandler.asyncWrapper(async (req, url) => {
   const search = url.searchParams.get('search') || '';
   const page = parseInt(url.searchParams.get('page')) || 1;
   const pageSize = parseInt(url.searchParams.get('pageSize')) || 10;
+  // 新增: 读取 userId 以便按用户过滤
+  const userId = url.searchParams.get('userId');
   
   // 获取借阅列表（包含搜索和分页）
   const result = await DataAccess.getAllBorrows(search, page, pageSize);
+
+  // 如果指定了 userId，则在这里做一次过滤，避免大幅修改 SQL 逻辑
+  if (userId) {
+    result.data = result.data.filter(borrow => String(borrow.userId) === String(userId));
+    result.pagination.total = result.data.length;
+    result.pagination.totalPages = Math.ceil(result.pagination.total / pageSize);
+  }
   
   // 计算状态并添加到每条记录
   result.data.forEach(borrow => {
     borrow.status = calculateBorrowStatus(borrow);
   });
   
-  Logger.info(`获取借阅列表: 搜索='${search}', 页码=${page}, 总数=${result.pagination.total}`);
+  Logger.info(`获取借阅列表: 搜索='${search}', userId='${userId}', 页码=${page}, 总数=${result.pagination.total}`);
   
   return ResponseBuilder.paginated(result.data, result.pagination, result.pagination.total);
 });

@@ -28,11 +28,14 @@ export async function handleGetCurrentUser(req) {
           headers: { "Content-Type": "application/json" }
         });
       }
+      // 保存用户ID以便返回
+      payload.userId = user.id;
     }
     
     return new Response(JSON.stringify({
       success: true,
       user: {
+        id: payload.userId,
         username: payload.username,
         role: payload.role || 'user'
       }
