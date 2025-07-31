@@ -46,9 +46,13 @@
 - **HTML5** - 页面结构
 - **CSS3 + Less** - 样式设计
 - **Bootstrap 5** - 响应式框架
+- **Bootstrap Datetimepicker** - 日期/时间选择器
 - **Alpine.js** - 轻量级交互框架
-- **Axios** - HTTP请求
+- **Axios** - HTTP 请求
 - **Lodash** - 工具函数库
+- **Bun** - 高性能 JavaScript 运行时（后端）
+- **PostgreSQL 13** - 关系数据库
+- **Redis 6** - 缓存与消息队列
 
 ## API集成
 
@@ -71,17 +75,28 @@
 ## 文件结构
 
 ```
-pwa/front/
-├── css/
-│   └── main.less          # 主样式文件
-├── js/
-│   └── app.js            # 通用JavaScript工具和API服务
-├── login.html            # 登录页面
-├── index.html            # 主页面
-├── book.html             # 图书查询页面
-├── borrow.html           # 借阅记录页面
-├── setting.html          # 个人设置页面
-└── README.md             # 说明文档
+pwa/
+├── front/
+│   ├── css/
+│   │   └── main.less          # 主样式文件
+│   ├── js/
+│   │   └── app.js            # 通用 JavaScript 工具和 API 服务
+│   ├── login.html            # 登录页面
+│   ├── index.html            # 主页面
+│   ├── book.html             # 图书查询页面
+│   ├── borrow.html           # 借阅记录页面
+│   ├── setting.html          # 个人设置页面
+│   └── README.md             # 前端说明文档
+├── back/
+│   ├── auth.js               # 认证模块
+│   ├── user.js               # 用户管理
+│   ├── book.js               # 图书管理
+│   ├── borrow.js             # 借阅管理
+│   ├── task.js               # 后台定时任务
+│   ├── data-access.js        # 数据访问层
+│   ├── utils.js              # 通用工具函数
+│   └── common.js             # 公共模块
+└── README.md                 # 项目说明文档
 ```
 
 ## 使用方法
