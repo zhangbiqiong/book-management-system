@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeAll, afterAll, beforeEach } from "bun:test";
 import { spawn } from "child_process";
 
-const BASE_URL = "http://localhost:3000";
+const BASE_URL = "https://localhost:3000";
 
 // 使用固定的管理员账户进行测试
 const ADMIN_USER = {

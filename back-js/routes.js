@@ -37,6 +37,12 @@ export async function handleRoutes(req, url) {
     });
   }
 
+  // 处理 H5 HTML 文件路由
+  if (url.pathname.startsWith("/h5/") && url.pathname.endsWith('.html')) {
+    const htmlFile = url.pathname.substring(4); // 移除开头的 "/h5"
+    return await handleHtmlCache(req, `front-h5/${htmlFile}`);
+  }
+
   // 处理 HTML 文件路由
   if (url.pathname === "/" || url.pathname === "/index.html") {
     const cookie = req.headers.get("cookie") || "";

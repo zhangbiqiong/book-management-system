@@ -15,6 +15,12 @@ import {
 import { initDatabase, closeDatabase } from "./back-js/database.js";
 import { DataAccess } from "./back-js/data-access.js";
 
+// HTTPS 配置
+const httpsConfig = {
+  cert: Bun.file("localhost+2.pem"),
+  key: Bun.file("localhost+2-key.pem")
+};
+
 const server = serve({
     // development can also be an object.
     development: {
@@ -25,6 +31,8 @@ const server = serve({
       console: true,
     },
   port: SERVER_PORT,
+  // 添加 HTTPS 配置
+  tls: httpsConfig,
   async fetch(req) {
     const url = new URL(req.url);
     const startTime = Date.now();
@@ -79,7 +87,7 @@ try {
   console.log(`[${new Date().toISOString()}] ℹ️ 使用Bun SQL全局实例继续运行`);
 }
 
-console.log(`[${new Date().toISOString()}] 服务器运行在 http://localhost:${SERVER_PORT}`);
+console.log(`[${new Date().toISOString()}] 服务器运行在 https://localhost:${SERVER_PORT}`);
 
 // 启动后台任务
 console.log(`[${new Date().toISOString()}] 🚀 启动借阅状态更新后台任务...`);
