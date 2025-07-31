@@ -92,7 +92,7 @@ export async function handleRoutes(req, url) {
 
   // 处理H5公共资源文件
   if (url.pathname === "/h5/common.less") {
-    const filePath = `front${url.pathname}`; // 映射到front/h5目录下
+    const filePath = `front-h5${url.pathname.substring(3)}`; // 映射到front-h5目录下
     return await handleStaticCache(req, filePath, "text/css");
   }
 
@@ -107,7 +107,7 @@ export async function handleRoutes(req, url) {
     const filePath = url.pathname.startsWith("/assert/")
       ? `front${url.pathname}`
       : url.pathname.startsWith("/h5/")
-      ? `front${url.pathname}`
+      ? `front-h5${url.pathname.substring(3)}`
       : url.pathname.substring(1); // 移除开头的 "/"
     return await handleStaticCache(req, filePath);
   }
