@@ -466,41 +466,156 @@ window.H5API = {
   
   // 用户相关
   auth: {
-    login: (credentials) => H5API.post('/login', credentials),
-    logout: () => H5API.post('/logout'),
-    getCurrentUser: () => H5API.get('/current-user'),
-    updateProfile: (profile) => H5API.put('/profile', profile),
-    changePassword: (passwords) => H5API.post('/change-password', passwords)
+    login: (credentials) => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.post('/login', credentials);
+    },
+    logout: () => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.post('/logout');
+    },
+    getCurrentUser: () => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.get('/current-user');
+    },
+    updateProfile: (profile) => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.put('/profile', profile);
+    },
+    changePassword: (passwords) => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.post('/change-password', passwords);
+    }
   },
   
   // 图书相关
   books: {
-    list: (params = {}) => H5API.get('/books', params),
-    search: (query, params = {}) => H5API.get('/books/search', { q: query, ...params }),
-    get: (id) => H5API.get(`/books/${id}`),
-    borrow: (id) => H5API.post(`/books/${id}/borrow`),
-    return: (id) => H5API.post(`/books/${id}/return`),
-    getCategories: () => H5API.get('/books/categories'),
-    getRecommendations: () => H5API.get('/books/recommendations')
+    list: (params = {}) => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.get('/books', params);
+    },
+    search: (query, params = {}) => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.get('/books/search', { q: query, ...params });
+    },
+    get: (id) => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.get(`/books/${id}`);
+    },
+    borrow: (id) => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.post(`/books/${id}/borrow`);
+    },
+    return: (id) => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.post(`/books/${id}/return`);
+    },
+    getCategories: () => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.get('/books/categories');
+    },
+    getRecommendations: () => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.get('/books/recommendations');
+    }
   },
   
   // 借阅相关
   borrows: {
-    list: (params = {}) => H5API.get('/borrows', params),
-    get: (id) => H5API.get(`/borrows/${id}`),
-    return: (id) => H5API.post(`/borrows/${id}/return`),
-    renew: (id) => H5API.post(`/borrows/${id}/renew`),
-    getHistory: (params = {}) => H5API.get('/borrows/history', params),
-    getStats: () => H5API.get('/borrows/stats'),
-    getCount: () => H5API.get('/borrows/count')
+    list: (params = {}) => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.get('/borrows', params);
+    },
+    get: (id) => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.get(`/borrows/${id}`);
+    },
+    return: (id) => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.post(`/borrows/${id}/return`);
+    },
+    renew: (id) => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.post(`/borrows/${id}/renew`);
+    },
+    getHistory: (params = {}) => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.get('/borrows/history', params);
+    },
+    getStats: () => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.get('/borrows/stats');
+    },
+    getCount: () => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.get('/borrows/count');
+    }
   },
   
   // 系统相关
   system: {
-    getConfig: () => H5API.get('/system/config'),
-    getNotifications: () => H5API.get('/system/notifications'),
-    markNotificationRead: (id) => H5API.post(`/system/notifications/${id}/read`),
-    getVersion: () => H5API.get('/system/version')
+    getConfig: () => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.get('/system/config');
+    },
+    getNotifications: () => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.get('/system/notifications');
+    },
+    markNotificationRead: (id) => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.post(`/system/notifications/${id}/read`);
+    },
+    getVersion: () => {
+      if (!H5API.instance) {
+        H5API.init();
+      }
+      return H5API.get('/system/version');
+    }
   }
 };
 
@@ -1042,18 +1157,19 @@ window.H5Components = {
 };
 
 // ========== 初始化系统 ==========
+// 立即初始化API，确保在Alpine.js初始化之前就准备好
+console.log('[H5系统] 正在初始化...');
+
+// 初始化API
+H5API.init();
+
+// 初始化Toast
+H5Toast.init();
+
+// 初始化懒加载
+H5LazyLoad.init();
+
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('[H5系统] 正在初始化...');
-  
-  // 初始化API
-  H5API.init();
-  
-  // 初始化Toast
-  H5Toast.init();
-  
-  // 初始化懒加载
-  H5LazyLoad.init();
-  
   // 设置全局loading事件监听
   document.addEventListener('h5:loading:show', () => {
     const loadingEl = document.querySelector('.loading-overlay');

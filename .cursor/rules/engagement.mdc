@@ -7,3 +7,5 @@ front 目录中放前端
 front/h5 中放手机浏览器页面
 
 
+管理员 使用 PC 访问 https://localhost:3000/
+普通用户 使用 手机  访问 https://localhost:3000/h5
