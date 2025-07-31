@@ -53,7 +53,7 @@ graph TB
     
     subgraph "工具库层"
         Q[Lodash] --> R[数据处理]
-        S[Flatpickr] --> T[日期选择]
+        S[Bootstrap Datetimepicker] --> T[日期选择]
         U[ECharts] --> V[数据可视化]
     end
     
