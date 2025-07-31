@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>图书管理系统 - 登录</title>
     
     <!-- Bootstrap CSS -->
@@ -18,12 +18,229 @@
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <!-- Lodash -->
     <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+    
+    <style>
+        /* 移动端优化样式 */
+        .login-page {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .login-page::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="75" cy="75" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="50" cy="10" r="0.5" fill="rgba(255,255,255,0.1)"/><circle cx="10" cy="60" r="0.5" fill="rgba(255,255,255,0.1)"/><circle cx="90" cy="40" r="0.5" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            opacity: 0.3;
+            pointer-events: none;
+        }
+        
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            position: relative;
+            z-index: 1;
+            animation: slideUp 0.6s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .login-header h1 {
+            color: #2c3e50;
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        
+        .login-header h1 i {
+            color: #667eea;
+            font-size: 2rem;
+        }
+        
+        .login-header p {
+            color: #7f8c8d;
+            font-size: 0.95rem;
+            margin: 0;
+        }
+        
+        .form-label {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .input-group {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .input-group:focus-within {
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+            transform: translateY(-1px);
+        }
+        
+        .input-group-text {
+            background: #f8f9fa;
+            border: none;
+            color: #667eea;
+            font-size: 1.1rem;
+            padding: 0.75rem 1rem;
+        }
+        
+        .form-control {
+            border: none;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            background: #fff;
+        }
+        
+        .form-control:focus {
+            box-shadow: none;
+            background: #fff;
+        }
+        
+        .btn-login {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 0.875rem 2rem;
+            font-weight: 600;
+            font-size: 1rem;
+            color: white;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-login:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-login:disabled {
+            opacity: 0.7;
+            transform: none;
+        }
+        
+        .btn-outline-secondary {
+            border: none;
+            background: #f8f9fa;
+            color: #6c757d;
+            padding: 0.75rem 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-outline-secondary:hover {
+            background: #e9ecef;
+            color: #495057;
+        }
+        
+        .alert {
+            border: none;
+            border-radius: 12px;
+            padding: 1rem;
+            font-size: 0.9rem;
+            animation: shake 0.5s ease-in-out;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        .alert-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            color: white;
+        }
+        
+        .spinner-border-sm {
+            width: 1rem;
+            height: 1rem;
+        }
+        
+        /* 移动端特定优化 */
+        @media (max-width: 576px) {
+            .login-page {
+                padding: 0.5rem;
+            }
+            
+            .login-card {
+                padding: 1.5rem;
+                margin: 0;
+                border-radius: 16px;
+            }
+            
+            .login-header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .login-header h1 i {
+                font-size: 1.7rem;
+            }
+            
+            .form-control, .input-group-text {
+                padding: 0.875rem 1rem;
+                font-size: 1rem;
+            }
+            
+            .btn-login {
+                padding: 1rem 2rem;
+                font-size: 1rem;
+            }
+        }
+        
+        /* 触摸优化 */
+        @media (hover: none) and (pointer: coarse) {
+            .btn-login, .btn-outline-secondary {
+                min-height: 44px;
+            }
+            
+            .form-control, .input-group-text {
+                min-height: 44px;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="login-page" x-data="loginApp()">
         <div class="login-card">
             <div class="login-header">
-                <h1><i class="bi bi-book"></i> 图书管理系统</h1>
+                <h1><i class="bi bi-book"></i> 图书借阅系统</h1>
                 <p>请登录您的账户</p>
             </div>
             
@@ -42,6 +259,7 @@
                             placeholder="请输入用户名"
                             required
                             :disabled="loading"
+                            autocomplete="username"
                         >
                     </div>
                 </div>
@@ -60,6 +278,7 @@
                             placeholder="请输入密码"
                             required
                             :disabled="loading"
+                            autocomplete="current-password"
                         >
                         <button 
                             type="button" 
@@ -81,18 +300,18 @@
                         <span x-show="!loading">
                             <i class="bi bi-box-arrow-in-right"></i> 登录
                         </span>
-                        <span x-show="loading" class="d-flex align-items-center justify-content-center">
+                        <!-- <span x-show="loading" class="d-flex align-items-center justify-content-center">
                             <div class="spinner-border spinner-border-sm me-2" role="status">
                                 <span class="visually-hidden">加载中...</span>
                             </div>
                             登录中...
-                        </span>
+                        </span> -->
                     </button>
                 </div>
                 
                 <!-- 错误提示 -->
                 <div x-show="error" class="alert alert-danger mt-3" role="alert">
-                    <i class="bi bi-exclamation-triangle"></i>
+                    <i class="bi bi-exclamation-triangle me-2"></i>
                     <span x-text="error"></span>
                 </div>
             </form>

@@ -139,7 +139,28 @@ export async function handleLogin(req) {
       });
     }
     
-    const user = JSON.parse(userData);
+    // 添加调试信息
+    console.log(`[${new Date().toISOString()}] 用户 ${username} 的 Redis 数据:`, userData);
+    console.log(`[${new Date().toISOString()}] 数据类型:`, typeof userData);
+    
+    // 检查数据是否为有效的 JSON
+    if (typeof userData !== 'string' || userData === 'OK' || userData === 'null') {
+      console.error(`[${new Date().toISOString()}] 无效的用户数据:`, userData);
+      return new Response(JSON.stringify({ success: false, message: "用户数据格式错误" }), {
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    
+    let user;
+    try {
+      user = JSON.parse(userData);
+    } catch (parseError) {
+      console.error(`[${new Date().toISOString()}] JSON 解析错误:`, parseError);
+      console.error(`[${new Date().toISOString()}] 原始数据:`, userData);
+      return new Response(JSON.stringify({ success: false, message: "用户数据格式错误" }), {
+        headers: { "Content-Type": "application/json" }
+      });
+    }
     
     // 检查用户状态
     if (user.status === 'disabled') {
