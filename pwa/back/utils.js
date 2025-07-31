@@ -90,6 +90,18 @@ export async function getCurrentUsername(req) {
   }
 }
 
+// 获取当前用户ID的辅助函数
+export async function getCurrentUserId(req) {
+  try {
+    const cookie = req.headers.get("cookie") || "";
+    const payload = await verifyToken(cookie);
+    return payload ? payload.userId : null;
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] 获取当前用户ID错误:`, error);
+    return null;
+  }
+}
+
 // 缓存相关辅助函数
 
 // 获取文件最后修改时间

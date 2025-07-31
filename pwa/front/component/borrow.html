@@ -85,9 +85,7 @@
                                             'bg-danger': record?.status === 'overdue'
                                         }" x-text="getStatusText(record?.status)"></span>
                                         <div>
-                                            <button class="btn btn-sm btn-outline-info me-1" @click="showRecordDetail(record)">
-                                                <i class="bi bi-eye"></i> 详情
-                                            </button>
+
                                             <button x-show="record?.status === 'borrowed'" class="btn btn-sm btn-outline-warning" @click="renewBook(record)">
                                                 <i class="bi bi-arrow-clockwise"></i> 续借
                                             </button>
@@ -227,9 +225,16 @@
                     this.loading = true;
                     
                     try {
+                        // 获取当前登录用户信息
+                        const currentUser = UserManager.getCurrentUser();
+                        if (!currentUser || !currentUser.id) {
+                            throw new Error('用户未登录或用户信息不完整');
+                        }
+                        
                         const params = {
                             page: this.currentPage,
-                            pageSize: this.pageSize
+                            pageSize: this.pageSize,
+                            userId: currentUser.id  // 添加当前用户ID，只获取该用户的借阅记录
                         };
                         
                         if (this.filterStatus) {

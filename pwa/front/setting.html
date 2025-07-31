@@ -9,6 +9,7 @@
     <link rel="stylesheet/less" type="text/css" href="css/main.less">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </head>
 <body>
     <div class="function-page" x-data="settingApp()">
@@ -26,34 +27,30 @@
                     <div class="form-group">
                         <label for="username" class="form-label">用户名</label>
                         <input type="text" class="form-control" id="username" x-model="form.username" readonly>
-                        <div class="form-text">用户名不可修改</div>
+
                     </div>
                     
                     <div class="form-group">
                         <label for="email" class="form-label">邮箱地址</label>
                         <input type="email" class="form-control" id="email" x-model="form.email" placeholder="请输入您的邮箱地址" readonly>
-                        <div class="form-text">邮箱地址不可修改</div>
+
                     </div>
                     
                     <div class="form-group">
                         <label for="role" class="form-label">用户角色</label>
                         <input type="text" class="form-control" id="role" x-model="form.role" readonly>
-                        <div class="form-text">用户角色不可修改</div>
+
                     </div>
                     
                     <div class="form-group">
                         <label for="status" class="form-label">账户状态</label>
                         <input type="text" class="form-control" id="status" x-model="form.status" readonly>
-                        <div class="form-text">账户状态不可修改</div>
+   
                     </div>
                 </div>
             </div>
             
-            <div class="d-grid gap-2">
-                <button type="button" class="btn btn-outline-secondary" @click="refreshUserInfo">
-                    <i class="bi bi-arrow-clockwise"></i> 刷新信息
-                </button>
-            </div>
+
         </form>
         
         <div class="card mt-4">

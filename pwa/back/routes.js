@@ -259,7 +259,7 @@ export async function handleRoutes(req, url) {
     // DELETE /api/borrows/:id 删除
     if (req.method === "DELETE" && url.pathname.match(/^\/api\/borrows\/[\w-]+$/)) {
       const id = url.pathname.split("/").pop();
-      const response = await handleBorrowDelete(id);
+      const response = await handleBorrowDelete(req, id);
       return setNoCacheHeaders(response);
     }
     return new Response("Not Found", { status: 404 });

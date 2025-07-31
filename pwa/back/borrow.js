@@ -1,6 +1,6 @@
 // 借阅管理模块 - PostgreSQL版本
 import { RedisClient } from "bun";
-import { getCurrentUsername, calculateBorrowStatus } from "./utils.js";
+import { getCurrentUsername, getCurrentUserId, calculateBorrowStatus } from "./utils.js";
 import { 
   ResponseBuilder, 
   ValidationUtils, 
@@ -23,25 +23,36 @@ export const handleBorrowList = ErrorHandler.asyncWrapper(async (req, url) => {
   const search = url.searchParams.get('search') || '';
   const page = parseInt(url.searchParams.get('page')) || 1;
   const pageSize = parseInt(url.searchParams.get('pageSize')) || 10;
-  // 新增: 读取 userId 以便按用户过滤
-  const userId = url.searchParams.get('userId');
   
-  // 获取借阅列表（包含搜索和分页）
+  // 获取当前登录用户ID
+  const currentUserId = await getCurrentUserId(req);
+  if (!currentUserId) {
+    return ResponseBuilder.error("用户未登录", 401);
+  }
+  
+  // 读取请求中的 userId 参数
+  const requestedUserId = url.searchParams.get('userId');
+  
+  // 安全验证：确保用户只能访问自己的借阅记录
+  if (requestedUserId && String(requestedUserId) !== String(currentUserId)) {
+    Logger.warn(`用户 ${currentUserId} 尝试访问用户 ${requestedUserId} 的借阅记录，已拒绝`);
+    return ResponseBuilder.error("无权限访问其他用户的借阅记录", 403);
+  }
+  
+  // 使用当前用户ID获取借阅记录
   const result = await DataAccess.getAllBorrows(search, page, pageSize);
 
-  // 如果指定了 userId，则在这里做一次过滤，避免大幅修改 SQL 逻辑
-  if (userId) {
-    result.data = result.data.filter(borrow => String(borrow.userId) === String(userId));
-    result.pagination.total = result.data.length;
-    result.pagination.totalPages = Math.ceil(result.pagination.total / pageSize);
-  }
+  // 过滤只显示当前用户的借阅记录
+  result.data = result.data.filter(borrow => String(borrow.userId) === String(currentUserId));
+  result.pagination.total = result.data.length;
+  result.pagination.totalPages = Math.ceil(result.pagination.total / pageSize);
   
   // 计算状态并添加到每条记录
   result.data.forEach(borrow => {
     borrow.status = calculateBorrowStatus(borrow);
   });
   
-  Logger.info(`获取借阅列表: 搜索='${search}', userId='${userId}', 页码=${page}, 总数=${result.pagination.total}`);
+  Logger.info(`获取借阅列表: 用户=${currentUserId}, 搜索='${search}', 页码=${page}, 总数=${result.pagination.total}`);
   
   return ResponseBuilder.paginated(result.data, result.pagination, result.pagination.total);
 });
@@ -128,6 +139,12 @@ export const handleBorrowCreate = ErrorHandler.asyncWrapper(async (req, wsConnec
 export const handleBorrowUpdate = ErrorHandler.asyncWrapper(async (req, id) => {
   const borrowData = await req.json();
   
+  // 获取当前登录用户ID
+  const currentUserId = await getCurrentUserId(req);
+  if (!currentUserId) {
+    return ResponseBuilder.error("用户未登录", 401);
+  }
+  
   // 验证必填字段
   try {
     ValidationUtils.validateRequired(borrowData, REQUIRED_FIELDS);
@@ -141,8 +158,12 @@ export const handleBorrowUpdate = ErrorHandler.asyncWrapper(async (req, id) => {
     return ResponseBuilder.error("借阅记录不存在", 404);
   }
   
-  // 获取原始借阅记录
+  // 获取原始借阅记录并验证权限
   const originalBorrow = await DataAccess.getById(BORROW_TYPE, id);
+  if (String(originalBorrow.userId) !== String(currentUserId)) {
+    Logger.warn(`用户 ${currentUserId} 尝试更新用户 ${originalBorrow.userId} 的借阅记录，已拒绝`);
+    return ResponseBuilder.error("无权限更新其他用户的借阅记录", 403);
+  }
   
   // 如果归还日期发生变化，需要更新库存
   const isReturning = !originalBorrow.returnDate && borrowData.returnDate;
@@ -218,11 +239,23 @@ export const handleBorrowUpdate = ErrorHandler.asyncWrapper(async (req, id) => {
 });
 
 // 删除借阅
-export const handleBorrowDelete = ErrorHandler.asyncWrapper(async (id) => {
+export const handleBorrowDelete = ErrorHandler.asyncWrapper(async (req, id) => {
+  // 获取当前登录用户ID
+  const currentUserId = await getCurrentUserId(req);
+  if (!currentUserId) {
+    return ResponseBuilder.error("用户未登录", 401);
+  }
+  
   // 检查借阅记录是否存在
   const borrow = await DataAccess.getById(BORROW_TYPE, id);
   if (!borrow) {
     return ResponseBuilder.error("借阅记录不存在", 404);
+  }
+  
+  // 验证权限：确保用户只能删除自己的借阅记录
+  if (String(borrow.userId) !== String(currentUserId)) {
+    Logger.warn(`用户 ${currentUserId} 尝试删除用户 ${borrow.userId} 的借阅记录，已拒绝`);
+    return ResponseBuilder.error("无权限删除其他用户的借阅记录", 403);
   }
   
   // 如果借阅未归还，需要恢复库存
