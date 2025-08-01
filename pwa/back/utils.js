@@ -1,9 +1,5 @@
-import { RedisClient } from "bun";
 import { verify } from "bun-jwt";
-import { JWT_SECRET, JWT_BLACKLIST_PREFIX } from "./config.js";
-
-// 创建 Redis 客户端实例
-const redisClient = new RedisClient("redis://localhost:6379/1");
+import { JWT_SECRET } from "./config.js";
 
 // 辅助函数：验证 JWT token
 export async function verifyToken(cookie) {
@@ -19,47 +15,9 @@ export async function verifyToken(cookie) {
   }
 }
 
-// 检查JWT是否在黑名单中
-export async function isJWTBlacklisted(jwt) {
+// 验证JWT（移除黑名单检查）
+export async function verifyJWT(jwt) {
   try {
-    const blacklisted = await redisClient.get(`${JWT_BLACKLIST_PREFIX}${jwt}`);
-    return !!blacklisted;
-  } catch (error) {
-    console.error(`[${new Date().toISOString()}] 检查JWT黑名单错误:`, error);
-    return false;
-  }
-}
-
-// 将JWT加入黑名单
-export async function addJWTToBlacklist(jwt, expiresIn) {
-  try {
-    // 计算剩余过期时间
-    const payload = await verify(jwt, JWT_SECRET);
-    if (payload && payload.exp) {
-      const remainingTime = payload.exp - Math.floor(Date.now() / 1000);
-      if (remainingTime > 0) {
-        // 将JWT加入黑名单，过期时间与JWT相同
-        await redisClient.set(`${JWT_BLACKLIST_PREFIX}${jwt}`, "1");
-        await redisClient.expire(`${JWT_BLACKLIST_PREFIX}${jwt}`, remainingTime);
-        return true;
-      }
-    }
-    return false;
-  } catch (error) {
-    console.error(`[${new Date().toISOString()}] 添加JWT到黑名单错误:`, error);
-    return false;
-  }
-}
-
-// 验证JWT并检查黑名单
-export async function verifyJWTAndCheckBlacklist(jwt) {
-  try {
-    // 首先检查是否在黑名单中
-    const blacklisted = await isJWTBlacklisted(jwt);
-    if (blacklisted) {
-      return { valid: false, message: "Token已被注销" };
-    }
-    
     // 验证JWT
     const payload = await verify(jwt, JWT_SECRET);
     if (!payload) {

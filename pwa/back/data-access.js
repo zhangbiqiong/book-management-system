@@ -1,62 +1,6 @@
-// 数据访问层 - Bun SQL + Redis缓存
-import { sql, RedisClient } from "bun";
+// 数据访问层 - Bun SQL 直接数据库访问
+import { sql } from "bun";
 import { Logger } from "./common.js";
-
-const redisClient = new RedisClient("redis://localhost:6379/1");
-
-// 缓存配置
-const CACHE_TTL = 300; // 缓存5分钟
-const CACHE_PREFIX = {
-  USER: 'cache:user:',
-  BOOK: 'cache:book:',
-  BORROW: 'cache:borrow:',
-  LIST: 'cache:list:'
-};
-
-// 缓存工具类
-class CacheManager {
-  // 设置缓存
-  static async set(key, data, ttl = CACHE_TTL) {
-    try {
-      await redisClient.set(key, JSON.stringify(data));
-      await redisClient.expire(key, ttl);
-    } catch (error) {
-      Logger.error('缓存设置失败:', error);
-    }
-  }
-
-  // 获取缓存
-  static async get(key) {
-    try {
-      const data = await redisClient.get(key);
-      return data ? JSON.parse(data) : null;
-    } catch (error) {
-      Logger.error('缓存获取失败:', error);
-      return null;
-    }
-  }
-
-  // 删除缓存
-  static async del(key) {
-    try {
-      await redisClient.del(key);
-    } catch (error) {
-      Logger.error('缓存删除失败:', error);
-    }
-  }
-
-  // 清除相关缓存
-  static async clearRelated(pattern) {
-    try {
-      const keys = await redisClient.keys(pattern);
-      if (keys.length > 0) {
-        await redisClient.del(...keys);
-      }
-    } catch (error) {
-      Logger.error('清除相关缓存失败:', error);
-    }
-  }
-}
 
 // Bun SQL数据访问类
 export class DataAccess {
@@ -64,15 +8,6 @@ export class DataAccess {
 
   // 用户相关操作
   static async getAllUsers(search = '', page = 1, pageSize = 10) {
-    const searchParam = search || 'all';
-    const cacheKey = `${CACHE_PREFIX.LIST}users:${searchParam}:${page}:${pageSize}`;
-
-    // 尝试从缓存获取
-    const cached = await CacheManager.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
     try {
       const offset = (page - 1) * pageSize;
       let query, countQuery;
@@ -110,8 +45,6 @@ export class DataAccess {
         }
       };
 
-      // 设置缓存
-      await CacheManager.set(cacheKey, result);
       return result;
     } catch (error) {
       Logger.error('获取用户列表失败:', error);
@@ -120,22 +53,9 @@ export class DataAccess {
   }
 
   static async getUserById(id) {
-    const cacheKey = `${CACHE_PREFIX.USER}${id}`;
-
-    // 尝试从缓存获取
-    const cached = await CacheManager.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
     try {
       const users = await sql`SELECT * FROM users WHERE id = ${id}`;
       const user = users[0] || null;
-
-      if (user) {
-        await CacheManager.set(cacheKey, user);
-      }
-
       return user;
     } catch (error) {
       Logger.error('获取用户失败:', error);
@@ -144,22 +64,9 @@ export class DataAccess {
   }
 
   static async getUserByUsername(username) {
-    const cacheKey = `${CACHE_PREFIX.USER}username:${username}`;
-
-    // 尝试从缓存获取
-    const cached = await CacheManager.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
     try {
       const users = await sql`SELECT * FROM users WHERE username = ${username}`;
       const user = users[0] || null;
-
-      if (user) {
-        await CacheManager.set(cacheKey, user);
-      }
-
       return user;
     } catch (error) {
       Logger.error('根据用户名获取用户失败:', error);
@@ -176,11 +83,6 @@ export class DataAccess {
       `;
 
       const userId = result[0].id;
-
-      // 清除相关缓存
-      await CacheManager.clearRelated(`${CACHE_PREFIX.LIST}users:*`);
-      await CacheManager.clearRelated(`${CACHE_PREFIX.USER}*`);
-
       return userId;
     } catch (error) {
       Logger.error('创建用户失败:', error);
@@ -196,10 +98,6 @@ export class DataAccess {
         WHERE id = ${id}
       `;
 
-      // 清除相关缓存
-      await CacheManager.clearRelated(`${CACHE_PREFIX.LIST}users:*`);
-      await CacheManager.clearRelated(`${CACHE_PREFIX.USER}*`);
-
       return true;
     } catch (error) {
       Logger.error('更新用户失败:', error);
@@ -210,11 +108,6 @@ export class DataAccess {
   static async deleteUser(id) {
     try {
       await sql`DELETE FROM users WHERE id = ${id}`;
-
-      // 清除相关缓存
-      await CacheManager.clearRelated(`${CACHE_PREFIX.LIST}users:*`);
-      await CacheManager.clearRelated(`${CACHE_PREFIX.USER}*`);
-
       return true;
     } catch (error) {
       Logger.error('删除用户失败:', error);
@@ -224,15 +117,6 @@ export class DataAccess {
 
   // 图书相关操作
   static async getAllBooks(search = '', page = 1, pageSize = 10) {
-    const searchParam = search || 'all';
-    const cacheKey = `${CACHE_PREFIX.LIST}books:${searchParam}:${page}:${pageSize}`;
-
-    // 尝试从缓存获取
-    const cached = await CacheManager.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
     try {
       const offset = (page - 1) * pageSize;
       let query = sql`SELECT * FROM books WHERE deleted_at IS NULL`;
@@ -271,8 +155,6 @@ export class DataAccess {
         }
       };
 
-      // 设置缓存
-      await CacheManager.set(cacheKey, result);
       return result;
     } catch (error) {
       Logger.error('获取图书列表失败:', error);
@@ -281,22 +163,9 @@ export class DataAccess {
   }
 
   static async getBookById(id) {
-    const cacheKey = `${CACHE_PREFIX.BOOK}${id}`;
-
-    // 尝试从缓存获取
-    const cached = await CacheManager.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
     try {
       const books = await sql`SELECT * FROM books WHERE id = ${id} AND deleted_at IS NULL`;
       const book = books[0] || null;
-
-      if (book) {
-        await CacheManager.set(cacheKey, book);
-      }
-
       return book;
     } catch (error) {
       Logger.error('获取图书失败:', error);
@@ -314,11 +183,6 @@ export class DataAccess {
       `;
 
       const bookId = result[0].id;
-
-      // 清除相关缓存
-      await CacheManager.clearRelated(`${CACHE_PREFIX.LIST}books:*`);
-      await CacheManager.clearRelated(`${CACHE_PREFIX.BOOK}*`);
-
       return bookId;
     } catch (error) {
       Logger.error('创建图书失败:', error);
@@ -337,10 +201,6 @@ export class DataAccess {
         WHERE id = ${id}
       `;
 
-      // 清除相关缓存
-      await CacheManager.clearRelated(`${CACHE_PREFIX.LIST}books:*`);
-      await CacheManager.clearRelated(`${CACHE_PREFIX.BOOK}*`);
-
       return true;
     } catch (error) {
       Logger.error('更新图书失败:', error);
@@ -356,10 +216,6 @@ export class DataAccess {
         WHERE id = ${id}
       `;
 
-      // 清除相关缓存
-      await CacheManager.clearRelated(`${CACHE_PREFIX.LIST}books:*`);
-      await CacheManager.clearRelated(`${CACHE_PREFIX.BOOK}*`);
-
       return true;
     } catch (error) {
       Logger.error('删除图书失败:', error);
@@ -369,15 +225,6 @@ export class DataAccess {
 
   // 借阅相关操作
   static async getAllBorrows(search = '', page = 1, pageSize = 10) {
-    const searchParam = search || 'all';
-    const cacheKey = `${CACHE_PREFIX.LIST}borrows:${searchParam}:${page}:${pageSize}`;
-
-    // 尝试从缓存获取
-    const cached = await CacheManager.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
     try {
       const offset = (page - 1) * pageSize;
       let query = sql`
@@ -483,8 +330,6 @@ export class DataAccess {
         }
       };
 
-      // 设置缓存
-      await CacheManager.set(cacheKey, result);
       return result;
     } catch (error) {
       Logger.error('获取借阅列表失败:', error);
@@ -493,14 +338,6 @@ export class DataAccess {
   }
 
   static async getBorrowById(id) {
-    const cacheKey = `${CACHE_PREFIX.BORROW}${id}`;
-
-    // 尝试从缓存获取
-    const cached = await CacheManager.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
     try {
       const borrows = await sql`
         SELECT 
@@ -539,7 +376,6 @@ export class DataAccess {
           updatedAt: borrow.updated_at
         };
 
-        await CacheManager.set(cacheKey, mappedBorrow);
         return mappedBorrow;
       }
 
@@ -560,11 +396,6 @@ export class DataAccess {
       `;
 
       const borrowId = result[0].id;
-
-      // 清除相关缓存
-      await CacheManager.clearRelated(`${CACHE_PREFIX.LIST}borrows:*`);
-      await CacheManager.clearRelated(`${CACHE_PREFIX.BORROW}*`);
-
       return borrowId;
     } catch (error) {
       Logger.error('创建借阅记录失败:', error);
@@ -583,10 +414,6 @@ export class DataAccess {
         WHERE id = ${id}
       `;
 
-      // 清除相关缓存
-      await CacheManager.clearRelated(`${CACHE_PREFIX.LIST}borrows:*`);
-      await CacheManager.clearRelated(`${CACHE_PREFIX.BORROW}*`);
-
       return true;
     } catch (error) {
       Logger.error('更新借阅记录失败:', error);
@@ -597,11 +424,6 @@ export class DataAccess {
   static async deleteBorrow(id) {
     try {
       await sql`DELETE FROM borrows WHERE id = ${id}`;
-
-      // 清除相关缓存
-      await CacheManager.clearRelated(`${CACHE_PREFIX.LIST}borrows:*`);
-      await CacheManager.clearRelated(`${CACHE_PREFIX.BORROW}*`);
-
       return true;
     } catch (error) {
       Logger.error('删除借阅记录失败:', error);
@@ -611,14 +433,6 @@ export class DataAccess {
 
   // 统计相关操作
   static async getBookStatistics() {
-    const cacheKey = 'cache:stats:books';
-
-    // 尝试从缓存获取
-    const cached = await CacheManager.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
     try {
       // 获取书籍基本统计（只统计未删除的书籍）
       const stats = await sql`
@@ -640,8 +454,6 @@ export class DataAccess {
         normalStock: parseInt(stats[0]?.normal_stock || 0)
       };
 
-      // 设置缓存，统计缓存时间短一些
-      await CacheManager.set(cacheKey, result, 60);
       return result;
     } catch (error) {
       Logger.error('获取书籍统计失败:', error);
@@ -650,14 +462,6 @@ export class DataAccess {
   }
 
   static async getBorrowStatistics() {
-    const cacheKey = 'cache:stats:borrow';
-
-    // 尝试从缓存获取
-    const cached = await CacheManager.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
     try {
       // 获取基本统计
       const stats = await sql`
@@ -735,8 +539,6 @@ export class DataAccess {
         days
       };
 
-      // 设置缓存，统计缓存时间短一些
-      await CacheManager.set(cacheKey, result, 60);
       return result;
     } catch (error) {
       Logger.error('获取借阅统计失败:', error);
@@ -745,14 +547,6 @@ export class DataAccess {
   }
 
   static async getReturnStatistics() {
-    const cacheKey = 'cache:stats:return';
-
-    // 尝试从缓存获取
-    const cached = await CacheManager.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
     try {
       // 获取基本统计
       const stats = await sql`
@@ -835,8 +629,6 @@ export class DataAccess {
         days
       };
 
-      // 设置缓存，统计缓存时间短一些
-      await CacheManager.set(cacheKey, result, 60);
       return result;
     } catch (error) {
       Logger.error('获取归还统计失败:', error);
@@ -921,6 +713,4 @@ export class DataAccess {
       throw error;
     }
   }
-
-
 } 

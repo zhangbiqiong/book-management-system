@@ -1,5 +1,4 @@
 // 用户管理模块 - PostgreSQL版本
-import { RedisClient } from "bun";
 import { checkAdminPermission } from "./auth.js";
 import { 
   ResponseBuilder, 
@@ -9,9 +8,6 @@ import {
 } from "./common.js";
 import { DataAccess } from "./data-access.js";
 import { hashPassword, isPlainPassword } from "./password.js";
-
-// 创建 Redis 客户端实例
-const redisClient = new RedisClient("redis://localhost:6379/1");
 
 const USER_TYPE = "user";
 const REQUIRED_FIELDS = ["username", "role", "status"];
@@ -77,18 +73,6 @@ export const handleUserCreate = ErrorHandler.asyncWrapper(async (req) => {
     status: userData.status
   });
   
-      // 保存用户认证信息到Redis（兼容原有认证系统）
-    await redisClient.set(`user:${userData.username}`, JSON.stringify({
-    id: userId, // 包含用户ID
-    username: userData.username,
-    email: `${userData.username}@example.com`, // 包含邮箱
-    password: hashedPassword,
-    role: userData.role,
-    status: userData.status,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }));
-  
   Logger.info(`管理员创建用户: ${userData.username} (ID: ${userId})`);
   
   return ResponseBuilder.success({ id: userId }, "用户添加成功");
@@ -125,59 +109,25 @@ export const handleUserUpdate = ErrorHandler.asyncWrapper(async (req, id) => {
     }
   }
   
-  // 更新用户信息
-  const success = await DataAccess.updateUser(id, {
+  // 准备更新数据
+  const updateData = {
     username: userData.username.trim(),
     role: userData.role,
     status: userData.status
-  });
-  
-  if (!success) {
-    return ResponseBuilder.error("更新失败");
-  }
-  
-      // 更新Redis中的用户认证信息，确保保留所有必要字段
-    const existingUserData = await redisClient.get(`user:${userData.username}`);
-  let redisUserData = {};
-  
-  if (existingUserData) {
-    // 如果Redis中已有数据，保留现有字段
-    const existingUser = JSON.parse(existingUserData);
-    redisUserData = {
-      id: existingUser.id, // 保留用户ID
-      username: userData.username, // 更新用户名
-      email: existingUser.email, // 保留邮箱
-      password: existingUser.password, // 保持原有密码
-      role: userData.role, // 更新角色
-      status: userData.status, // 更新状态
-      createdAt: existingUser.createdAt, // 保留创建时间
-      updatedAt: new Date().toISOString() // 更新修改时间
-    };
-  } else {
-    // 如果Redis中没有数据，从数据库获取完整信息
-    const dbUser = await DataAccess.getUserById(id);
-    if (dbUser) {
-      redisUserData = {
-        id: dbUser.id,
-        username: userData.username,
-        email: dbUser.email,
-        password: dbUser.password, // 使用数据库中的密码
-        role: userData.role,
-        status: userData.status,
-        createdAt: dbUser.created_at,
-        updatedAt: new Date().toISOString()
-      };
-    }
-  }
+  };
   
   // 如果密码有更新，加密并更新密码字段
   if (userData.password) {
     const hashedPassword = await hashPassword(userData.password);
-    redisUserData.password = hashedPassword;
+    updateData.password = hashedPassword;
   }
   
-      // 保存到Redis
-    await redisClient.set(`user:${userData.username}`, JSON.stringify(redisUserData));
+  // 更新用户信息
+  const success = await DataAccess.updateUser(id, updateData);
+  
+  if (!success) {
+    return ResponseBuilder.error("更新失败");
+  }
   
   Logger.info(`管理员更新用户: ${userData.username} (ID: ${id})`);
   
@@ -203,9 +153,6 @@ export const handleUserDelete = ErrorHandler.asyncWrapper(async (req, id) => {
   if (!success) {
     return ResponseBuilder.error("删除失败");
   }
-  
-  // 删除用户认证信息
-  await redisClient.del(`user:${user.username}`);
   
   Logger.info(`管理员删除用户: ${user.username} (ID: ${id})`);
   

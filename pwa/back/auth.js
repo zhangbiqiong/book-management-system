@@ -1,12 +1,7 @@
-import { RedisClient } from "bun";
-import { DataAccess } from "./common.js";
-
-// 创建 Redis 客户端实例
-const redisClient = new RedisClient("redis://localhost:6379/1");
-
+import { DataAccess } from "./data-access.js";
 import { sign } from "bun-jwt";
 import { JWT_SECRET, JWT_EXPIRES_IN } from "./config.js";
-import { verifyToken, addJWTToBlacklist } from "./utils.js";
+import { verifyToken } from "./utils.js";
 import { verifyPassword, hashPassword, isPlainPassword } from "./password.js";
 
 // 获取当前用户信息
@@ -22,52 +17,33 @@ export async function handleGetCurrentUser(req) {
       });
     }
     
-    // 检查用户当前状态（如果JWT中没有userId，则从Redis获取）
-    if (!payload.userId) {
-      const userData = await redisClient.get(`user:${payload.username}`);
-      if (userData) {
-        const user = JSON.parse(userData);
-        if (user.status === 'disabled') {
-          return new Response(JSON.stringify({ success: false, message: "账户已被禁用，请联系管理员" }), {
-            status: 403,
-            headers: { "Content-Type": "application/json" }
-          });
-        }
-        // 保存用户ID以便返回
-        payload.userId = user.id;
-      }
-    } else {
-      // 如果JWT中有userId，仍然需要检查用户状态
-      const userData = await redisClient.get(`user:${payload.username}`);
-      if (userData) {
-        const user = JSON.parse(userData);
-        if (user.status === 'disabled') {
-          return new Response(JSON.stringify({ success: false, message: "账户已被禁用，请联系管理员" }), {
-            status: 403,
-            headers: { "Content-Type": "application/json" }
-          });
-        }
-      }
+    // 直接从数据库获取用户信息
+    const user = await DataAccess.getUserByUsername(payload.username);
+    
+    if (!user) {
+      return new Response(JSON.stringify({ success: false, message: "用户不存在" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" }
+      });
     }
     
-    // 从Redis获取完整的用户信息
-    const userData = await redisClient.get(`user:${payload.username}`);
-    let userInfo = {
-      id: payload.userId,
-      username: payload.username,
-      role: payload.role || 'user'
+    // 检查用户状态
+    if (user.status === 'disabled') {
+      return new Response(JSON.stringify({ success: false, message: "账户已被禁用，请联系管理员" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    
+    const userInfo = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      createdAt: user.created_at,
+      updatedAt: user.updated_at
     };
-    
-    if (userData) {
-      const user = JSON.parse(userData);
-      userInfo = {
-        ...userInfo,
-        email: user.email,
-        status: user.status,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt
-      };
-    }
     
     return new Response(JSON.stringify({
       success: true,
@@ -95,69 +71,11 @@ export async function handleLogin(req) {
       });
     }
     
-    // 从Redis获取用户数据
-    let userData = await redisClient.get(`user:${username}`);
+    // 直接从数据库获取用户数据
+    const user = await DataAccess.getUserByUsername(username);
     
-    // 如果Redis中没有用户数据，尝试从数据库同步
-    if (!userData) {
-      console.log(`[${new Date().toISOString()}] 用户 ${username} 在Redis中不存在，尝试从数据库同步...`);
-      
-      try {
-        // 从数据库获取用户数据
-        const { sql } = await import("bun");
-        const users = await sql`SELECT * FROM users WHERE username = ${username}`;
-        
-        if (users && users.length > 0) {
-          const user = users[0];
-          
-          // 构建Redis用户数据
-          const redisUserData = {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            password: user.password,
-            role: user.role,
-            status: user.status,
-            createdAt: user.created_at,
-            updatedAt: user.updated_at
-          };
-          
-          // 存储到Redis
-          await redisClient.set(`user:${username}`, JSON.stringify(redisUserData));
-          userData = JSON.stringify(redisUserData);
-          
-          console.log(`[${new Date().toISOString()}] 用户 ${username} 已从数据库同步到Redis`);
-        }
-      } catch (syncError) {
-        console.error(`[${new Date().toISOString()}] 同步用户 ${username} 失败:`, syncError);
-      }
-    }
-    
-    if (!userData) {
+    if (!user) {
       return new Response(JSON.stringify({ success: false, message: "用户名或密码错误" }), {
-        headers: { "Content-Type": "application/json" }
-      });
-    }
-    
-    // 添加调试信息
-    console.log(`[${new Date().toISOString()}] 用户 ${username} 的 Redis 数据:`, userData);
-    console.log(`[${new Date().toISOString()}] 数据类型:`, typeof userData);
-    
-    // 检查数据是否为有效的 JSON
-    if (typeof userData !== 'string' || userData === 'OK' || userData === 'null') {
-      console.error(`[${new Date().toISOString()}] 无效的用户数据:`, userData);
-      return new Response(JSON.stringify({ success: false, message: "用户数据格式错误" }), {
-        headers: { "Content-Type": "application/json" }
-      });
-    }
-    
-    let user;
-    try {
-      user = JSON.parse(userData);
-    } catch (parseError) {
-      console.error(`[${new Date().toISOString()}] JSON 解析错误:`, parseError);
-      console.error(`[${new Date().toISOString()}] 原始数据:`, userData);
-      return new Response(JSON.stringify({ success: false, message: "用户数据格式错误" }), {
         headers: { "Content-Type": "application/json" }
       });
     }
@@ -178,9 +96,11 @@ export async function handleLogin(req) {
       // 如果验证成功，立即迁移为加密密码
       if (passwordValid) {
         console.log(`[${new Date().toISOString()}] 迁移用户 ${username} 的明文密码`);
-        user.password = await hashPassword(password);
-        user.updatedAt = new Date().toISOString();
-        await redisClient.set(`user:${username}`, JSON.stringify(user));
+        const hashedPassword = await hashPassword(password);
+        await DataAccess.updateUser(user.id, {
+          ...user,
+          password: hashedPassword
+        });
       }
     } else {
       // 加密密码，使用bcrypt验证
@@ -227,7 +147,7 @@ export async function handleRegister(req) {
     }
     
     // 检查用户是否已存在
-    const existingUser = await redisClient.get(`user:${username}`);
+    const existingUser = await DataAccess.getUserByUsername(username);
     if (existingUser) {
       return new Response(JSON.stringify({ success: false, message: "用户名已存在" }), {
         headers: { "Content-Type": "application/json" }
@@ -237,29 +157,16 @@ export async function handleRegister(req) {
     // 加密密码
     const hashedPassword = await hashPassword(password);
     
-    // 使用 DataAccess.create() 确保 ID 唯一性
+    // 创建用户数据
     const userData = { 
-      username, // 用户名存储在数据中
-      password: hashedPassword, // 存储加密后的密码
+      username,
+      email: '', // 默认空邮箱
+      password: hashedPassword,
       role: 'user', // 默认普通用户
-      status: 'enabled', // 默认启用
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      status: 'enabled' // 默认启用
     };
     
-    const userId = await DataAccess.create('user', userData);
-    
-    // 为了兼容现有的登录逻辑，也存储一个用户名到密码的映射
-    await redisClient.set(`user:${username}`, JSON.stringify({
-      id: userId,
-      username: username, // 确保包含用户名
-      email: userData.email, // 包含邮箱（如果有）
-      password: hashedPassword, // 存储加密后的密码
-      role: 'user',
-      status: 'enabled',
-      createdAt: userData.createdAt,
-      updatedAt: userData.updatedAt
-    }));
+    await DataAccess.createUser(userData);
     
     return new Response(JSON.stringify({ success: true, message: "注册成功" }), {
       headers: { "Content-Type": "application/json" }
@@ -283,15 +190,13 @@ export async function handleChangePassword(req) {
       });
     }
     
-    // 从Redis获取用户数据
-    const userData = await redisClient.get(`user:${username}`);
-    if (!userData) {
+    // 从数据库获取用户数据
+    const user = await DataAccess.getUserByUsername(username);
+    if (!user) {
       return new Response(JSON.stringify({ success: false, message: "用户不存在" }), {
         headers: { "Content-Type": "application/json" }
       });
     }
-    
-    const user = JSON.parse(userData);
     
     // 验证旧密码
     let oldPasswordValid = false;
@@ -312,18 +217,11 @@ export async function handleChangePassword(req) {
     // 加密新密码
     const hashedNewPassword = await hashPassword(newPassword);
     
-    // 更新密码并保存到Redis，确保保留所有必要字段
-    const updatedUser = {
-      id: user.id, // 保留用户ID
-      username: user.username, // 保留用户名
-      email: user.email, // 保留邮箱
-      password: hashedNewPassword, // 更新密码
-      role: user.role, // 保留角色
-      status: user.status, // 保留状态
-      createdAt: user.createdAt, // 保留创建时间
-      updatedAt: new Date().toISOString() // 更新修改时间
-    };
-    await redisClient.set(`user:${username}`, JSON.stringify(updatedUser));
+    // 更新用户密码
+    await DataAccess.updateUser(user.id, {
+      ...user,
+      password: hashedNewPassword
+    });
     
     return new Response(JSON.stringify({ success: true, message: "密码修改成功" }), {
       headers: { "Content-Type": "application/json" }
@@ -339,23 +237,7 @@ export async function handleChangePassword(req) {
 // 处理注销
 export async function handleLogout(req) {
   try {
-    const cookie = req.headers.get("cookie") || "";
-    const token = cookie.split(';').map(s => s.trim()).find(s => s.startsWith('token='));
-    
-    // 即使没有token，也允许登出操作
-    if (token) {
-      const jwt = token.replace('token=', '');
-      
-      try {
-        // 尝试将JWT加入黑名单（如果token有效）
-        await addJWTToBlacklist(jwt);
-      } catch (error) {
-        // Token可能已过期或无效，忽略错误继续执行
-        console.log(`[${new Date().toISOString()}] Token无效或已过期，跳过黑名单操作`);
-      }
-    }
-    
-    // 无论token是否存在或有效，都清除cookie并返回成功
+    // 直接清除cookie并返回成功，不再维护JWT黑名单
     return new Response(JSON.stringify({ 
       success: true, 
       message: "注销成功" 

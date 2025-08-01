@@ -1,8 +1,5 @@
 // 后端公共工具文件 - 图书管理系统
-import { RedisClient } from "bun";
-
-// 创建 Redis 客户端实例
-const redisClient = new RedisClient("redis://localhost:6379/1");
+import { sql } from "bun";
 
 // 通用响应构建器
 export const ResponseBuilder = {
@@ -55,25 +52,31 @@ export const ResponseBuilder = {
   }
 };
 
-// 通用数据访问层
+// 通用数据访问层 - 直接数据库访问
 export const DataAccess = {
   // 获取所有项目
   async getAll(type) {
     try {
-      let ids = await redisClient.get(`${type}:ids`);
-      ids = ids ? JSON.parse(ids) : [];
-      
-      const items = [];
-      for (const id of ids) {
-        const data = await redisClient.get(`${type}:${id}`);
-        if (data) {
-          const item = JSON.parse(data);
-          item.id = id;
-          items.push(item);
-        }
+      let query;
+      switch (type) {
+        case 'user':
+          query = sql`SELECT * FROM users ORDER BY id DESC`;
+          break;
+        case 'book':
+          query = sql`SELECT * FROM books WHERE deleted_at IS NULL ORDER BY id DESC`;
+          break;
+        case 'borrow':
+          query = sql`SELECT * FROM borrows ORDER BY id DESC`;
+          break;
+        default:
+          throw new Error(`不支持的类型: ${type}`);
       }
       
-      return items;
+      const items = await query;
+      return items.map(item => ({
+        ...item,
+        id: item.id.toString()
+      }));
     } catch (error) {
       console.error(`获取${type}列表失败:`, error);
       throw error;
@@ -83,40 +86,68 @@ export const DataAccess = {
   // 根据ID获取单个项目
   async getById(type, id) {
     try {
-      const data = await redisClient.get(`${type}:${id}`);
-      if (!data) return null;
+      let query;
+      switch (type) {
+        case 'user':
+          query = sql`SELECT * FROM users WHERE id = ${id}`;
+          break;
+        case 'book':
+          query = sql`SELECT * FROM books WHERE id = ${id} AND deleted_at IS NULL`;
+          break;
+        case 'borrow':
+          query = sql`SELECT * FROM borrows WHERE id = ${id}`;
+          break;
+        default:
+          throw new Error(`不支持的类型: ${type}`);
+      }
       
-      const item = JSON.parse(data);
-      item.id = id;
-      return item;
+      const items = await query;
+      if (items.length === 0) return null;
+      
+      const item = items[0];
+      return {
+        ...item,
+        id: item.id.toString()
+      };
     } catch (error) {
       console.error(`获取${type}:${id}失败:`, error);
       throw error;
     }
   },
 
-  // 创建新项目 - 使用原子操作确保 ID 唯一性
+  // 创建新项目
   async create(type, data) {
     try {
-      // 使用 Redis INCR 原子操作获取唯一 ID
-      const nextId = await redisClient.incr(`${type}:id:next`);
-      const idString = nextId.toString();
-      
-      // 由于 Bun Redis 不支持 eval，使用原子操作的组合
-      // 1. 先保存数据
-      await redisClient.set(`${type}:${idString}`, JSON.stringify(data));
-      
-      // 2. 获取并更新 ID 列表（这里存在竞争条件，但由于 INCR 保证了 ID 唯一性，问题不大）
-      let ids = await redisClient.get(`${type}:ids`);
-      ids = ids ? JSON.parse(ids) : [];
-      
-      // 检查 ID 是否已存在（防止重复，虽然理论上不应该发生）
-      if (!ids.includes(idString)) {
-        ids.push(idString);
-        await redisClient.set(`${type}:ids`, JSON.stringify(ids));
+      let result;
+      switch (type) {
+        case 'user':
+          result = await sql`
+            INSERT INTO users (username, email, password, role, status)
+            VALUES (${data.username}, ${data.email}, ${data.password}, ${data.role}, ${data.status})
+            RETURNING id
+          `;
+          break;
+        case 'book':
+          result = await sql`
+            INSERT INTO books (title, author, publisher, isbn, publish_date, price, stock, description, category)
+            VALUES (${data.title}, ${data.author}, ${data.publisher}, ${data.isbn}, 
+                    ${data.publishDate}, ${data.price}, ${data.stock}, ${data.description}, ${data.category})
+            RETURNING id
+          `;
+          break;
+        case 'borrow':
+          result = await sql`
+            INSERT INTO borrows (user_id, book_id, book_title, borrower_name, borrow_date, due_date, return_date, status)
+            VALUES (${data.userId}, ${data.bookId}, ${data.bookTitle}, ${data.borrowerName},
+                    ${data.borrowDate}, ${data.dueDate}, ${data.returnDate}, ${data.status})
+            RETURNING id
+          `;
+          break;
+        default:
+          throw new Error(`不支持的类型: ${type}`);
       }
       
-      return idString;
+      return result[0].id.toString();
     } catch (error) {
       console.error(`创建${type}失败:`, error);
       throw error;
@@ -126,36 +157,69 @@ export const DataAccess = {
   // 更新项目
   async update(type, id, data) {
     try {
-      const exists = await redisClient.get(`${type}:${id}`);
-      if (!exists) return false;
+      let result;
+      switch (type) {
+        case 'user':
+          result = await sql`
+            UPDATE users 
+            SET username = ${data.username}, role = ${data.role}, status = ${data.status}, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ${id}
+          `;
+          break;
+        case 'book':
+          result = await sql`
+            UPDATE books 
+            SET title = ${data.title}, author = ${data.author}, publisher = ${data.publisher},
+                isbn = ${data.isbn}, publish_date = ${data.publishDate}, price = ${data.price},
+                stock = ${data.stock}, description = ${data.description}, category = ${data.category},
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ${id}
+          `;
+          break;
+        case 'borrow':
+          result = await sql`
+            UPDATE borrows 
+            SET user_id = ${data.userId}, book_id = ${data.bookId}, book_title = ${data.bookTitle},
+                borrower_name = ${data.borrowerName}, borrow_date = ${data.borrowDate},
+                due_date = ${data.dueDate}, return_date = ${data.returnDate}, status = ${data.status},
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ${id}
+          `;
+          break;
+        default:
+          throw new Error(`不支持的类型: ${type}`);
+      }
       
-      await redisClient.set(`${type}:${id}`, JSON.stringify(data));
-      return true;
+      return result.length > 0;
     } catch (error) {
       console.error(`更新${type}:${id}失败:`, error);
       throw error;
     }
   },
 
-  // 删除项目 - 尽量保证一致性
+  // 删除项目
   async delete(type, id) {
     try {
-      // 检查数据是否存在
-      const exists = await redisClient.get(`${type}:${id}`);
-      if (!exists) return false;
-      
-      // 删除数据
-      await redisClient.del(`${type}:${id}`);
-      
-      // 从 ID 列表中移除
-      let ids = await redisClient.get(`${type}:ids`);
-      if (ids) {
-        ids = JSON.parse(ids);
-        const newIds = ids.filter(existingId => existingId !== id);
-        await redisClient.set(`${type}:ids`, JSON.stringify(newIds));
+      let result;
+      switch (type) {
+        case 'user':
+          result = await sql`DELETE FROM users WHERE id = ${id}`;
+          break;
+        case 'book':
+          result = await sql`
+            UPDATE books 
+            SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ${id}
+          `;
+          break;
+        case 'borrow':
+          result = await sql`DELETE FROM borrows WHERE id = ${id}`;
+          break;
+        default:
+          throw new Error(`不支持的类型: ${type}`);
       }
       
-      return true;
+      return result.length > 0;
     } catch (error) {
       console.error(`删除${type}:${id}失败:`, error);
       throw error;
@@ -165,8 +229,23 @@ export const DataAccess = {
   // 检查项目是否存在
   async exists(type, id) {
     try {
-      const data = await redisClient.get(`${type}:${id}`);
-      return !!data;
+      let query;
+      switch (type) {
+        case 'user':
+          query = sql`SELECT 1 FROM users WHERE id = ${id} LIMIT 1`;
+          break;
+        case 'book':
+          query = sql`SELECT 1 FROM books WHERE id = ${id} AND deleted_at IS NULL LIMIT 1`;
+          break;
+        case 'borrow':
+          query = sql`SELECT 1 FROM borrows WHERE id = ${id} LIMIT 1`;
+          break;
+        default:
+          throw new Error(`不支持的类型: ${type}`);
+      }
+      
+      const result = await query;
+      return result.length > 0;
     } catch (error) {
       console.error(`检查${type}:${id}存在性失败:`, error);
       throw error;

@@ -24,7 +24,7 @@
         <!-- 顶部标题栏 -->
         <div class="header">
             <h1><i class="bi bi-book"></i> 图书借阅系统</h1>
-            <div class="user-info" x-show="user && !loading">
+            <!-- <div class="user-info" x-show="user && !loading">
                 <span class="username" x-text="user?.username || ''"></span>
                 <span class="role" x-text="getRoleText(user?.role)"></span>
             </div>
@@ -35,7 +35,7 @@
             </div>
             <div class="user-avatar" x-show="user && !loading">
                 <i class="bi bi-person-circle fs-3"></i>
-            </div>
+            </div> -->
         </div>
         
         <!-- 内容区域 -->
@@ -151,6 +151,11 @@
                 
                 // 切换标签页
                 switchTab(tab) {
+                    // 防止快速重复点击
+                    if (this.currentTab === tab) {
+                        return;
+                    }
+                    
                     this.currentTab = tab;
                     
                     // 根据标签页设置对应的页面

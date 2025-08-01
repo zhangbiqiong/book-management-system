@@ -1,264 +1,167 @@
-# 图书管理系统 - 移动端
+# 图书管理系统 - PWA版本
 
-这是一个专为手机浏览器设计的图书管理系统前端界面，现已集成真实的API调用。
+## 项目简介
 
-## 功能特性
-
-### 🔐 用户认证
-- 登录页面 (`login.html`)
-- 用户名/密码验证
-- JWT Token认证
-- 登录状态保持
-- 自动跳转到主页
-
-### 📱 主界面 (`index.html`)
-- 响应式设计，适配手机屏幕
-- 顶部标题栏（显示用户信息）
-- 中间内容区域（iframe）
-- 底部导航菜单
-- 实时认证状态检查
-
-### 📚 图书查询 (`book.html`)
-- 图书搜索功能
-- 按分类和状态筛选
-- 图书详情查看
-- 搜索结果展示
-- 分页功能
-- 排序功能
-
-### 📖 借阅记录 (`borrow.html`)
-- 查看个人借阅历史
-- 按状态筛选记录
-- 图书续借功能
-- 借阅详情查看
-- 分页功能
-- 排序功能
-
-### ⚙️ 个人设置 (`setting.html`)
-- 个人信息管理
-- 用户角色显示
-- 账户状态显示
-- 密码修改
-- 退出登录
+这是一个基于现代Web技术栈构建的图书管理系统，采用PWA（Progressive Web App）架构，提供响应式设计和离线功能。
 
 ## 技术栈
 
-- **HTML5** - 页面结构
-- **CSS3 + Less** - 样式设计
-- **Bootstrap 5** - 响应式框架
-- **Bootstrap Datetimepicker** - 日期/时间选择器
-- **Alpine.js** - 轻量级交互框架
-- **Axios** - HTTP 请求
-- **Lodash** - 工具函数库
-- **Bun** - 高性能 JavaScript 运行时（后端）
-- **PostgreSQL 13** - 关系数据库
-- **Redis 6** - 缓存与消息队列
+- **前端**: HTML5 + CSS3 + JavaScript + Bootstrap 5.3.2 + Alpine.js 3.x
+- **后端**: Bun (JavaScript Runtime)
+- **数据库**: PostgreSQL
+- **通信**: WebSocket (实时通知)
+- **部署**: HTTPS + 自签名证书
 
-## API集成
+## 主要功能
 
-### 真实API调用
-系统现已完全集成真实的API调用，包括：
+- ✅ **用户管理**: 用户注册、登录、权限控制
+- ✅ **图书管理**: 图书增删改查、库存管理
+- ✅ **借阅管理**: 借阅记录、归还管理、逾期提醒
+- ✅ **实时通知**: WebSocket实时消息推送
+- ✅ **响应式设计**: 支持PC和移动设备
+- ✅ **PWA特性**: 离线缓存、安装到桌面
+- ✅ **数据库升级**: 从内存存储升级到 PostgreSQL 架构
+- ✅ **数据持久化**: 完整的数据库存储方案
+- ✅ **权限控制**: 基于角色的访问控制
+- ✅ **搜索功能**: 支持模糊搜索和分页
+- ✅ **统计功能**: 借阅统计、图书统计
+- ✅ **后台任务**: 自动状态更新任务
 
-- **认证API**: 登录、登出、获取当前用户信息
-- **图书API**: 获取图书列表、搜索、详情查看
-- **借阅API**: 获取借阅记录、续借、状态更新
-- **用户API**: 获取用户信息、修改密码
-
-### API特性
-- JWT Token认证
-- Cookie管理
-- 自动错误处理
-- 401状态码自动跳转登录
-- 请求/响应拦截
-- 统一的错误提示
-
-## 文件结构
+## 项目结构
 
 ```
 pwa/
-├── front/
-│   ├── css/
-│   │   └── main.less          # 主样式文件
-│   ├── js/
-│   │   └── app.js            # 通用 JavaScript 工具和 API 服务
-│   ├── login.html            # 登录页面
-│   ├── index.html            # 主页面
-│   ├── book.html             # 图书查询页面
-│   ├── borrow.html           # 借阅记录页面
-│   ├── setting.html          # 个人设置页面
-│   └── README.md             # 前端说明文档
-├── back/
-│   ├── auth.js               # 认证模块
-│   ├── user.js               # 用户管理
-│   ├── book.js               # 图书管理
-│   ├── borrow.js             # 借阅管理
-│   ├── task.js               # 后台定时任务
-│   ├── data-access.js        # 数据访问层
-│   ├── utils.js              # 通用工具函数
-│   └── common.js             # 公共模块
-└── README.md                 # 项目说明文档
+├── back/                 # 后端代码
+│   ├── auth.js          # 用户认证
+│   ├── book.js          # 图书管理
+│   ├── borrow.js        # 借阅管理
+│   ├── user.js          # 用户管理
+│   ├── common.js        # 公共工具
+│   ├── data-access.js   # 数据访问层
+│   ├── database.js      # 数据库初始化
+│   ├── routes.js        # 路由处理
+│   ├── utils.js         # 工具函数
+│   ├── websocket.js     # WebSocket处理
+│   ├── task.js          # 后台任务
+│   ├── statistics.js    # 统计功能
+│   ├── password.js      # 密码处理
+│   └── config.js        # 配置文件
+├── front/               # 前端代码
+│   ├── component/       # 组件
+│   ├── page/           # 页面
+│   └── static/         # 静态资源
+├── server-pwa.js       # 服务器入口
+├── package.json        # 项目配置
+└── README.md          # 项目说明
 ```
 
-## 使用方法
+## 快速开始
 
-### 1. 启动服务
-确保后端服务正在运行，然后访问：
-- 管理员后台：`https://localhost:3000`
-- 移动端用户：`https://localhost:3001`
+### 环境要求
 
-### 2. 登录系统
-- 访问 `login.html`
-- 使用测试账号登录：
-  - 用户名：`admin`
-  - 密码：`admin`
+- **Node.js**: 18.0+
+- **Bun**: 1.0+
+- **PostgreSQL**: 12+
 
-### 3. 使用功能
-登录成功后会自动跳转到主页，可以通过底部导航切换不同功能：
+### 安装依赖
 
-- **图书** - 搜索和查看图书信息
-- **借阅** - 查看个人借阅记录
-- **设置** - 管理个人信息
-
-## 设计特点
-
-### 🎨 移动端优化
-- 触摸友好的按钮大小
-- 适配不同屏幕尺寸
-- 流畅的页面切换动画
-- 直观的图标和文字
-
-### 🔄 交互体验
-- 加载状态提示
-- 错误信息反馈
-- 表单验证
-- 平滑的动画效果
-
-### 📊 数据管理
-- 本地存储用户信息
-- 页面间数据传递
-- 真实API调用
-- 状态管理
-
-## API调用示例
-
-### 登录
-```javascript
-const response = await ApiService.login({
-    username: 'admin',
-    password: 'admin'
-});
+```bash
+cd pwa
+bun install
 ```
 
-### 获取图书列表
-```javascript
-const response = await ApiService.getBooks({
-    search: '红楼梦',
-    page: 1,
-    pageSize: 10,
-    sortBy: 'title',
-    sortOrder: 'asc'
-});
+### 数据库配置
+
+1. 确保PostgreSQL服务正在运行
+2. 创建数据库：`book_management`
+3. 运行数据库初始化脚本
+
+### 启动服务
+
+```bash
+# 开发模式启动
+bun run dev-pwa
+
+# 或者直接启动
+bun run server-pwa.js
 ```
 
-### 获取借阅记录
-```javascript
-const response = await ApiService.getBorrows({
-    status: 'borrowed',
-    page: 1,
-    pageSize: 10
-});
-```
+### 访问应用
 
-### 修改密码
-```javascript
-const response = await ApiService.request('/change-password', {
-    method: 'POST',
-    data: {
-        username: 'admin',
-        oldPassword: 'oldpass',
-        newPassword: 'newpass'
-    }
-});
-```
+- **PWA应用**: https://localhost:3001
+- **管理后台**: https://localhost:3000 (management项目)
+
+## 功能特性
+
+### 用户管理
+- 用户注册、登录、注销
+- 密码加密存储
+- 基于角色的权限控制
+- 用户状态管理
+
+### 图书管理
+- 图书信息的增删改查
+- 库存管理
+- 图书分类
+- 搜索和分页
+
+### 借阅管理
+- 借阅记录创建
+- 归还管理
+- 逾期提醒
+- 借阅历史查询
+
+### 实时功能
+- WebSocket实时通知
+- 借阅状态实时更新
+- 多用户操作同步
+
+### 统计功能
+- 借阅统计图表
+- 图书库存统计
+- 归还统计
 
 ## 开发说明
 
-### 样式系统
-使用Less预处理器，主要样式变量：
-- `@primary-color` - 主色调
-- `@secondary-color` - 次要色调
-- `@success-color` - 成功状态
-- `@danger-color` - 危险状态
+### 代码规范
+- 使用ES6+语法
+- 遵循命名规范
+- 模块化设计
+- 错误处理完善
 
-### 组件结构
-每个页面都使用Alpine.js进行状态管理，包含：
-- 数据绑定
-- 事件处理
-- 计算属性
-- 生命周期钩子
+### 数据库设计
+- 用户表 (users)
+- 图书表 (books)
+- 借阅表 (borrows)
+- 软删除支持
 
-### 通信机制
-- 使用localStorage存储用户数据
-- 通过postMessage进行页面间通信
-- iframe加载子页面内容
-- 真实API调用
+### 安全特性
+- HTTPS加密传输
+- JWT身份验证
+- 密码加密存储
+- 权限验证
 
-### API服务
-`app.js` 中的 `ApiService` 提供：
-- 统一的请求封装
-- JWT Token管理
-- Cookie处理
-- 错误处理
-- 认证状态检查
+## 部署说明
 
-## 测试账号
+### 生产环境
+1. 配置环境变量
+2. 设置HTTPS证书
+3. 配置数据库连接
+4. 启动服务
 
-- **用户名**: admin
-- **密码**: admin
+### 性能优化
+- 数据库索引优化
+- 静态资源缓存
+- 代码压缩
+- CDN加速
 
-## 注意事项
+## 贡献指南
 
-1. **后端服务**: 确保后端服务运行在 `http://localhost:3000`
-2. **CORS设置**: 后端需要允许前端域名的跨域请求
-3. **HTTPS**: 建议使用HTTPS协议以确保安全性
-4. **浏览器**: 支持现代浏览器，建议使用Chrome、Safari等主流浏览器
-5. **移动端**: 建议在手机浏览器中访问以获得最佳体验
+1. Fork项目
+2. 创建功能分支
+3. 提交代码
+4. 创建Pull Request
 
-## 错误处理
+## 许可证
 
-系统提供完善的错误处理机制：
-
-- **网络错误**: 自动重试和用户提示
-- **认证错误**: 自动跳转到登录页面
-- **权限错误**: 显示权限不足提示
-- **数据错误**: 友好的错误信息显示
-
-### Alpine.js 错误修复
-
-系统已修复以下Alpine.js相关的错误：
-
-- **初始化错误**: 修复了组件未完全初始化时访问`__x.$data`的问题
-- **模态框数据传递**: 使用Alpine.js事件系统安全地传递模态框数据
-- **组件生命周期**: 确保组件完全初始化后再执行相关操作
-
-#### 修复的问题
-1. `login.html:164` - 组件初始化错误
-2. 模态框数据传递错误
-3. Alpine.js组件访问时序问题
-
-#### 解决方案
-- 使用`Alpine.nextTick()`确保组件完全初始化
-- 使用`@event.window`事件系统传递数据
-- 添加安全检查防止访问未初始化的组件
-
-## 后续开发
-
-- [x] 连接真实后端API
-- [x] 添加JWT认证
-- [x] 实现错误处理
-- [x] 添加加载状态
-- [ ] 添加图书预约功能
-- [ ] 实现消息通知系统
-- [ ] 优化离线体验
-- [ ] 添加更多个性化设置
-- [ ] 实现WebSocket实时通信 
+MIT License 

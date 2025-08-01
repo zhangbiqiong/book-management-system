@@ -1,4 +1,4 @@
-import { verifyJWTAndCheckBlacklist } from "./utils.js";
+import { verifyJWT } from "./utils.js";
 
 // WebSocket 连接管理
 let wsConnections = new Map(); // 存储所有 WebSocket 连接，key 是用户名，value 是 WebSocket 对象
@@ -10,7 +10,7 @@ export function handleWebSocketMessage(ws, message) {
     
     if (data.type === "auth") {
       // 验证用户身份
-      verifyJWTAndCheckBlacklist(data.token).then(verification => {
+      verifyJWT(data.token).then(verification => {
         if (verification.valid) {
           const username = verification.payload.username;
           wsConnections.set(username, ws);

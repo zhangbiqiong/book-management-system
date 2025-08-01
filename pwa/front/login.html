@@ -349,6 +349,21 @@
                         const response = await ApiService.login(this.form);
                         
                         if (response.success) {
+                            // 登录成功后，获取用户信息
+                            try {
+                                const userResponse = await ApiService.getCurrentUser();
+                                if (userResponse.success) {
+                                    // 存储用户信息到本地
+                                    const userInfo = {
+                                        ...userResponse.user,
+                                        isLoggedIn: true
+                                    };
+                                    UserManager.setCurrentUser(userInfo);
+                                }
+                            } catch (error) {
+                                console.error('获取用户信息失败:', error);
+                            }
+                            
                             // 显示成功消息
                             AppUtils.showMessage('登录成功', 'success');
                             

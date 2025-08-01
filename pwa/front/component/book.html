@@ -30,7 +30,7 @@
             </div>
         </div>
         
-        <div class="mb-3">
+        <!-- <div class="mb-3">
             <div class="row g-2">
                 <div class="col-6">
                     <select class="form-select" x-model="filterCategory">
@@ -51,9 +51,9 @@
                     </select>
                 </div>
             </div>
-        </div>
+        </div> -->
         
-        <div x-show="!loading && books.length > 0">
+        <!-- <div x-show="!loading && books.length > 0">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <span class="text-muted">找到 <span x-text="filteredBooks.length"></span> 本图书</span>
                 <div class="btn-group btn-group-sm">
@@ -67,7 +67,7 @@
                         出版日期
                     </button>
                 </div>
-            </div>
+            </div> -->
             
             <div class="book-list">
                 <template x-for="book in filteredBooks" :key="book.id">
@@ -134,7 +134,7 @@
             </div>
         </div>
         
-        <div x-show="loading" class="loading">
+        <!-- <div x-show="loading" class="loading">
             <div class="spinner-border" role="status"></div>
         </div>
         
@@ -149,7 +149,7 @@
             <h3>开始搜索图书</h3>
             <p>在搜索框中输入关键词开始查找</p>
         </div>
-    </div>
+    </div> -->
 
     <!-- 图书详情模态框 -->
     <div class="modal fade" id="bookDetailModal" tabindex="-1" x-data="{ selectedBook: null }" @showBookDetail.window="selectedBook = $event.detail">

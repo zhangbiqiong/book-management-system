@@ -75,10 +75,6 @@ const server = serve({
   }
 });
 
-// // 设置 Redis 环境变量，使用 db1
-// process.env.REDIS_URL = "redis://localhost:6379/1";
-// console.log(`[${new Date().toISOString()}] 🔌 配置Redis使用数据库db1...`);
-
 // 初始化数据库 - 使用 Bun SQL
 console.log(`[${new Date().toISOString()}] 🔌 初始化Bun SQL数据库连接...`);
 try {

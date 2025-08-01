@@ -1,18 +1,14 @@
 // 后台任务管理API处理函数 - 重构版
 
 // ========== 定时任务实现 ========== //
-import { RedisClient } from "bun";
 import { TASK_UPDATE_INTERVAL, TASK_NAME } from "./config.js";
-
-// 创建 Redis 客户端实例
-const redisClient = new RedisClient("redis://localhost:6379/1");
-
 import { calculateBorrowStatus } from "./utils.js";
 import { 
   ResponseBuilder, 
   ErrorHandler,
   Logger 
 } from "./common.js";
+import { DataAccess } from "./data-access.js";
 
 let taskTimer = null;
 let taskStatus = {
@@ -51,25 +47,28 @@ async function executeStatusUpdate() {
   taskStatus.totalRuns++;
   taskStatus.lastRunTime = Date.now();
   try {
-    let ids = await redisClient.get("borrow:ids");
-    ids = ids ? JSON.parse(ids) : [];
+    // 直接从数据库获取所有借阅记录
+    const result = await DataAccess.getAllBorrows('', 1, 10000); // 获取所有借阅记录
     let updateCount = 0;
-    for (const id of ids) {
-      const data = await redisClient.get(`borrow:${id}`);
-      if (data) {
-        const borrow = JSON.parse(data);
-        const status = calculateBorrowStatus(borrow);
-        if (borrow.status !== status) {
-          borrow.status = status;
-          await redisClient.set(`borrow:${id}`, JSON.stringify(borrow));
-          updateCount++;
-        }
+    
+    for (const borrow of result.data) {
+      const status = calculateBorrowStatus(borrow);
+      if (borrow.status !== status) {
+        // 更新借阅状态
+        await DataAccess.updateBorrow(borrow.id, {
+          ...borrow,
+          status: status
+        });
+        updateCount++;
       }
     }
+    
     taskStatus.totalUpdates += updateCount;
     taskStatus.lastError = null;
+    Logger.info(`状态更新任务完成: 检查了 ${result.data.length} 条记录，更新了 ${updateCount} 条状态`);
   } catch (e) {
     taskStatus.lastError = e.message || String(e);
+    Logger.error(`状态更新任务失败:`, e);
   }
 }
 

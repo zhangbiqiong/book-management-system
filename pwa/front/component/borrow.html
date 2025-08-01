@@ -212,9 +212,25 @@
                     
                     try {
                         // 获取当前登录用户信息
-                        const currentUser = UserManager.getCurrentUser();
+                        let currentUser = UserManager.getCurrentUser();
                         if (!currentUser || !currentUser.id) {
-                            throw new Error('用户未登录或用户信息不完整');
+                            // 尝试重新获取用户信息
+                            try {
+                                const userResponse = await ApiService.getCurrentUser();
+                                if (userResponse.success) {
+                                    const userInfo = {
+                                        ...userResponse.user,
+                                        isLoggedIn: true
+                                    };
+                                    UserManager.setCurrentUser(userInfo);
+                                    currentUser = userInfo;
+                                } else {
+                                    throw new Error('用户未登录或用户信息不完整');
+                                }
+                            } catch (error) {
+                                console.error('重新获取用户信息失败:', error);
+                                throw new Error('用户未登录或用户信息不完整');
+                            }
                         }
                         
                         const params = {

@@ -1,5 +1,4 @@
 // 借阅管理模块 - PostgreSQL版本
-import { RedisClient } from "bun";
 import { getCurrentUsername, getCurrentUserId, calculateBorrowStatus } from "./utils.js";
 import { 
   ResponseBuilder, 
@@ -9,9 +8,6 @@ import {
   Logger 
 } from "./common.js";
 import { DataAccess } from "./data-access.js";
-
-// 创建 Redis 客户端实例
-const redisClient = new RedisClient("redis://localhost:6379/1");
 
 const BORROW_TYPE = "borrow";
 const BOOK_TYPE = "book";
@@ -38,6 +34,9 @@ export const handleBorrowList = ErrorHandler.asyncWrapper(async (req, url) => {
     Logger.warn(`用户 ${currentUserId} 尝试访问用户 ${requestedUserId} 的借阅记录，已拒绝`);
     return ResponseBuilder.error("无权限访问其他用户的借阅记录", 403);
   }
+  
+  // 如果没有传递userId参数，使用当前登录用户的ID
+  const effectiveUserId = requestedUserId || currentUserId;
   
   // 使用当前用户ID获取借阅记录
   const result = await DataAccess.getAllBorrows(search, page, pageSize);
@@ -118,10 +117,16 @@ export const handleBorrowCreate = ErrorHandler.asyncWrapper(async (req, wsConnec
   
   // 更新图书库存（减少1）
   const newStock = book.stock - 1;
-  await DataAccess.update(BOOK_TYPE, borrowData.bookId, {
-    ...book,
+  await DataAccess.updateBook(borrowData.bookId, {
+    title: book.title,
+    author: book.author,
+    publisher: book.publisher,
+    isbn: book.isbn,
+    publishDate: book.publish_date ? book.publish_date.toISOString().split('T')[0] : '1900-01-01',
+    price: book.price,
     stock: newStock,
-    updatedAt: new Date().toISOString()
+    description: book.description,
+    category: book.category
   });
   
   Logger.info(`用户 ${operator} 创建借阅: ${borrowData.borrowerName} 借阅《${borrowData.bookTitle}》 (ID: ${borrowId}, 剩余库存: ${newStock})`);
@@ -174,13 +179,12 @@ export const handleBorrowUpdate = ErrorHandler.asyncWrapper(async (req, id) => {
     const book = await DataAccess.getById(BOOK_TYPE, borrowData.bookId);
     if (book) {
       const newStock = book.stock + 1;
-      // 只更新库存字段，避免字段名不匹配问题
       await DataAccess.updateBook(borrowData.bookId, {
         title: book.title,
         author: book.author,
         publisher: book.publisher,
         isbn: book.isbn,
-        publishDate: book.publish_date ? book.publish_date.toISOString().split('T')[0] : '1900-01-01', // 提供默认日期避免null值
+        publishDate: book.publish_date ? book.publish_date.toISOString().split('T')[0] : '1900-01-01',
         price: book.price,
         stock: newStock,
         description: book.description,
@@ -196,13 +200,12 @@ export const handleBorrowUpdate = ErrorHandler.asyncWrapper(async (req, id) => {
         return ResponseBuilder.error(`图书《${book.title}》库存不足，无法取消归还`);
       }
       const newStock = book.stock - 1;
-      // 只更新库存字段，避免字段名不匹配问题
       await DataAccess.updateBook(borrowData.bookId, {
         title: book.title,
         author: book.author,
         publisher: book.publisher,
         isbn: book.isbn,
-        publishDate: book.publish_date ? book.publish_date.toISOString().split('T')[0] : '1900-01-01', // 提供默认日期避免null值
+        publishDate: book.publish_date ? book.publish_date.toISOString().split('T')[0] : '1900-01-01',
         price: book.price,
         stock: newStock,
         description: book.description,
@@ -263,11 +266,16 @@ export const handleBorrowDelete = ErrorHandler.asyncWrapper(async (req, id) => {
     const book = await DataAccess.getById(BOOK_TYPE, borrow.bookId);
     if (book) {
       const newStock = book.stock + 1;
-      await DataAccess.update(BOOK_TYPE, borrow.bookId, {
-        ...book,
-        publishDate: book.publish_date ? book.publish_date.toISOString().split('T')[0] : '1900-01-01', // 确保publishDate字段正确
+      await DataAccess.updateBook(borrow.bookId, {
+        title: book.title,
+        author: book.author,
+        publisher: book.publisher,
+        isbn: book.isbn,
+        publishDate: book.publish_date ? book.publish_date.toISOString().split('T')[0] : '1900-01-01',
+        price: book.price,
         stock: newStock,
-        updatedAt: new Date().toISOString()
+        description: book.description,
+        category: book.category
       });
       Logger.info(`删除未归还借阅，恢复图书《${book.title}》库存至: ${newStock}`);
     }
@@ -293,13 +301,12 @@ export const handleBorrowCount = ErrorHandler.asyncWrapper(async (req) => {
       return ResponseBuilder.error("未登录", 401);
     }
     
-    // 从Redis获取用户数据以获取用户ID
-    const userData = await redisClient.get(`user:${username}`);
-    if (!userData) {
+    // 直接从数据库获取用户信息
+    const user = await DataAccess.getUserByUsername(username);
+    if (!user) {
       return ResponseBuilder.error("用户信息不存在", 401);
     }
     
-    const user = JSON.parse(userData);
     const userId = user.id;
     
     // 获取该用户的借阅数量（未归还的）
