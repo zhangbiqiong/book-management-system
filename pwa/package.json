@@ -4,11 +4,15 @@
   "description": "图书管理系统 - PWA版本",
   "main": "server-pwa.js",
   "scripts": {
-    "dev-pwa": "bun --watch server-pwa.js",
-    "start": "bun server-pwa.js",
-    "test": "bun test"
+    "dev-pwa": "bun --watch server-pwa.js"
   },
-  "keywords": ["book-management", "user-management", "bun", "postgresql", "pwa"],
+  "keywords": [
+    "book-management",
+    "user-management",
+    "bun",
+    "postgresql",
+    "pwa"
+  ],
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {

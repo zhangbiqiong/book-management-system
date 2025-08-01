@@ -1,5 +1,5 @@
 import { verifyToken } from "./utils.js";
-import { handleGetCurrentUser, handleLogin, handleLogout, handleLogoutRedirect } from "./auth.js";
+import { handleGetCurrentUser, handleLogin, handleLogout, handleLogoutRedirect, handleChangePassword } from "./auth.js";
 import { handleBookList, handleBookCreate, handleBookUpdate, handleBookDelete, handleGetBookStock, handleUpdateBookStock } from "./book.js";
 import { handleUserList, handleUserCreate, handleUserUpdate, handleUserDelete } from "./user.js";
 import { handleBorrowList, handleBorrowCreate, handleBorrowUpdate, handleBorrowDelete } from "./borrow.js";
@@ -144,6 +144,10 @@ export async function handleRoutes(req, url) {
 
   if (url.pathname === "/api/logout" && req.method === "POST") {
     return handleLogout(req);
+  }
+
+  if (url.pathname === "/api/change-password" && req.method === "POST") {
+    return handleChangePassword(req);
   }
 
   // 注销重定向路由（GET请求）

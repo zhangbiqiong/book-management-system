@@ -211,3 +211,69 @@ export async function checkAdminPermission(req) {
     return { success: false, message: "权限验证失败" };
   }
 } 
+
+// 处理修改密码
+export async function handleChangePassword(req) {
+  try {
+    const { oldPassword, newPassword } = await req.json();
+    
+    if (!oldPassword || !newPassword) {
+      return new Response(JSON.stringify({ success: false, message: "所有字段都不能为空" }), {
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    
+    // 验证用户身份
+    const cookie = req.headers.get("cookie") || "";
+    const payload = await verifyToken(cookie);
+    
+    if (!payload) {
+      return new Response(JSON.stringify({ success: false, message: "未登录" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    
+    // 从数据库获取用户数据
+    const user = await DataAccess.getUserByUsername(payload.username);
+    if (!user) {
+      return new Response(JSON.stringify({ success: false, message: "用户不存在" }), {
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    
+    // 验证旧密码
+    let oldPasswordValid = false;
+    if (isPlainPassword(user.password)) {
+      // 明文密码，直接比较
+      oldPasswordValid = (user.password === oldPassword);
+    } else {
+      // 加密密码，使用bcrypt验证
+      oldPasswordValid = await verifyPassword(oldPassword, user.password);
+    }
+    
+    if (!oldPasswordValid) {
+      return new Response(JSON.stringify({ success: false, message: "旧密码错误" }), {
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    
+    // 加密新密码
+    const hashedNewPassword = await hashPassword(newPassword);
+    
+    // 更新密码
+    await DataAccess.updateUser(user.id, {
+      password: hashedNewPassword,
+      updated_at: new Date().toISOString()
+    });
+    
+    return new Response(JSON.stringify({ success: true, message: "密码修改成功" }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] 修改密码错误:`, error);
+    return new Response(JSON.stringify({ success: false, message: "服务器错误" }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+} 

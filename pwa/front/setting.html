@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,48 +12,69 @@
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </head>
+
 <body>
     <div class="function-page" x-data="settingApp()">
         <div class="page-header">
             <h2><i class="bi bi-gear"></i> 个人设置</h2>
-            <p>管理您的个人信息</p>
+            <p>您的个人信息</p>
         </div>
-        
-        <form @submit.prevent="saveSettings">
+
+        <form>
             <div class="card mb-4">
-                <div class="card-header">
-                    <h5><i class="bi bi-person"></i> 基本信息</h5>
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0"><i class="bi bi-person"></i> 基本信息</h5>
+                    <!-- <button type="button" class="btn btn-sm btn-outline-primary" @click="refreshUserInfo">
+                        <i class="bi bi-arrow-clockwise"></i> 刷新
+                    </button> -->
                 </div>
-                <div class="card-body">
-                    <div class="form-group">
-                        <label for="username" class="form-label">用户名</label>
-                        <input type="text" class="form-control" id="username" x-model="form.username" readonly>
-
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="email" class="form-label">邮箱地址</label>
-                        <input type="email" class="form-control" id="email" x-model="form.email" placeholder="请输入您的邮箱地址" readonly>
-
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="role" class="form-label">用户角色</label>
-                        <input type="text" class="form-control" id="role" x-model="form.role" readonly>
-
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="status" class="form-label">账户状态</label>
-                        <input type="text" class="form-control" id="status" x-model="form.status" readonly>
-   
+                <div class="card-body p-0">
+                    <div class="row g-0">
+                        <div class="col-12 col-md-6">
+                            <div class="p-3 border-end border-bottom">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="bi bi-person-badge text-muted me-2"></i>
+                                    <small class="text-muted">用户名</small>
+                                </div>
+                                <div class="fw-semibold" x-text="form.username || '未设置'"></div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="p-3 border-bottom">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="bi bi-envelope text-muted me-2"></i>
+                                    <small class="text-muted">邮箱地址</small>
+                                </div>
+                                <div class="fw-semibold" x-text="form.email || '未设置'"></div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="p-3 border-end">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="bi bi-shield text-muted me-2"></i>
+                                    <small class="text-muted">用户角色</small>
+                                </div>
+                                <div class="fw-semibold" x-text="form.role || '未设置'"></div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="p-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="bi bi-circle-fill text-muted me-2"></i>
+                                    <small class="text-muted">账户状态</small>
+                                </div>
+                                <div class="fw-semibold">
+                                    <span x-show="form.status === '正常'" class="badge bg-success">正常</span>
+                                    <span x-show="form.status === '已禁用'" class="badge bg-danger">已禁用</span>
+                                    <span x-show="form.status !== '正常' && form.status !== '已禁用'" x-text="form.status || '未设置'"></span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-            
-
         </form>
-        
+
         <div class="card mt-4">
             <div class="card-header">
                 <h5><i class="bi bi-shield"></i> 账户操作</h5>
@@ -62,7 +84,7 @@
                     <button type="button" class="btn btn-outline-warning" @click="showChangePasswordModal">
                         <i class="bi bi-key"></i> 修改密码
                     </button>
-                    
+
                     <button type="button" class="btn btn-outline-danger" @click="logout">
                         <i class="bi bi-box-arrow-right"></i> 退出登录
                     </button>
@@ -83,22 +105,25 @@
                     <form @submit.prevent="handleChangePassword">
                         <div class="mb-3">
                             <label for="oldPassword" class="form-label">当前密码</label>
-                            <input type="password" class="form-control" id="oldPassword" x-model="form.oldPassword" required>
+                            <input type="password" class="form-control" id="oldPassword" x-model="form.oldPassword"
+                                required>
                         </div>
                         <div class="mb-3">
                             <label for="newPassword" class="form-label">新密码</label>
-                            <input type="password" class="form-control" id="newPassword" x-model="form.newPassword" required>
+                            <input type="password" class="form-control" id="newPassword" x-model="form.newPassword"
+                                required>
                             <div class="form-text">密码长度至少6位</div>
                         </div>
                         <div class="mb-3">
                             <label for="confirmPassword" class="form-label">确认新密码</label>
-                            <input type="password" class="form-control" id="confirmPassword" x-model="form.confirmPassword" required>
+                            <input type="password" class="form-control" id="confirmPassword"
+                                x-model="form.confirmPassword" required>
                         </div>
-                        
+
                         <div x-show="error" class="alert alert-danger" role="alert">
                             <span x-text="error"></span>
                         </div>
-                        
+
                         <div class="d-flex justify-content-end gap-2">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
                             <button type="submit" class="btn btn-primary" :disabled="loading">
@@ -118,7 +143,7 @@
     <script src="https://cdn.jsdelivr.net/npm/less@4.1.3/dist/less.min.js"></script>
     <!-- 通用工具 -->
     <script src="js/app.js"></script>
-    
+
     <script>
         function settingApp() {
             return {
@@ -129,23 +154,23 @@
                     status: ''
                 },
                 loading: false,
-                
+
                 init() {
                     // 检查登录状态
                     if (!UserManager.isLoggedIn()) {
                         window.location.href = 'login.html';
                         return;
                     }
-                    
+
                     this.loadUserInfo();
                 },
-                
+
                 async loadUserInfo() {
                     this.loading = true;
-                    
+
                     try {
                         const response = await ApiService.getCurrentUser();
-                        
+
                         if (response.success) {
                             this.form = {
                                 username: response.user.username || '',
@@ -156,7 +181,7 @@
                         } else {
                             throw new Error(response.message || '获取用户信息失败');
                         }
-                        
+
                     } catch (error) {
                         console.error('获取用户信息失败:', error);
                         AppUtils.showMessage(error.message, 'error');
@@ -164,17 +189,17 @@
                         this.loading = false;
                     }
                 },
-                
+
                 async refreshUserInfo() {
                     await this.loadUserInfo();
                     AppUtils.showMessage('用户信息已刷新', 'success');
                 },
-                
+
                 showChangePasswordModal() {
                     const modal = new bootstrap.Modal(document.getElementById('changePasswordModal'));
                     modal.show();
                 },
-                
+
                 async logout() {
                     if (confirm('确定要退出登录吗？')) {
                         try {
@@ -185,7 +210,7 @@
                                 role: '',
                                 status: ''
                             };
-                            
+
                             // 调用退出登录，由后端处理重定向
                             UserManager.logout();
                         } catch (error) {
@@ -195,7 +220,7 @@
                         }
                     }
                 },
-                
+
                 getRoleText(role) {
                     const roleMap = {
                         'admin': '管理员',
@@ -203,7 +228,7 @@
                     };
                     return roleMap[role] || role;
                 },
-                
+
                 getStatusText(status) {
                     const statusMap = {
                         'enabled': '正常',
@@ -213,7 +238,7 @@
                 }
             }
         }
-        
+
         function passwordForm() {
             return {
                 form: {
@@ -223,31 +248,31 @@
                 },
                 loading: false,
                 error: '',
-                
+
                 async handleChangePassword() {
                     this.loading = true;
                     this.error = '';
-                    
+
                     try {
                         // 验证表单
                         if (!this.form.oldPassword || !this.form.newPassword || !this.form.confirmPassword) {
                             throw new Error('请填写所有密码字段');
                         }
-                        
+
                         if (this.form.newPassword.length < 6) {
                             throw new Error('新密码长度至少6位');
                         }
-                        
+
                         if (this.form.newPassword !== this.form.confirmPassword) {
                             throw new Error('两次输入的新密码不一致');
                         }
-                        
+
                         // 获取当前用户名
                         const currentUser = UserManager.getCurrentUser();
                         if (!currentUser || !currentUser.username) {
                             throw new Error('无法获取当前用户信息');
                         }
-                        
+
                         // 调用修改密码API
                         const response = await ApiService.request('/change-password', {
                             method: 'POST',
@@ -257,14 +282,14 @@
                                 newPassword: this.form.newPassword
                             }
                         });
-                        
+
                         if (response.success) {
                             AppUtils.showMessage('密码修改成功', 'success');
-                            
+
                             // 关闭模态框
                             const modal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
                             modal.hide();
-                            
+
                             // 清空表单
                             this.form = {
                                 oldPassword: '',
@@ -274,7 +299,7 @@
                         } else {
                             throw new Error(response.message || '密码修改失败');
                         }
-                        
+
                     } catch (error) {
                         console.error('修改密码失败:', error);
                         this.error = error.message;
@@ -286,4 +311,5 @@
         }
     </script>
 </body>
-</html> 
+
+</html>
