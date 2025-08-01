@@ -92,11 +92,43 @@ export class DataAccess {
 
   static async updateUser(id, userData) {
     try {
-      await sql`
-        UPDATE users 
-        SET username = ${userData.username}, role = ${userData.role}, status = ${userData.status}, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${id}
-      `;
+      // 构建动态更新字段
+      const updateFields = [];
+      const values = [];
+      let paramIndex = 1;
+
+      if (userData.username !== undefined) {
+        updateFields.push(`username = $${paramIndex++}`);
+        values.push(userData.username);
+      }
+      if (userData.role !== undefined) {
+        updateFields.push(`role = $${paramIndex++}`);
+        values.push(userData.role);
+      }
+      if (userData.status !== undefined) {
+        updateFields.push(`status = $${paramIndex++}`);
+        values.push(userData.status);
+      }
+      if (userData.password !== undefined) {
+        updateFields.push(`password = $${paramIndex++}`);
+        values.push(userData.password);
+      }
+      if (userData.email !== undefined) {
+        updateFields.push(`email = $${paramIndex++}`);
+        values.push(userData.email);
+      }
+
+      // 总是更新 updated_at
+      updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+
+      if (updateFields.length === 0) {
+        return true; // 没有字段需要更新
+      }
+
+      const query = `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`;
+      values.push(id);
+
+      await sql.unsafe(query, values);
 
       return true;
     } catch (error) {

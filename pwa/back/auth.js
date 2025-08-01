@@ -263,8 +263,7 @@ export async function handleChangePassword(req) {
     
     // 更新密码
     await DataAccess.updateUser(user.id, {
-      password: hashedNewPassword,
-      updated_at: new Date().toISOString()
+      password: hashedNewPassword
     });
     
     return new Response(JSON.stringify({ success: true, message: "密码修改成功" }), {
