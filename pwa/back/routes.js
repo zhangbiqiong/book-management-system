@@ -1,19 +1,10 @@
 import { verifyToken } from "./utils.js";
-import { handleGetCurrentUser, handleLogin, handleRegister, handleChangePassword, handleLogout, handleLogoutRedirect } from "./auth.js";
+import { handleGetCurrentUser, handleLogin, handleLogout, handleLogoutRedirect } from "./auth.js";
 import { handleBookList, handleBookCreate, handleBookUpdate, handleBookDelete, handleGetBookStock, handleUpdateBookStock } from "./book.js";
 import { handleUserList, handleUserCreate, handleUserUpdate, handleUserDelete } from "./user.js";
-import { handleBorrowList, handleBorrowCreate, handleBorrowUpdate, handleBorrowDelete, handleBorrowCount } from "./borrow.js";
-import { handleBorrowStatistics, handleStockStatistics, handleReturnStatistics } from "./statistics.js";
-import {
-  handleGetTaskStatus,
-  handleStartTask,
-  handleStopTask,
-  handleManualExecute,
-  getTaskStatus,
-  startStatusUpdateTask,
-  stopStatusUpdateTask,
-  manualExecute
-} from "./task.js";
+import { handleBorrowList, handleBorrowCreate, handleBorrowUpdate, handleBorrowDelete } from "./borrow.js";
+import { handleBorrowStatistics } from "./statistics.js";
+
 import {
   shouldReturn304,
   shouldReturn304WithETag,
@@ -69,7 +60,7 @@ export async function handleRoutes(req, url) {
     }
 
     // 检查是否是component目录下的文件
-    const componentFiles = ['book.html', 'borrow.html', 'user.html', 'monitor.html', 'statistics.html'];
+    const componentFiles = ['book.html', 'borrow.html'];
     if (componentFiles.includes(htmlFile)) {
       return await handleHtmlCache(req, `front/component/${htmlFile}`);
     }
@@ -149,14 +140,6 @@ export async function handleRoutes(req, url) {
 
   if (url.pathname === "/api/login" && req.method === "POST") {
     return handleLogin(req);
-  }
-
-  if (url.pathname === "/api/register" && req.method === "POST") {
-    return handleRegister(req);
-  }
-
-  if (url.pathname === "/api/change-password" && req.method === "POST") {
-    return handleChangePassword(req);
   }
 
   if (url.pathname === "/api/logout" && req.method === "POST") {
@@ -245,11 +228,6 @@ export async function handleRoutes(req, url) {
       const response = await handleBorrowList(req, url);
       return setNoCacheHeaders(response);
     }
-    // GET /api/borrows/count 获取借阅数量统计
-    if (req.method === "GET" && url.pathname === "/api/borrows/count") {
-      const response = await handleBorrowCount(req);
-      return setNoCacheHeaders(response);
-    }
     // POST /api/borrows 新增
     if (req.method === "POST" && url.pathname === "/api/borrows") {
       const response = await handleBorrowCreate(req, wsConnections);
@@ -273,45 +251,6 @@ export async function handleRoutes(req, url) {
   // 数据统计API
   if (url.pathname === "/api/statistics/borrow" && req.method === "GET") {
     const response = await handleBorrowStatistics(req);
-    return setNoCacheHeaders(response);
-  }
-
-  // 库存统计API
-  if (url.pathname === "/api/statistics/stock" && req.method === "GET") {
-    const response = await handleStockStatistics(req);
-    return setNoCacheHeaders(response);
-  }
-
-  // 归还统计API
-  if (url.pathname === "/api/statistics/return" && req.method === "GET") {
-    const response = await handleReturnStatistics(req);
-    return setNoCacheHeaders(response);
-  }
-
-  // 后台任务管理API
-  if (url.pathname === "/api/task/status" && req.method === "GET") {
-    const response = await handleGetTaskStatus(req, getTaskStatus);
-    return setNoCacheHeaders(response);
-  }
-
-  if (url.pathname === "/api/task/start" && req.method === "POST") {
-    const response = await handleStartTask(req, startStatusUpdateTask);
-    return setNoCacheHeaders(response);
-  }
-
-  if (url.pathname === "/api/task/stop" && req.method === "POST") {
-    const response = await handleStopTask(req, stopStatusUpdateTask);
-    return setNoCacheHeaders(response);
-  }
-
-  if (url.pathname === "/api/task/execute" && req.method === "POST") {
-    const response = await handleManualExecute(req, manualExecute);
-    return setNoCacheHeaders(response);
-  }
-
-  // 系统通知API
-  if (url.pathname === "/api/system/notifications" && req.method === "GET") {
-    const response = await handleGetNotifications(req);
     return setNoCacheHeaders(response);
   }
 

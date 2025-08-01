@@ -1750,175 +1750,7 @@ curl -X GET "http://localhost:3000/api/statistics/borrow?period=30&refresh=false
 - `401` - 未授权访问
 - `500` - 服务器错误
 
----
 
-## 🛠️ 任务管理 API
-
-### 1. 获取任务状态
-
-**接口地址**: `GET /api/task/status`
-
-**功能描述**: 获取后台任务状态信息
-
-**认证要求**: 需要有效的JWT Token（仅管理员）
-
-**请求示例**:
-```bash
-curl -X GET http://localhost:3000/api/task/status \
-  -H "Cookie: token=<jwt_token>"
-```
-
-**成功响应**:
-```json
-{
-  "success": true,
-  "data": {
-    "taskName": "借阅状态更新任务",
-    "status": "running",           // running, stopped, unknown
-    "lastExecuteTime": "2024-01-01T12:00:00.000Z",
-    "nextExecuteTime": "2024-01-01T12:01:00.000Z",
-    "interval": 60000,             // 执行间隔(毫秒)
-    "isRunning": true,
-    "executionCount": 1440,        // 执行次数
-    "errorCount": 0,               // 错误次数
-    "lastError": null              // 最后一次错误
-  }
-}
-```
-
-**状态码**:
-- `200` - 成功
-- `401` - 未授权访问
-- `403` - 权限不足
-- `500` - 服务器错误
-
----
-
-### 2. 启动任务
-
-**接口地址**: `POST /api/task/start`
-
-**功能描述**: 启动后台任务
-
-**认证要求**: 需要有效的JWT Token（仅管理员）
-
-**请求示例**:
-```bash
-curl -X POST http://localhost:3000/api/task/start \
-  -H "Cookie: token=<jwt_token>"
-```
-
-**成功响应**:
-```json
-{
-  "success": true,
-  "message": "任务启动成功",
-  "data": {
-    "taskName": "借阅状态更新任务",
-    "status": "running",
-    "startTime": "2024-01-01T12:00:00.000Z"
-  }
-}
-```
-
-**错误响应**:
-```json
-{
-  "success": false,
-  "message": "任务已在运行中"
-}
-```
-
-**状态码**:
-- `200` - 成功
-- `400` - 任务已在运行
-- `401` - 未授权访问
-- `403` - 权限不足
-- `500` - 服务器错误
-
----
-
-### 3. 停止任务
-
-**接口地址**: `POST /api/task/stop`
-
-**功能描述**: 停止后台任务
-
-**认证要求**: 需要有效的JWT Token（仅管理员）
-
-**请求示例**:
-```bash
-curl -X POST http://localhost:3000/api/task/stop \
-  -H "Cookie: token=<jwt_token>"
-```
-
-**成功响应**:
-```json
-{
-  "success": true,
-  "message": "任务停止成功",
-  "data": {
-    "taskName": "借阅状态更新任务",
-    "status": "stopped",
-    "stopTime": "2024-01-01T12:00:00.000Z"
-  }
-}
-```
-
-**错误响应**:
-```json
-{
-  "success": false,
-  "message": "任务未在运行"
-}
-```
-
-**状态码**:
-- `200` - 成功
-- `400` - 任务未在运行
-- `401` - 未授权访问
-- `403` - 权限不足
-- `500` - 服务器错误
-
----
-
-### 4. 手动执行任务
-
-**接口地址**: `POST /api/task/execute`
-
-**功能描述**: 手动执行一次任务
-
-**认证要求**: 需要有效的JWT Token（仅管理员）
-
-**请求示例**:
-```bash
-curl -X POST http://localhost:3000/api/task/execute \
-  -H "Cookie: token=<jwt_token>"
-```
-
-**成功响应**:
-```json
-{
-  "success": true,
-  "message": "任务执行成功",
-  "data": {
-    "executeTime": "2024-01-01T12:00:00.000Z",
-    "result": {
-      "processedRecords": 25,
-      "updatedStatuses": 3,
-      "errors": 0
-    }
-  }
-}
-```
-
-**状态码**:
-- `200` - 成功
-- `401` - 未授权访问
-- `403` - 权限不足
-- `500` - 服务器错误
-
----
 
 ## 🔌 WebSocket 实时通信
 
@@ -2004,16 +1836,7 @@ ws.onopen = function() {
 }
 ```
 
-#### 任务状态更新
-```json
-{
-    "type": "task_status_update",
-    "taskName": "借阅状态更新任务",
-    "status": "running",      // running, stopped, error
-    "lastExecuteTime": "2024-01-01T12:00:00.000Z",
-    "executionCount": 1440
-}
-```
+
 
 #### 用户状态变更
 ```json
@@ -2332,9 +2155,7 @@ function websocketManager() {
                 case 'data_update':
                     this.handleDataUpdate(data);
                     break;
-                case 'task_status_update':
-                    this.updateTaskStatus(data);
-                    break;
+
             }
         },
 

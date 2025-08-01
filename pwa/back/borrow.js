@@ -290,38 +290,4 @@ export const handleBorrowDelete = ErrorHandler.asyncWrapper(async (req, id) => {
   Logger.info(`删除借阅记录: ${borrow.borrowerName} 借阅《${borrow.bookTitle}》 (ID: ${id})`);
   
   return ResponseBuilder.success(null, "借阅记录删除成功");
-});
-
-// 获取借阅数量统计
-export const handleBorrowCount = ErrorHandler.asyncWrapper(async (req) => {
-  try {
-    // 获取当前用户信息
-    const username = await getCurrentUsername(req);
-    if (!username) {
-      return ResponseBuilder.error("未登录", 401);
-    }
-    
-    // 直接从数据库获取用户信息
-    const user = await DataAccess.getUserByUsername(username);
-    if (!user) {
-      return ResponseBuilder.error("用户信息不存在", 401);
-    }
-    
-    const userId = user.id;
-    
-    // 获取该用户的借阅数量（未归还的）
-    const result = await DataAccess.getAllBorrows('', 1, 1000); // 获取所有借阅记录
-    
-    // 过滤出当前用户的未归还借阅
-    const userBorrows = result.data.filter(borrow => {
-      return String(borrow.userId) === String(userId) && !borrow.returnDate;
-    });
-    
-    Logger.info(`获取用户 ${username} 的借阅数量: ${userBorrows.length}`);
-    
-    return ResponseBuilder.success({ count: userBorrows.length });
-  } catch (error) {
-    Logger.error(`获取借阅数量失败:`, error);
-    return ResponseBuilder.error("获取借阅数量失败");
-  }
 }); 

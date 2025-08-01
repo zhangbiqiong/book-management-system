@@ -6,12 +6,7 @@ import {
   handleWebSocketClose, 
   handleWebSocketError 
 } from "./back/websocket.js";
-import { 
-  startStatusUpdateTask, 
-  stopStatusUpdateTask, 
-  getTaskStatus, 
-  manualExecute 
-} from "./back/task.js";
+
 import { initDatabase, closeDatabase } from "./back/database.js";
 import { DataAccess } from "./back/data-access.js";
 
@@ -89,14 +84,11 @@ try {
 
 console.log(`[${new Date().toISOString()}] 服务器运行在 https://localhost:${SERVER_PORT}`);
 
-// 启动后台任务
-console.log(`[${new Date().toISOString()}] 🚀 启动借阅状态更新后台任务...`);
-startStatusUpdateTask();
+
 
 // 优雅关闭
 process.on('SIGINT', async () => {
   console.log(`[${new Date().toISOString()}] 🔌 正在关闭服务器...`);
-  stopStatusUpdateTask();
   await closeDatabase();
   process.exit(0);
 });

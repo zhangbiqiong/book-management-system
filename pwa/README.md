@@ -42,7 +42,7 @@ pwa/
 │   ├── routes.js        # 路由处理
 │   ├── utils.js         # 工具函数
 │   ├── websocket.js     # WebSocket处理
-│   ├── task.js          # 后台任务
+
 │   ├── statistics.js    # 统计功能
 │   ├── password.js      # 密码处理
 │   └── config.js        # 配置文件

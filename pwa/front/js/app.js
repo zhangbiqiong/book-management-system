@@ -291,22 +291,7 @@ const ApiService = {
         return this.request(endpoint);
     },
     
-    // 任务管理API
-    async getTaskStatus() {
-        return this.request('/task/status');
-    },
-    
-    async startTask() {
-        return this.request('/task/start', { method: 'POST' });
-    },
-    
-    async stopTask() {
-        return this.request('/task/stop', { method: 'POST' });
-    },
-    
-    async executeTask() {
-        return this.request('/task/execute', { method: 'POST' });
-    }
+
 };
 
 // 本地存储管理
