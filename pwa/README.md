@@ -19,7 +19,12 @@
 - ✅ **借阅管理**: 借阅记录、归还管理、逾期提醒
 - ✅ **实时通知**: WebSocket实时消息推送
 - ✅ **响应式设计**: 支持PC和移动设备
-- ✅ **PWA特性**: 离线缓存、安装到桌面
+- ✅ **PWA特性**: 完整的渐进式Web应用功能
+  - ✅ **离线缓存**: Service Worker实现离线访问
+  - ✅ **应用安装**: 支持安装到桌面和主屏幕
+  - ✅ **推送通知**: 实时消息推送功能
+  - ✅ **后台同步**: 数据同步和更新
+  - ✅ **应用更新**: 自动检测和提示更新
 - ✅ **数据库升级**: 从内存存储升级到 PostgreSQL 架构
 - ✅ **数据持久化**: 完整的数据库存储方案
 - ✅ **权限控制**: 基于角色的访问控制
@@ -49,7 +54,13 @@ pwa/
 ├── front/               # 前端代码
 │   ├── component/       # 组件
 │   ├── page/           # 页面
-│   └── static/         # 静态资源
+│   ├── static/         # 静态资源
+│   ├── manifest.json   # PWA配置文件
+│   ├── sw.js           # Service Worker
+│   ├── offline.html    # 离线页面
+│   ├── pwa-test.html   # PWA功能测试页面
+│   └── js/
+│       └── pwa-utils.js # PWA工具函数
 ├── server-pwa.js       # 服务器入口
 ├── package.json        # 项目配置
 └── README.md          # 项目说明
@@ -84,11 +95,18 @@ bun run dev-pwa
 
 # 或者直接启动
 bun run server-pwa.js
+
+# 生成PWA图标
+bun run generate-icons
+
+# 构建PWA
+bun run build-pwa
 ```
 
 ### 访问应用
 
 - **PWA应用**: https://localhost:3001
+- **PWA测试页面**: https://localhost:3001/pwa-test.html
 - **管理后台**: https://localhost:3000 (management项目)
 
 ## 功能特性
@@ -115,6 +133,14 @@ bun run server-pwa.js
 - WebSocket实时通知
 - 借阅状态实时更新
 - 多用户操作同步
+
+### PWA功能
+- **离线访问**: Service Worker缓存静态资源和API响应
+- **应用安装**: 支持安装到桌面和主屏幕
+- **推送通知**: 实时消息推送和系统通知
+- **后台同步**: 数据同步和更新管理
+- **应用更新**: 自动检测和提示更新
+- **离线页面**: 友好的离线状态提示
 
 ### 统计功能
 - 借阅统计图表

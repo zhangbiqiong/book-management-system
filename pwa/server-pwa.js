@@ -32,6 +32,22 @@ const server = serve({
     const url = new URL(req.url);
     const startTime = Date.now();
     
+    // 添加PWA相关的HTTP头部
+    const response = await handleRoutes(req, url);
+    
+    // 为所有响应添加PWA相关的头部
+    if (response) {
+      // 添加安全头部
+      response.headers.set('X-Content-Type-Options', 'nosniff');
+      response.headers.set('X-Frame-Options', 'DENY');
+      response.headers.set('X-XSS-Protection', '1; mode=block');
+      
+      // 添加PWA相关头部
+      if (url.pathname.endsWith('.html') || url.pathname === '/') {
+        response.headers.set('X-PWA-Enabled', 'true');
+      }
+    }
+    
     // 处理 WebSocket 升级
     if (url.pathname === "/ws" && req.headers.get("upgrade") === "websocket") {
       const upgrade = server.upgrade(req);
@@ -43,9 +59,6 @@ const server = serve({
         return new Response("WebSocket upgrade failed", { status: 500 });
       }
     }
-    
-    // 委托给routes.js处理所有HTTP路由
-    const response = await handleRoutes(req, url);
     
     // 记录请求日志
     const endTime = Date.now();

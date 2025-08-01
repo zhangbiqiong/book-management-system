@@ -4,7 +4,11 @@
   "description": "图书管理系统 - PWA版本",
   "main": "server-pwa.js",
   "scripts": {
-    "dev-pwa": "bun --watch server-pwa.js"
+    "dev-pwa": "bun --watch server-pwa.js",
+    "generate-icons": "bun run generate-icons.js",
+    "create-icons": "bun run create-simple-icons.js",
+    "test-pwa": "bun run test-pwa-simple.js",
+    "build-pwa": "bun run generate-icons.js && echo 'PWA构建完成'"
   },
   "keywords": [
     "book-management",

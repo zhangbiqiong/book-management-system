@@ -4,6 +4,7 @@ import { handleBookList, handleBookCreate, handleBookUpdate, handleBookDelete, h
 import { handleUserList, handleUserCreate, handleUserUpdate, handleUserDelete } from "./user.js";
 import { handleBorrowList, handleBorrowCreate, handleBorrowUpdate, handleBorrowDelete } from "./borrow.js";
 import { handleBorrowStatistics } from "./statistics.js";
+import { handlePWAStatus, handlePWANotification, handlePWASync } from "./pwa.js";
 
 import {
   shouldReturn304,
@@ -66,6 +67,28 @@ export async function handleRoutes(req, url) {
     }
 
     return await handleHtmlCache(req, `front/${htmlFile}`);
+  }
+
+  // 处理PWA相关文件
+  if (url.pathname === "/manifest.json") {
+    const response = await handleStaticCache(req, "front/manifest.json", "public, max-age=3600");
+    if (response.status === 200) {
+      response.headers.set('Content-Type', 'application/manifest+json');
+    }
+    return response;
+  }
+
+  if (url.pathname === "/sw.js") {
+    const response = await handleStaticCache(req, "front/sw.js", "no-cache");
+    if (response.status === 200) {
+      response.headers.set('Content-Type', 'application/javascript');
+      response.headers.set('Service-Worker-Allowed', '/');
+    }
+    return response;
+  }
+
+  if (url.pathname === "/offline.html") {
+    return await handleStaticCache(req, "front/offline.html", "public, max-age=3600");
   }
 
   // 处理favicon
@@ -258,6 +281,19 @@ export async function handleRoutes(req, url) {
     return setNoCacheHeaders(response);
   }
 
+  // PWA相关API端点
+  if (url.pathname === "/api/pwa/status" && req.method === "GET") {
+    return handlePWAStatus(req);
+  }
+
+  if (url.pathname === "/api/pwa/notifications" && req.method === "POST") {
+    return handlePWANotification(req);
+  }
+
+  if (url.pathname === "/api/pwa/sync" && req.method === "POST") {
+    return handlePWASync(req);
+  }
+
   return new Response("Not Found", { status: 404 });
 }
 
@@ -331,35 +367,35 @@ function setNoCacheHeaders(response) {
   return response;
 }
 
-// 处理获取通知
-async function handleGetNotifications(req) {
-  try {
-    // 获取当前用户信息
-    const cookie = req.headers.get("cookie") || "";
-    const { verifyToken } = await import("./utils.js");
-    const payload = await verifyToken(cookie);
+  // 处理获取通知
+  async function handleGetNotifications(req) {
+    try {
+      // 获取当前用户信息
+      const cookie = req.headers.get("cookie") || "";
+      const { verifyToken } = await import("./utils.js");
+      const payload = await verifyToken(cookie);
 
-    if (!payload) {
-      return new Response(JSON.stringify({ success: false, message: "未登录" }), {
-        status: 401,
+      if (!payload) {
+        return new Response(JSON.stringify({ success: false, message: "未登录" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      // 返回空的通知列表（暂时实现）
+      return new Response(JSON.stringify({
+        success: true,
+        notifications: []
+      }), {
+        headers: { "Content-Type": "application/json" }
+      });
+    } catch (error) {
+      console.error(`[${new Date().toISOString()}] 获取通知失败:`, error);
+      return new Response(JSON.stringify({ success: false, message: "服务器错误" }), {
+        status: 500,
         headers: { "Content-Type": "application/json" }
       });
     }
-
-    // 返回空的通知列表（暂时实现）
-    return new Response(JSON.stringify({
-      success: true,
-      notifications: []
-    }), {
-      headers: { "Content-Type": "application/json" }
-    });
-  } catch (error) {
-    console.error(`[${new Date().toISOString()}] 获取通知失败:`, error);
-    return new Response(JSON.stringify({ success: false, message: "服务器错误" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" }
-    });
   }
-}
 
  

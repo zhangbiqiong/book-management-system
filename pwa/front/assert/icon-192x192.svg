@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="192" height="192" viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景圆形 -->
+  <circle cx="96" cy="96" r="96" fill="#0d6efd"/>
+  
+  <!-- 书本图标 -->
+  <g transform="translate(34.56, 42.24)">
+    <!-- 书本主体 -->
+    <rect x="0" y="0" width="122.88" height="107.52" rx="4" fill="white" opacity="0.9"/>
+    
+    <!-- 书页线条 -->
+    <line x1="23.04" y1="30.72" x2="99.84" y2="30.72" stroke="#0d6efd" stroke-width="2"/>
+    <line x1="23.04" y1="53.76" x2="99.84" y2="53.76" stroke="#0d6efd" stroke-width="2"/>
+    <line x1="23.04" y1="76.8" x2="99.84" y2="76.8" stroke="#0d6efd" stroke-width="2"/>
+    
+    <!-- 书签 -->
+    <rect x="107.52" y="0" width="15.36" height="46.08" fill="#dc3545" rx="2"/>
+  </g>
+  
+  <!-- 装饰性元素 -->
+  <circle cx="153.60000000000002" cy="38.400000000000006" r="9.600000000000001" fill="white" opacity="0.3"/>
+  <circle cx="38.400000000000006" cy="153.60000000000002" r="5.76" fill="white" opacity="0.2"/>
+</svg>
