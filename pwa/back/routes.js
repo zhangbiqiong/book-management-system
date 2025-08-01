@@ -1,5 +1,5 @@
 import { verifyToken } from "./utils.js";
-import { handleGetCurrentUser, handleLogin, handleRegister, handleChangePassword, handleLogout } from "./auth.js";
+import { handleGetCurrentUser, handleLogin, handleRegister, handleChangePassword, handleLogout, handleLogoutRedirect } from "./auth.js";
 import { handleBookList, handleBookCreate, handleBookUpdate, handleBookDelete, handleGetBookStock, handleUpdateBookStock } from "./book.js";
 import { handleUserList, handleUserCreate, handleUserUpdate, handleUserDelete } from "./user.js";
 import { handleBorrowList, handleBorrowCreate, handleBorrowUpdate, handleBorrowDelete, handleBorrowCount } from "./borrow.js";
@@ -161,6 +161,11 @@ export async function handleRoutes(req, url) {
 
   if (url.pathname === "/api/logout" && req.method === "POST") {
     return handleLogout(req);
+  }
+
+  // 注销重定向路由（GET请求）
+  if (url.pathname === "/logout" && req.method === "GET") {
+    return handleLogoutRedirect(req);
   }
 
   // 图书管理API

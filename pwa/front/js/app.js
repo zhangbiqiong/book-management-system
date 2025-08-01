@@ -377,15 +377,33 @@ const UserManager = {
     // 退出登录
     async logout() {
         try {
-            await ApiService.logout();
-        } catch (error) {
-            console.error('退出登录API调用失败:', error);
-        } finally {
+            // 检测是否在iframe中
+            if (window.parent !== window) {
+                // 在iframe中，通知父页面退出登录
+                window.parent.postMessage({ type: 'LOGOUT' }, '*');
+                return;
+            }
+            
+            // 不在iframe中，执行正常的退出登录流程
             // 清除本地存储的用户信息
             StorageManager.remove('user');
             StorageManager.remove('userSettings');
             
-            // 跳转到登录页面
+            // 清除所有相关的缓存
+            if ('caches' in window) {
+                try {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(name => caches.delete(name)));
+                } catch (error) {
+                    console.error('清除缓存失败:', error);
+                }
+            }
+            
+            // 直接跳转到后端注销URL，由后端处理重定向
+            window.location.href = '/logout';
+        } catch (error) {
+            console.error('退出登录失败:', error);
+            // 即使出错，也要跳转到登录页面
             window.location.href = 'login.html';
         }
     },

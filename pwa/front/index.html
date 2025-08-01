@@ -212,6 +212,27 @@
                         'user': '普通用户'
                     };
                     return roleMap[role] || role;
+                },
+                
+                // 退出登录方法（供iframe调用）
+                logout() {
+                    // 清除本地存储
+                    if (window.StorageManager) {
+                        window.StorageManager.remove('user');
+                        window.StorageManager.remove('userSettings');
+                    }
+                    
+                    // 清除缓存
+                    if ('caches' in window) {
+                        caches.keys().then(cacheNames => {
+                            return Promise.all(cacheNames.map(name => caches.delete(name)));
+                        }).catch(error => {
+                            console.error('清除缓存失败:', error);
+                        });
+                    }
+                    
+                    // 跳转到退出登录URL
+                    window.location.href = '/logout';
                 }
             }
         }
@@ -219,7 +240,20 @@
         // 监听来自iframe的消息
         window.addEventListener('message', function(event) {
             if (event.data && event.data.type === 'LOGOUT') {
-                UserManager.logout();
+                // 调用父页面的退出登录方法
+                const element = document.querySelector('[x-data]');
+                if (element && element.__x) {
+                    const app = element.__x.$data;
+                    if (app && typeof app.logout === 'function') {
+                        app.logout();
+                    } else {
+                        // 备用方案：直接跳转
+                        window.location.href = '/logout';
+                    }
+                } else {
+                    // 备用方案：直接跳转
+                    window.location.href = '/logout';
+                }
             }
         });
     </script>

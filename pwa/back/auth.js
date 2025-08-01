@@ -234,7 +234,7 @@ export async function handleChangePassword(req) {
   }
 }
 
-// 处理注销
+// 处理注销（API版本）
 export async function handleLogout(req) {
   try {
     // 直接清除cookie并返回成功，不再维护JWT黑名单
@@ -258,6 +258,32 @@ export async function handleLogout(req) {
     }), {
       headers: { 
         "Content-Type": "application/json",
+        "Set-Cookie": "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"
+      }
+    });
+  }
+}
+
+// 处理注销（重定向版本）
+export async function handleLogoutRedirect(req) {
+  try {
+    // 清除cookie并重定向到登录页面
+    return new Response(null, {
+      status: 302,
+      headers: { 
+        "Location": "/login.html",
+        "Set-Cookie": "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"
+      }
+    });
+    
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] 注销重定向错误:`, error);
+    
+    // 即使发生错误，也要尝试清除cookie并重定向
+    return new Response(null, {
+      status: 302,
+      headers: { 
+        "Location": "/login.html",
         "Set-Cookie": "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"
       }
     });

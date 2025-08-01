@@ -178,8 +178,16 @@
                 async logout() {
                     if (confirm('确定要退出登录吗？')) {
                         try {
-                            await UserManager.logout();
-                            // UserManager.logout() 已经处理了跳转，这里不需要额外操作
+                            // 清除当前页面的状态
+                            this.form = {
+                                username: '',
+                                email: '',
+                                role: '',
+                                status: ''
+                            };
+                            
+                            // 调用退出登录，由后端处理重定向
+                            UserManager.logout();
                         } catch (error) {
                             console.error('登出失败:', error);
                             // 即使出错，也要跳转到登录页面
