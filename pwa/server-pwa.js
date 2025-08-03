@@ -26,6 +26,7 @@ const server = serve({
       console: true,
     },
   port: SERVER_PORT,
+  hostname: "www.fq2019.top",
   // 添加 HTTPS 配置
   tls: httpsConfig,
   async fetch(req) {
