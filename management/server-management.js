@@ -23,8 +23,8 @@ import loginPage from "./front/login.html";
 
 // HTTPS 配置
 const httpsConfig = {
-  cert: Bun.file("localhost+2.pem"),
-  key: Bun.file("localhost+2-key.pem")
+  cert: Bun.file("www.fq2019.top.pem"),
+  key: Bun.file("www.fq2019.top-key.pem")
 };
 
 const server = serve({
@@ -102,7 +102,7 @@ try {
   console.log(`[${new Date().toISOString()}] ℹ️ 使用Bun SQL全局实例继续运行`);
 }
 
-console.log(`[${new Date().toISOString()}] 服务器运行在 https://localhost:${SERVER_PORT}`);
+console.log(`[${new Date().toISOString()}] 服务器运行在 https://www.fq2019.top:${SERVER_PORT}`);
 
 // 启动后台任务
 console.log(`[${new Date().toISOString()}] 🚀 启动借阅状态更新后台任务...`);
