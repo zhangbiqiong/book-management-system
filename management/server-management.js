@@ -15,6 +15,12 @@ import {
 import { initDatabase, closeDatabase } from "./back/database.js";
 import { DataAccess } from "./back/data-access.js";
 
+// 导入前端页面
+import homepage from "./front/index.html";
+import loginPage from "./front/login.html";
+
+
+
 // HTTPS 配置
 const httpsConfig = {
   cert: Bun.file("localhost+2.pem"),
@@ -22,18 +28,26 @@ const httpsConfig = {
 };
 
 const server = serve({
-    // development can also be an object.
-    development: {
-      // Enable Hot Module Reloading
-      hmr: true,
-  
-      // Echo console logs from the browser to the terminal
-      console: true,
-    },
+  // development can also be an object.
+  development: {
+    // Enable Hot Module Reloading
+    hmr: true,
+
+    // Echo console logs from the browser to the terminal
+    console: true,
+  },
   port: SERVER_PORT,
   hostname: "www.fq2019.top",
   // 添加 HTTPS 配置
   tls: httpsConfig,
+  
+  // 使用routes配置简化前端页面路由
+  routes: {
+    "/": homepage,
+    "/index.html": homepage,
+    "/login.html": loginPage,
+  },
+  
   async fetch(req) {
     const url = new URL(req.url);
     const startTime = Date.now();
@@ -50,7 +64,7 @@ const server = serve({
       }
     }
     
-    // 委托给routes.js处理所有HTTP路由
+    // 委托给routes.js处理所有API路由和静态文件
     const response = await handleRoutes(req, url);
     
     // 记录请求日志

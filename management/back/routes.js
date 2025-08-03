@@ -31,50 +31,15 @@ export async function handleRoutes(req, url) {
     return null; // 让server.js处理WebSocket升级
   }
 
-
-
-
-
-  // 处理 HTML 文件路由
-  if (url.pathname === "/" || url.pathname === "/index.html") {
-    const cookie = req.headers.get("cookie") || "";
-    const payload = await verifyToken(cookie);
-
-    if (!payload) {
-      // 未登录，重定向到 login.html
-      return new Response(null, {
-        status: 302,
-        headers: { 'Location': '/login.html' }
-      });
-    }
-
-    return await handleHtmlCache(req, "front/index.html");
-  }
-
-  // 处理其他 HTML 文件（排除PWA路径）
-  if (url.pathname.endsWith('.html')) {
+  // 处理component目录下的HTML文件
+  if (url.pathname.endsWith('.html') && !url.pathname.startsWith('/api/')) {
     const htmlFile = url.pathname.substring(1); // 移除开头的 "/"
-
-    // 特殊处理 login.html - 已登录用户重定向到主页
-    if (htmlFile === "login.html") {
-      const cookie = req.headers.get("cookie") || "";
-      const payload = await verifyToken(cookie);
-
-      if (payload) {
-        return new Response(null, {
-          status: 302,
-          headers: { 'Location': '/index.html' }
-        });
-      }
-    }
-
+    
     // 检查是否是component目录下的文件
     const componentFiles = ['book.html', 'borrow.html', 'user.html', 'monitor.html', 'statistics.html'];
     if (componentFiles.includes(htmlFile)) {
       return await handleHtmlCache(req, `front/component/${htmlFile}`);
     }
-
-    return await handleHtmlCache(req, `front/${htmlFile}`);
   }
 
   // 处理favicon
