@@ -195,12 +195,6 @@ export async function handleRoutes(req, url) {
     return setNoCacheHeaders(response);
   }
 
-  // 库存统计API
-  if (url.pathname === "/api/statistics/stock" && req.method === "GET") {
-    const response = await handleStockStatistics(req);
-    return setNoCacheHeaders(response);
-  }
-
   // 归还统计API
   if (url.pathname === "/api/statistics/return" && req.method === "GET") {
     const response = await handleReturnStatistics(req);
@@ -225,12 +219,6 @@ export async function handleRoutes(req, url) {
 
   if (url.pathname === "/api/task/execute" && req.method === "POST") {
     const response = await handleManualExecute(req, manualExecute);
-    return setNoCacheHeaders(response);
-  }
-
-  // 系统通知API
-  if (url.pathname === "/api/system/notifications" && req.method === "GET") {
-    const response = await handleGetNotifications(req);
     return setNoCacheHeaders(response);
   }
 
@@ -306,34 +294,3 @@ function setNoCacheHeaders(response) {
   response.headers.set('Expires', '0');
   return response;
 }
-
-// 处理获取通知
-async function handleGetNotifications(req) {
-  try {
-    // 获取当前用户信息
-    const cookie = req.headers.get("cookie") || "";
-    const { verifyToken } = await import("./utils.js");
-    const payload = await verifyToken(cookie);
-
-    if (!payload) {
-      return new Response(JSON.stringify({ success: false, message: "未登录" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" }
-      });
-    }
-
-    // 返回空的通知列表（暂时实现）
-    return new Response(JSON.stringify({
-      success: true,
-      notifications: []
-    }), {
-      headers: { "Content-Type": "application/json" }
-    });
-  } catch (error) {
-    console.error(`[${new Date().toISOString()}] 获取通知失败:`, error);
-    return new Response(JSON.stringify({ success: false, message: "服务器错误" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" }
-    });
-  }
-} 

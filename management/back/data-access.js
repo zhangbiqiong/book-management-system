@@ -445,36 +445,6 @@ export class DataAccess {
     }
   }
 
-  // 统计相关操作
-  static async getBookStatistics() {
-    try {
-      // 获取书籍基本统计（只统计未删除的书籍）
-      const stats = await sql`
-        SELECT 
-          COUNT(*) as total_books,
-          SUM(stock) as total_stock,
-          COUNT(CASE WHEN stock <= 0 THEN 1 END) as out_of_stock,
-          COUNT(CASE WHEN stock > 0 AND stock <= 3 THEN 1 END) as low_stock,
-          COUNT(CASE WHEN stock > 3 THEN 1 END) as normal_stock
-        FROM books
-        WHERE deleted_at IS NULL
-      `;
-      
-      const result = {
-        totalBooks: parseInt(stats[0]?.total_books || 0),
-        totalStock: parseInt(stats[0]?.total_stock || 0),
-        outOfStock: parseInt(stats[0]?.out_of_stock || 0),
-        lowStock: parseInt(stats[0]?.low_stock || 0),
-        normalStock: parseInt(stats[0]?.normal_stock || 0)
-      };
-      
-      return result;
-    } catch (error) {
-      Logger.error('获取书籍统计失败:', error);
-      throw error;
-    }
-  }
-
   static async getBorrowStatistics() {
     try {
       // 获取基本统计
