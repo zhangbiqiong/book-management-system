@@ -466,7 +466,7 @@
                         console.log(`尝试建立 WebSocket 连接 (第 ${this.reconnectAttempts + 1} 次)`);
                         
                         // 建立 WebSocket 连接
-                        this.ws = new WebSocket(`wss://${window.location.host}/ws`);
+                        this.ws = new WebSocket(`ws://${window.location.host}/ws`);
                         
                         this.ws.onopen = () => {
                             console.log('WebSocket 连接已建立');

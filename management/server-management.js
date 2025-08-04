@@ -21,11 +21,6 @@ import loginPage from "./front/login.html";
 
 
 
-// HTTPS 配置
-const httpsConfig = {
-  cert: Bun.file("www.fq2019.top.pem"),
-  key: Bun.file("www.fq2019.top-key.pem")
-};
 
 const server = serve({
   // development can also be an object.
@@ -37,9 +32,8 @@ const server = serve({
     console: true,
   },
   port: SERVER_PORT,
-  hostname: "www.fq2019.top",
-  // 添加 HTTPS 配置
-  tls: httpsConfig,
+
+
   
   // 使用routes配置简化前端页面路由
   routes: {
@@ -102,7 +96,7 @@ try {
   console.log(`[${new Date().toISOString()}] ℹ️ 使用Bun SQL全局实例继续运行`);
 }
 
-console.log(`[${new Date().toISOString()}] 服务器运行在 https://www.fq2019.top:${SERVER_PORT}`);
+console.log(`[${new Date().toISOString()}] 服务器运行在 http://127.0.0.1:${SERVER_PORT}`);
 
 // 启动后台任务
 console.log(`[${new Date().toISOString()}] 🚀 启动借阅状态更新后台任务...`);

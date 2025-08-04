@@ -4,7 +4,7 @@ alwaysApply: true
 
 整个项目分成如下两部分
 ## management 
-管理员后台  管理员 使用 PC 访问 https://www.fq2019.top:3000
+管理员后台  管理员 使用 PC 访问 http://127.0.0.1:3000
 使用
 cd /home/zhangbq/book-management-system/management && bun run dev-management
 来启动
@@ -14,7 +14,7 @@ cd /home/zhangbq/book-management-system/management && bun run dev-management
 
 
 ## pwa 
-普通用户 使用 手机  访问 https://www.fq2019.top:3001
+普通用户 使用 手机  访问 http://127.0.0.1:3001
 使用
 cd /home/zhangbq/book-management-system/pwa && bun run dev-pwa
 来启动
