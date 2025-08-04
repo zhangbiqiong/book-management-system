@@ -1,4 +1,6 @@
-import { redis } from "./redis-stub.js";
+// 移除了对Redis的依赖
+// 使用内存Set临时存储JWT黑名单
+const jwtBlacklist = new Set();
 import { verify } from "bun-jwt";
 import { JWT_SECRET, JWT_BLACKLIST_PREFIX } from "./config.js";
 
@@ -17,10 +19,9 @@ export async function verifyToken(cookie) {
 }
 
 // 检查JWT是否在黑名单中
-export async function isJWTBlacklisted(jwt) {
+export function isJWTBlacklisted(jwt) {
   try {
-    const blacklisted = await redis.get(`${JWT_BLACKLIST_PREFIX}${jwt}`);
-    return !!blacklisted;
+    return jwtBlacklist.has(jwt);
   } catch (error) {
     console.error(`[${new Date().toISOString()}] 检查JWT黑名单错误:`, error);
     return false;
@@ -28,16 +29,21 @@ export async function isJWTBlacklisted(jwt) {
 }
 
 // 将JWT加入黑名单
-export async function addJWTToBlacklist(jwt, expiresIn) {
+export async function addJWTToBlacklist(jwt) {
   try {
     // 计算剩余过期时间
     const payload = await verify(jwt, JWT_SECRET);
     if (payload && payload.exp) {
       const remainingTime = payload.exp - Math.floor(Date.now() / 1000);
       if (remainingTime > 0) {
-        // 将JWT加入黑名单，过期时间与JWT相同
-        await redis.set(`${JWT_BLACKLIST_PREFIX}${jwt}`, "1");
-        await redis.expire(`${JWT_BLACKLIST_PREFIX}${jwt}`, remainingTime);
+        // 将JWT加入黑名单
+        jwtBlacklist.add(jwt);
+        
+        // 设置自动删除（模拟过期）
+        setTimeout(() => {
+          jwtBlacklist.delete(jwt);
+        }, remainingTime * 1000);
+        
         return true;
       }
     }
@@ -218,4 +224,4 @@ export function calculateBorrowStatus(borrow) {
     return 'overdue'; // 超期未归还
   }
   return 'normal'; // 正常
-} 
+}

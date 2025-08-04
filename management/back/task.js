@@ -1,7 +1,7 @@
 // 后台任务管理API处理函数 - 重构版
 
 // ========== 定时任务实现 ========== //
-import { redis } from "./redis-stub.js";
+import { sql } from "bun";
 import { TASK_UPDATE_INTERVAL, TASK_NAME } from "./config.js";
 import { calculateBorrowStatus } from "./utils.js";
 import { 
@@ -20,6 +20,53 @@ let taskStatus = {
   lastRunTime: null,
   lastError: null
 };
+
+// 从数据库获取所有借阅记录并更新状态
+async function updateBorrowStatuses() {
+  try {
+    // 查询所有借阅记录
+    const borrows = await sql`
+      SELECT * FROM borrows
+    `;
+
+    let updateCount = 0;
+    for (const borrow of borrows) {
+      // 转换为前端使用的格式
+      const formattedBorrow = {
+        id: borrow.id,
+        userId: borrow.user_id,
+        bookId: borrow.book_id,
+        bookTitle: borrow.book_title,
+        borrowerName: borrow.borrower_name,
+        borrowDate: borrow.borrow_date,
+        dueDate: borrow.due_date,
+        returnDate: borrow.return_date,
+        status: borrow.status,
+        createdAt: borrow.created_at,
+        updatedAt: borrow.updated_at
+      };
+
+      // 计算新状态
+      const newStatus = calculateBorrowStatus(formattedBorrow);
+
+      // 如果状态发生变化，更新数据库
+      if (formattedBorrow.status !== newStatus) {
+        await sql`
+          UPDATE borrows
+          SET status = ${newStatus},
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${formattedBorrow.id}
+        `;
+        updateCount++;
+      }
+    }
+
+    return updateCount;
+  } catch (error) {
+    Logger.error('更新借阅状态失败:', error);
+    throw error;
+  }
+}
 
 export function startStatusUpdateTask() {
   if (taskStatus.running) return false;
@@ -47,21 +94,7 @@ async function executeStatusUpdate() {
   taskStatus.totalRuns++;
   taskStatus.lastRunTime = Date.now();
   try {
-    let ids = await redis.get("borrow:ids");
-    ids = ids ? JSON.parse(ids) : [];
-    let updateCount = 0;
-    for (const id of ids) {
-      const data = await redis.get(`borrow:${id}`);
-      if (data) {
-        const borrow = JSON.parse(data);
-        const status = calculateBorrowStatus(borrow);
-        if (borrow.status !== status) {
-          borrow.status = status;
-          await redis.set(`borrow:${id}`, JSON.stringify(borrow));
-          updateCount++;
-        }
-      }
-    }
+    const updateCount = await updateBorrowStatuses();
     taskStatus.totalUpdates += updateCount;
     taskStatus.lastError = null;
   } catch (e) {
@@ -97,4 +130,4 @@ export const handleManualExecute = ErrorHandler.asyncWrapper(async (req, manualE
   await manualExecute();
   Logger.info("手动执行任务完成");
   return ResponseBuilder.success(null, "手动执行完成");
-}); 
+});

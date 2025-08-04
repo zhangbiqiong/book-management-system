@@ -1,5 +1,6 @@
 // 后端公共工具文件 - 图书管理系统
-import { redis } from "./redis-stub.js";
+// 移除了对Redis的依赖
+import { sql } from "bun";
 
 // 通用响应构建器
 export const ResponseBuilder = {
@@ -57,20 +58,13 @@ export const DataAccess = {
   // 获取所有项目
   async getAll(type) {
     try {
-      let ids = await redis.get(`${type}:ids`);
-      ids = ids ? JSON.parse(ids) : [];
+      // 根据类型确定表名
+      const tableName = type === 'user' ? 'users' : 
+                        type === 'book' ? 'books' : 
+                        type === 'borrow' ? 'borrows' : type;
       
-      const items = [];
-      for (const id of ids) {
-        const data = await redis.get(`${type}:${id}`);
-        if (data) {
-          const item = JSON.parse(data);
-          item.id = id;
-          items.push(item);
-        }
-      }
-      
-      return items;
+      const result = await sql`SELECT * FROM ${sql(tableName)}`;
+      return result;
     } catch (error) {
       console.error(`获取${type}列表失败:`, error);
       throw error;
@@ -80,40 +74,37 @@ export const DataAccess = {
   // 根据ID获取单个项目
   async getById(type, id) {
     try {
-      const data = await redis.get(`${type}:${id}`);
-      if (!data) return null;
+      // 根据类型确定表名
+      const tableName = type === 'user' ? 'users' : 
+                        type === 'book' ? 'books' : 
+                        type === 'borrow' ? 'borrows' : type;
       
-      const item = JSON.parse(data);
-      item.id = id;
-      return item;
+      const result = await sql`SELECT * FROM ${sql(tableName)} WHERE id = ${id}`;
+      return result[0] || null;
     } catch (error) {
       console.error(`获取${type}:${id}失败:`, error);
       throw error;
     }
   },
 
-  // 创建新项目 - 使用原子操作确保 ID 唯一性
+  // 创建新项目
   async create(type, data) {
     try {
-      // 使用 Redis INCR 原子操作获取唯一 ID
-      const nextId = await redis.incr(`${type}:id:next`);
-      const idString = nextId.toString();
+      // 根据类型确定表名
+      const tableName = type === 'user' ? 'users' : 
+                        type === 'book' ? 'books' : 
+                        type === 'borrow' ? 'borrows' : type;
       
-      // 由于 Bun Redis 不支持 eval，使用原子操作的组合
-      // 1. 先保存数据
-      await redis.set(`${type}:${idString}`, JSON.stringify(data));
+      // 构建插入查询
+      const columns = Object.keys(data).join(', ');
+      const values = Object.values(data);
       
-      // 2. 获取并更新 ID 列表（这里存在竞争条件，但由于 INCR 保证了 ID 唯一性，问题不大）
-      let ids = await redis.get(`${type}:ids`);
-      ids = ids ? JSON.parse(ids) : [];
+      // 使用参数化查询防止SQL注入
+      const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
+      const query = `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders}) RETURNING id`;
       
-      // 检查 ID 是否已存在（防止重复，虽然理论上不应该发生）
-      if (!ids.includes(idString)) {
-        ids.push(idString);
-        await redis.set(`${type}:ids`, JSON.stringify(ids));
-      }
-      
-      return idString;
+      const result = await sql`${query}`;
+      return result[0].id.toString();
     } catch (error) {
       console.error(`创建${type}失败:`, error);
       throw error;
@@ -123,10 +114,23 @@ export const DataAccess = {
   // 更新项目
   async update(type, id, data) {
     try {
-      const exists = await redis.get(`${type}:${id}`);
-      if (!exists) return false;
+      // 根据类型确定表名
+      const tableName = type === 'user' ? 'users' : 
+                        type === 'book' ? 'books' : 
+                        type === 'borrow' ? 'borrows' : type;
       
-      await redis.set(`${type}:${id}`, JSON.stringify(data));
+      // 构建更新查询
+      const updates = Object.keys(data)
+        .filter(key => key !== 'id')  // 不更新ID
+        .map((key, i) => `${key} = $${i + 1}`)
+        .join(', ');
+      
+      const values = Object.values(data).filter((_, i) => i !== Object.keys(data).indexOf('id'));
+      values.push(id);  // 最后一个参数是ID
+      
+      const query = `UPDATE ${tableName} SET ${updates} WHERE id = $${values.length}`;
+      
+      await sql`${query}`;
       return true;
     } catch (error) {
       console.error(`更新${type}:${id}失败:`, error);
@@ -134,22 +138,19 @@ export const DataAccess = {
     }
   },
 
-  // 删除项目 - 尽量保证一致性
+  // 删除项目
   async delete(type, id) {
     try {
-      // 检查数据是否存在
-      const exists = await redis.get(`${type}:${id}`);
-      if (!exists) return false;
+      // 根据类型确定表名
+      const tableName = type === 'user' ? 'users' : 
+                        type === 'book' ? 'books' : 
+                        type === 'borrow' ? 'borrows' : type;
       
-      // 删除数据
-      await redis.del(`${type}:${id}`);
-      
-      // 从 ID 列表中移除
-      let ids = await redis.get(`${type}:ids`);
-      if (ids) {
-        ids = JSON.parse(ids);
-        const newIds = ids.filter(existingId => existingId !== id);
-        await redis.set(`${type}:ids`, JSON.stringify(newIds));
+      // 对于图书，使用软删除
+      if (type === 'book') {
+        await sql`UPDATE ${sql(tableName)} SET deleted_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
+      } else {
+        await sql`DELETE FROM ${sql(tableName)} WHERE id = ${id}`;
       }
       
       return true;
@@ -162,10 +163,31 @@ export const DataAccess = {
   // 检查项目是否存在
   async exists(type, id) {
     try {
-      const data = await redis.get(`${type}:${id}`);
-      return !!data;
+      // 根据类型确定表名
+      const tableName = type === 'user' ? 'users' : 
+                        type === 'book' ? 'books' : 
+                        type === 'borrow' ? 'borrows' : type;
+      
+      // 对于图书，需要检查是否被软删除
+      const query = type === 'book'
+        ? `SELECT 1 FROM ${tableName} WHERE id = $1 AND deleted_at IS NULL`
+        : `SELECT 1 FROM ${tableName} WHERE id = $1`;
+      
+      const result = await sql`${query}`;
+      return result.length > 0;
     } catch (error) {
       console.error(`检查${type}:${id}存在性失败:`, error);
+      throw error;
+    }
+  },
+
+  // 根据用户名获取用户
+  async getUserByUsername(username) {
+    try {
+      const result = await sql`SELECT * FROM users WHERE username = ${username}`;
+      return result[0] || null;
+    } catch (error) {
+      console.error(`根据用户名获取用户失败:`, error);
       throw error;
     }
   }
@@ -320,4 +342,4 @@ export const Logger = {
       console.debug(`[${timestamp}] DEBUG: ${message}`, data ? data : '');
     }
   }
-}; 
+};

@@ -256,14 +256,12 @@ export const handleBorrowCount = ErrorHandler.asyncWrapper(async (req) => {
       return ResponseBuilder.error("未登录", 401);
     }
     
-    // 从Redis获取用户数据以获取用户ID
-    const { redis } = await import("bun");
-    const userData = await redis.get(`user:${username}`);
-    if (!userData) {
+    // 从数据库获取用户数据以获取用户ID
+    const user = await DataAccess.getUserByUsername(username);
+    if (!user) {
       return ResponseBuilder.error("用户信息不存在", 401);
     }
     
-    const user = JSON.parse(userData);
     const userId = user.id;
     
     // 获取该用户的借阅数量（未归还的）
@@ -281,4 +279,4 @@ export const handleBorrowCount = ErrorHandler.asyncWrapper(async (req) => {
     Logger.error(`获取借阅数量失败:`, error);
     return ResponseBuilder.error("获取借阅数量失败");
   }
-}); 
+});
