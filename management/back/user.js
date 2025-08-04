@@ -1,5 +1,5 @@
 // 用户管理模块 - PostgreSQL版本
-import { redis } from "bun";
+import { redis } from "./redis-stub.js";
 import { checkAdminPermission } from "./auth.js";
 import { 
   ResponseBuilder, 

@@ -1,4 +1,4 @@
-import { redis } from "bun";
+import { redis } from "./redis-stub.js";
 import { DataAccess } from "./common.js";
 import { sign } from "bun-jwt";
 import { JWT_SECRET, JWT_EXPIRES_IN } from "./config.js";

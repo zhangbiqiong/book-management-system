@@ -1,5 +1,5 @@
 // 后端公共工具文件 - 图书管理系统
-import { redis } from "bun";
+import { redis } from "./redis-stub.js";
 
 // 通用响应构建器
 export const ResponseBuilder = {
