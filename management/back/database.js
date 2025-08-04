@@ -74,7 +74,8 @@ export async function createTables() {
         role VARCHAR(20) NOT NULL DEFAULT 'user',
         status VARCHAR(20) NOT NULL DEFAULT 'enabled',
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        deleted_at TIMESTAMP WITH TIME ZONE
       )
     `;
     
@@ -164,4 +165,4 @@ export const DatabaseUtils = {
   buildOrderBy(sortField = 'id', sortOrder = 'DESC') {
     return `ORDER BY ${sortField} ${sortOrder}`;
   }
-}; 
+};

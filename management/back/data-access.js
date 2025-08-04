@@ -17,21 +17,22 @@ export class DataAccess {
       if (search) {
         query = sql`
           SELECT * FROM users 
-          WHERE username ILIKE ${`%${search}%`} OR role ILIKE ${`%${search}%`}
+          WHERE deleted_at IS NULL AND (username ILIKE ${`%${search}%`} OR role ILIKE ${`%${search}%`})
           ORDER BY id DESC
           LIMIT ${pageSize} OFFSET ${offset}
         `;
         countQuery = sql`
           SELECT COUNT(*) as total FROM users 
-          WHERE username ILIKE ${`%${search}%`} OR role ILIKE ${`%${search}%`}
+          WHERE deleted_at IS NULL AND (username ILIKE ${`%${search}%`} OR role ILIKE ${`%${search}%`})
         `;
       } else {
         query = sql`
           SELECT * FROM users 
+          WHERE deleted_at IS NULL
           ORDER BY id DESC
           LIMIT ${pageSize} OFFSET ${offset}
         `;
-        countQuery = sql`SELECT COUNT(*) as total FROM users`;
+        countQuery = sql`SELECT COUNT(*) as total FROM users WHERE deleted_at IS NULL`;
       }
 
       const [users, countResult] = await Promise.all([query, countQuery]);
@@ -56,7 +57,7 @@ export class DataAccess {
 
   static async getUserById(id) {
     try {
-      const users = await sql`SELECT * FROM users WHERE id = ${id}`;
+      const users = await sql`SELECT * FROM users WHERE id = ${id} AND deleted_at IS NULL`;
       const user = users[0] || null;
       
       return user;
@@ -68,7 +69,7 @@ export class DataAccess {
 
   static async getUserByUsername(username) {
     try {
-      const users = await sql`SELECT * FROM users WHERE username = ${username}`;
+      const users = await sql`SELECT * FROM users WHERE username = ${username} AND deleted_at IS NULL`;
       const user = users[0] || null;
       
       return user;
@@ -112,7 +113,11 @@ export class DataAccess {
 
   static async deleteUser(id) {
     try {
-      await sql`DELETE FROM users WHERE id = ${id}`;
+      await sql`
+        UPDATE users 
+        SET deleted_at = CURRENT_TIMESTAMP 
+        WHERE id = ${id} AND deleted_at IS NULL
+      `;
       
       return true;
     } catch (error) {

@@ -116,6 +116,7 @@ export async function handleLogin(req) {
     }
     
     // 登录成功，生成 JWT，包含 userId 和 role 字段
+    console.log(`[${new Date().toISOString()}] 用户登录: ${username}, 角色: ${user.role || 'user'}`);
     const payload = {
       username,
       userId: user.id,
@@ -293,10 +294,13 @@ export async function checkAdminPermission(req) {
     const payload = await verifyToken(cookie);
     
     if (!payload) {
+      console.log(`[${new Date().toISOString()}] 权限验证失败: 未登录`);
       return { success: false, message: "未登录" };
     }
     
+    console.log(`[${new Date().toISOString()}] 权限验证: 用户 ${payload.username}, 角色 ${payload.role}`);
     if (payload.role !== 'admin') {
+      console.log(`[${new Date().toISOString()}] 权限验证失败: 非管理员用户`);
       return { success: false, message: "权限不足，需要管理员权限" };
     }
     
