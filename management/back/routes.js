@@ -3,7 +3,7 @@ import { handleGetCurrentUser, handleLogin, handleRegister, handleChangePassword
 import { handleBookList, handleBookCreate, handleBookUpdate, handleBookDelete, handleGetBookStock, handleUpdateBookStock } from "./book.js";
 import { handleUserList, handleUserCreate, handleUserUpdate, handleUserDelete } from "./user.js";
 import { handleBorrowList, handleBorrowCreate, handleBorrowUpdate, handleBorrowDelete, handleBorrowCount } from "./borrow.js";
-import { handleBorrowStatistics, handleStockStatistics, handleReturnStatistics } from "./statistics.js";
+import { handleBorrowStatistics, handleReturnStatistics } from "./statistics.js";
 import {
   handleGetTaskStatus,
   handleStartTask,
