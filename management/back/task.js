@@ -1,7 +1,7 @@
 // 后台任务管理API处理函数 - 重构版
 
 // ========== 定时任务实现 ========== //
-import { redis } from "bun";
+import { redis } from "./redis-stub.js";
 import { TASK_UPDATE_INTERVAL, TASK_NAME } from "./config.js";
 import { calculateBorrowStatus } from "./utils.js";
 import { 

@@ -1,4 +1,4 @@
-import { redis } from "bun";
+import { redis } from "./redis-stub.js";
 import { verify } from "bun-jwt";
 import { JWT_SECRET, JWT_BLACKLIST_PREFIX } from "./config.js";
 

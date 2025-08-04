@@ -1,5 +1,6 @@
 // 数据访问层 - Bun SQL + Redis缓存
-import { redis, sql } from "bun";
+import { sql } from "bun";
+import { redis } from "./redis-stub.js";
 import { Logger } from "./common.js";
 
 // 缓存配置
