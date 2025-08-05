@@ -393,7 +393,9 @@ document.addEventListener('alpine:init', () => {
           return;
         }
         
-        this.ws = new WebSocket(`ws://${window.location.host}/ws`);
+        // 自动检测协议：HTTP使用ws://，HTTPS使用wss://
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        this.ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
         
         this.ws.onopen = () => {
           console.log('WebSocket连接已建立');
