@@ -1,12 +1,3 @@
 www.fq2019.top {
-    reverse_proxy localhost:3000 {
-        # WebSocket支持
-        transport websocket
-        
-        # 标准代理头
-        header_up Host {host}
-        header_up X-Real-IP {remote}
-        header_up X-Forwarded-For {remote}
-        header_up X-Forwarded-Proto {scheme}
-    }
+    reverse_proxy localhost:3000 
 }
